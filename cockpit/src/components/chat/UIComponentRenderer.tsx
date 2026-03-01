@@ -10,9 +10,9 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Download, Image, Video, FileText, BarChart3, TrendingUp, ExternalLink, AlertCircle, XCircle, Target, DollarSign, Activity, PlayCircle, Clock, CheckCircle, Shield } from 'lucide-react';
+import { Download, Image, Video, FileText, BarChart3, TrendingUp, ExternalLink, AlertCircle, XCircle, Target, DollarSign, Activity, PlayCircle, Clock, CheckCircle, Shield, Monitor, Smartphone, Tablet, Award, Gauge, Check, X, Globe, Code, Eye, Share2 } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
-import type { UIComponent } from '../../types';
+import type { UIComponent, WebScreenshotData, CompetitorAnalysisData, LandingPageAuditData, PixelVerificationData } from '../../types';
 import { approveRequest, rejectRequest } from '../../services/approvals';
 import { useHiveStore } from '../../store/useHiveStore';
 
@@ -127,6 +127,14 @@ function RenderComponent({ component }: { component: UIComponent }) {
       return <DependenciesBlockedComponent data={data} />;
     case 'APPROVAL_REQUEST':
       return <ApprovalRequestComponent data={data} />;
+    case 'WEB_SCREENSHOT':
+      return <WebScreenshotComponent data={data} />;
+    case 'COMPETITOR_REPORT':
+      return <CompetitorReportComponent data={data} />;
+    case 'LANDING_PAGE_AUDIT':
+      return <LandingPageAuditComponent data={data} />;
+    case 'PIXEL_VERIFICATION':
+      return <PixelVerificationComponent data={data} />;
     default:
       return <GenericComponent component={component} />;
   }
@@ -1441,6 +1449,376 @@ function ApprovalRequestComponent({ data }: { data: ComponentData }) {
             <span className="font-semibold">Rejeté - Aucune action exécutée</span>
           </div>
         )}
+      </div>
+    </motion.div>
+  );
+}
+
+// ============================================
+// Web Intelligence Components (Phase V5 - 2026-03-01)
+// ============================================
+
+// Web Screenshot Component
+function WebScreenshotComponent({ data }: { data: ComponentData }) {
+  const screenshot = data as unknown as WebScreenshotData;
+
+  const deviceIcons = {
+    desktop: Monitor,
+    mobile: Smartphone,
+    tablet: Tablet,
+  };
+
+  const DeviceIcon = deviceIcons[screenshot.device] || Monitor;
+
+  const handleDownload = async () => {
+    try {
+      const response = await fetch(screenshot.imageUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `screenshot-${screenshot.device}-${Date.now()}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch {
+      window.open(screenshot.imageUrl, '_blank');
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="rounded-xl overflow-hidden border border-violet-100 bg-gradient-to-br from-violet-50 to-white"
+    >
+      <div className="relative group">
+        <img
+          src={screenshot.imageUrl}
+          alt={`Screenshot - ${screenshot.device}`}
+          className="w-full max-h-[500px] object-contain bg-slate-50"
+        />
+        <div className="absolute top-3 left-3">
+          <div className="px-3 py-1.5 bg-white/90 backdrop-blur-sm rounded-lg flex items-center gap-2 shadow-sm">
+            <DeviceIcon className="w-4 h-4 text-violet-600" />
+            <span className="text-xs font-medium text-slate-700 capitalize">{screenshot.device}</span>
+            <span className="text-xs text-slate-400">{screenshot.width}×{screenshot.height}</span>
+          </div>
+        </div>
+        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+          <button
+            onClick={handleDownload}
+            className="px-4 py-2 bg-white rounded-lg font-medium text-slate-800 flex items-center gap-2 hover:bg-slate-100 transition-colors"
+          >
+            <Download className="w-4 h-4" />
+            Download
+          </button>
+          <button
+            onClick={() => window.open(screenshot.url, '_blank')}
+            className="px-4 py-2 bg-white rounded-lg font-medium text-slate-800 flex items-center gap-2 hover:bg-slate-100 transition-colors"
+          >
+            <ExternalLink className="w-4 h-4" />
+            Open Page
+          </button>
+        </div>
+      </div>
+      <div className="p-3 border-t border-violet-100">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-xs text-slate-500">
+            <Eye className="w-3.5 h-3.5 text-violet-500" />
+            <span>Screenshot - {new URL(screenshot.url).hostname}</span>
+          </div>
+          <button
+            onClick={handleDownload}
+            className="px-3 py-1.5 bg-violet-500 text-white text-xs rounded-lg font-medium flex items-center gap-1.5 hover:bg-violet-600 transition-colors"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Download
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// Competitor Report Component
+function CompetitorReportComponent({ data }: { data: ComponentData }) {
+  const report = data as unknown as CompetitorAnalysisData;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="rounded-xl border border-cyan-100 bg-gradient-to-br from-cyan-50 to-white p-4"
+    >
+      <div className="flex items-center gap-2 mb-4">
+        <Globe className="w-5 h-5 text-cyan-600" />
+        <h3 className="font-semibold text-slate-800">Competitor Analysis</h3>
+        <span className="ml-auto text-xs text-slate-400">
+          {new URL(report.url).hostname}
+        </span>
+      </div>
+
+      {/* Tech Stack */}
+      <div className="mb-4">
+        <h4 className="text-sm font-medium text-slate-700 mb-2 flex items-center gap-2">
+          <Code className="w-4 h-4" /> Tech Stack
+        </h4>
+        <div className="flex flex-wrap gap-2">
+          {report.techStack.cms && (
+            <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-md font-medium">
+              {report.techStack.cms}
+            </span>
+          )}
+          {report.techStack.frameworks.map((fw, i) => (
+            <span key={i} className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-md">
+              {fw}
+            </span>
+          ))}
+          {report.techStack.cdn && (
+            <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-md">
+              CDN: {report.techStack.cdn}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* SEO Info */}
+      <div className="mb-4 p-3 bg-white rounded-lg border border-slate-100">
+        <h4 className="text-sm font-medium text-slate-700 mb-2">SEO Structure</h4>
+        <div className="text-xs text-slate-600 space-y-1">
+          <p><strong>Title:</strong> {report.seo.title}</p>
+          {report.seo.metaDescription && (
+            <p className="line-clamp-2"><strong>Meta:</strong> {report.seo.metaDescription}</p>
+          )}
+          <p>
+            <strong>Headings:</strong> H1×{report.seo.headingStructure.h1Count}
+            {' '}H2×{report.seo.headingStructure.h2Count}
+            {' '}H3×{report.seo.headingStructure.h3Count}
+          </p>
+        </div>
+      </div>
+
+      {/* Tracking Pixels */}
+      <div className="mb-4">
+        <h4 className="text-sm font-medium text-slate-700 mb-2">Tracking Pixels</h4>
+        <div className="flex flex-wrap gap-2">
+          {report.trackingPixels.googleAnalytics && report.trackingPixels.googleAnalytics.length > 0 && (
+            <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded-md">
+              GA4: {report.trackingPixels.googleAnalytics.join(', ')}
+            </span>
+          )}
+          {report.trackingPixels.metaPixel && report.trackingPixels.metaPixel.length > 0 && (
+            <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-md">
+              Meta Pixel: {report.trackingPixels.metaPixel.join(', ')}
+            </span>
+          )}
+          {report.trackingPixels.googleTagManager && report.trackingPixels.googleTagManager.length > 0 && (
+            <span className="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded-md">
+              GTM: {report.trackingPixels.googleTagManager.join(', ')}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Performance */}
+      <div className="flex items-center justify-between text-xs text-slate-500 pt-3 border-t border-slate-100">
+        <span>Load time: {report.performance.loadTime}ms | Resources: {report.performance.resourceCount}</span>
+        <button
+          onClick={() => window.open(report.url, '_blank')}
+          className="px-2 py-1 bg-cyan-500 text-white rounded-md hover:bg-cyan-600 transition-colors flex items-center gap-1"
+        >
+          <ExternalLink className="w-3 h-3" />
+          Visit
+        </button>
+      </div>
+    </motion.div>
+  );
+}
+
+// Landing Page Audit Component
+function LandingPageAuditComponent({ data }: { data: ComponentData }) {
+  const audit = data as unknown as LandingPageAuditData;
+
+  // Score color
+  const getScoreColor = (score: number) => {
+    if (score >= 80) return 'text-green-600 bg-green-100 border-green-200';
+    if (score >= 60) return 'text-yellow-600 bg-yellow-100 border-yellow-200';
+    return 'text-red-600 bg-red-100 border-red-200';
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="rounded-xl border border-amber-100 bg-gradient-to-br from-amber-50 to-white p-4"
+    >
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Award className="w-5 h-5 text-amber-600" />
+          <h3 className="font-semibold text-slate-800">Landing Page Audit</h3>
+        </div>
+        <div className={`px-4 py-2 rounded-lg border-2 font-bold text-2xl ${getScoreColor(audit.score)}`}>
+          {audit.score}
+        </div>
+      </div>
+
+      {/* Checks Grid */}
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <CheckItem label="CTA Above Fold" pass={audit.checks.ctaAboveFold.pass} />
+        <CheckItem label="Form Present" pass={audit.checks.hasForm.pass} />
+        <CheckItem label="Mobile Responsive" pass={audit.checks.mobileResponsive.pass} />
+        <CheckItem label="HTTPS Enabled" pass={audit.checks.hasSSL.pass} />
+        <CheckItem
+          label={`Load Time (${audit.checks.loadTime.value}ms)`}
+          pass={audit.checks.loadTime.pass}
+        />
+        <CheckItem
+          label={`Trust Signals (${audit.checks.hasTrustSignals.signals.length})`}
+          pass={audit.checks.hasTrustSignals.pass}
+        />
+      </div>
+
+      {/* Screenshot */}
+      {audit.screenshot && (
+        <div className="mb-4 rounded-lg overflow-hidden border border-amber-200">
+          <img src={audit.screenshot} alt="Landing page screenshot" className="w-full max-h-64 object-cover" />
+        </div>
+      )}
+
+      {/* Recommendations */}
+      {audit.recommendations.length > 0 && (
+        <div className="p-3 bg-white rounded-lg border border-slate-100">
+          <h4 className="text-sm font-medium text-slate-700 mb-2">Recommendations</h4>
+          <ul className="space-y-1">
+            {audit.recommendations.map((rec, i) => (
+              <li key={i} className="text-xs text-slate-600 flex items-start gap-2">
+                <span className="text-amber-500 mt-0.5">•</span>
+                <span>{rec}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between text-xs text-slate-400 mt-3 pt-3 border-t border-slate-100">
+        <span>{new URL(audit.url).hostname}</span>
+        <button
+          onClick={() => window.open(audit.url, '_blank')}
+          className="px-2 py-1 bg-amber-500 text-white rounded-md hover:bg-amber-600 transition-colors flex items-center gap-1"
+        >
+          <ExternalLink className="w-3 h-3" />
+          Visit
+        </button>
+      </div>
+    </motion.div>
+  );
+}
+
+// Helper component for checks
+function CheckItem({ label, pass }: { label: string; pass: boolean }) {
+  return (
+    <div className="flex items-center gap-2 p-2 bg-white rounded-lg border border-slate-100">
+      {pass ? (
+        <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
+      ) : (
+        <X className="w-4 h-4 text-red-600 flex-shrink-0" />
+      )}
+      <span className="text-xs text-slate-700">{label}</span>
+    </div>
+  );
+}
+
+// Pixel Verification Component
+function PixelVerificationComponent({ data }: { data: ComponentData }) {
+  const verification = data as unknown as PixelVerificationData;
+
+  const pixelList = [
+    { key: 'googleAnalytics4', label: 'Google Analytics 4', color: 'yellow' },
+    { key: 'googleTagManager', label: 'Google Tag Manager', color: 'orange' },
+    { key: 'metaPixel', label: 'Meta Pixel', color: 'blue' },
+    { key: 'googleAds', label: 'Google Ads', color: 'green' },
+    { key: 'tiktokPixel', label: 'TikTok Pixel', color: 'pink' },
+    { key: 'linkedinInsight', label: 'LinkedIn Insight', color: 'indigo' },
+  ];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="rounded-xl border border-cyan-100 bg-gradient-to-br from-cyan-50 to-white p-4"
+    >
+      <div className="flex items-center gap-2 mb-4">
+        <Activity className="w-5 h-5 text-cyan-600" />
+        <h3 className="font-semibold text-slate-800">Pixel Verification</h3>
+        <span className="ml-auto text-xs text-slate-400">
+          {new URL(verification.url).hostname}
+        </span>
+      </div>
+
+      {/* Pixels Grid */}
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        {pixelList.map(({ key, label, color }) => {
+          const pixel = verification.pixels[key as keyof typeof verification.pixels];
+          return (
+            <div
+              key={key}
+              className={`p-3 bg-white rounded-lg border-2 ${
+                pixel.detected ? `border-${color}-200` : 'border-slate-100'
+              }`}
+            >
+              <div className="flex items-center gap-2 mb-1">
+                {pixel.detected ? (
+                  <CheckCircle className={`w-4 h-4 text-${color}-600`} />
+                ) : (
+                  <XCircle className="w-4 h-4 text-slate-300" />
+                )}
+                <span className="text-xs font-medium text-slate-700">{label}</span>
+              </div>
+              {pixel.detected && pixel.ids.length > 0 && (
+                <div className="mt-1">
+                  {pixel.ids.map((id, i) => (
+                    <span key={i} className={`text-[10px] text-${color}-600 font-mono bg-${color}-50 px-1 py-0.5 rounded`}>
+                      {id}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {!pixel.detected && (
+                <span className="text-[10px] text-slate-400">Not detected</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Screenshot */}
+      {verification.screenshot && (
+        <div className="mb-4 rounded-lg overflow-hidden border border-cyan-200">
+          <img src={verification.screenshot} alt="Page screenshot" className="w-full max-h-48 object-cover" />
+        </div>
+      )}
+
+      {/* Network Requests Summary */}
+      {verification.networkRequests.length > 0 && (
+        <div className="p-3 bg-white rounded-lg border border-slate-100">
+          <h4 className="text-sm font-medium text-slate-700 mb-2">Network Activity</h4>
+          <p className="text-xs text-slate-600">
+            {verification.networkRequests.length} tracking requests detected
+          </p>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between text-xs text-slate-400 mt-3 pt-3 border-t border-slate-100">
+        <span>Verified at {new Date(verification.verifiedAt).toLocaleString()}</span>
+        <button
+          onClick={() => window.open(verification.url, '_blank')}
+          className="px-2 py-1 bg-cyan-500 text-white rounded-md hover:bg-cyan-600 transition-colors flex items-center gap-1"
+        >
+          <ExternalLink className="w-3 h-3" />
+          Visit
+        </button>
       </div>
     </motion.div>
   );

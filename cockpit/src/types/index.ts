@@ -301,7 +301,12 @@ export type UIComponentType =
   | 'ACTION_BUTTONS'      // Menu de choix
   | 'KPI_CARD'            // Carte KPI simple
   | 'ERROR'               // Erreur
-  | 'LOADING';            // Chargement
+  | 'LOADING'             // Chargement
+  // Web Intelligence (Phase V5 - 2026-03-01)
+  | 'WEB_SCREENSHOT'      // Screenshot multi-device avec download/preview
+  | 'COMPETITOR_REPORT'   // Analyse concurrentielle (tech stack, SEO, pixels)
+  | 'LANDING_PAGE_AUDIT'  // Audit landing page avec score et recommandations
+  | 'PIXEL_VERIFICATION'; // Vérification pixels tracking
 
 export interface UIComponent {
   type: UIComponentType | string;
@@ -317,6 +322,99 @@ export interface DeckWidget {
   pinned: boolean;
   createdAt: Date;
   sourceMessageId?: string;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Web Intelligence Types (Phase V5 - 2026-03-01)
+// ─────────────────────────────────────────────────────────────────
+
+export interface WebScreenshotData {
+  url: string;
+  device: 'desktop' | 'mobile' | 'tablet';
+  imageUrl: string; // Base64 or Cloudinary URL
+  cloudinaryUrl?: string;
+  width: number;
+  height: number;
+  capturedAt: string;
+}
+
+export interface CompetitorAnalysisData {
+  url: string;
+  techStack: {
+    cms?: string;
+    frameworks: string[];
+    analytics: string[];
+    advertising: string[];
+    cdn?: string;
+    hosting?: string;
+  };
+  seo: {
+    title: string;
+    metaDescription?: string;
+    ogTags: Record<string, string>;
+    twitterCards: Record<string, string>;
+    headingStructure: {
+      h1Count: number;
+      h2Count: number;
+      h3Count: number;
+    };
+    canonicalUrl?: string;
+    robots?: string;
+  };
+  socialLinks: {
+    facebook?: string;
+    twitter?: string;
+    instagram?: string;
+    linkedin?: string;
+    youtube?: string;
+  };
+  trackingPixels: {
+    googleAnalytics?: string[];
+    googleTagManager?: string[];
+    metaPixel?: string[];
+    linkedinInsight?: string[];
+    tiktokPixel?: string[];
+  };
+  performance: {
+    loadTime: number;
+    resourceCount: number;
+  };
+  analyzedAt: string;
+}
+
+export interface LandingPageAuditData {
+  url: string;
+  score: number; // 0-100
+  checks: {
+    ctaAboveFold: { pass: boolean; message: string };
+    hasForm: { pass: boolean; message: string };
+    mobileResponsive: { pass: boolean; message: string };
+    loadTime: { pass: boolean; value: number; threshold: number };
+    hasSSL: { pass: boolean; message: string };
+    hasTrustSignals: { pass: boolean; signals: string[] };
+  };
+  screenshot?: string;
+  recommendations: string[];
+  auditedAt: string;
+}
+
+export interface PixelVerificationData {
+  url: string;
+  pixels: {
+    googleAnalytics4: { detected: boolean; ids: string[] };
+    googleTagManager: { detected: boolean; ids: string[] };
+    metaPixel: { detected: boolean; ids: string[] };
+    googleAds: { detected: boolean; ids: string[] };
+    tiktokPixel: { detected: boolean; ids: string[] };
+    linkedinInsight: { detected: boolean; ids: string[] };
+  };
+  screenshot?: string;
+  networkRequests: Array<{
+    url: string;
+    type: string;
+    matched: string;
+  }>;
+  verifiedAt: string;
 }
 
 // ─────────────────────────────────────────────────────────────────
