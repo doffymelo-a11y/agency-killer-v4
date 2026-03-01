@@ -1,7 +1,7 @@
 # "The Monday Killer" — ERP Marketing Autonome propulsé par l'IA
 
-**Version :** 4.4
-**Dernière mise à jour :** 2026-02-10
+**Version :** 5.0
+**Dernière mise à jour :** 2026-03-01
 **Destinataire :** Claude Code (Terminal CLI)
 **Rôle :** Ce document est ton UNIQUE guide. Chaque tâche, chaque décision architecturale, chaque ligne de code doit s'y référer.
 
@@ -820,6 +820,151 @@ Après CHAQUE tâche d'implémentation, exécuter :
 | 6.4 | Test intégration mémoire end-to-end | Tous |
 
 **Vérification :** Mémoire écrite après chaque interaction ✅ | Recommandations propagées ✅ | Protocole sécurité ✅
+
+---
+
+### Phase V5 — Web Intelligence + Backend Migration 🌐🔄
+
+**Date de planification :** 2026-03-01
+**Référence complète :** `/CLAUDE.md` et `/Roadmap:vision/PLAN_V5_WEB_INTELLIGENCE_BACKEND.md`
+**Durée estimée :** 6 semaines (2 chantiers en série)
+
+**Contexte stratégique :**
+
+Hive OS V4 a 13 MCP servers et 63 fonctions API, mais **ZÉRO capacité de web browsing/crawling**. C'est un angle mort critique pour un "Agency Killer" marketing. De plus, l'analyse objective révèle que **n8n ne tiendra PAS pour 100 clients SaaS** (benchmarks: plafonne à ~100 users en single mode, queue mode saturé par les appels IA de 30-120s).
+
+**Décisions prises :**
+
+1. **Web Intelligence** : Créer un MCP server custom "web-intelligence" inspiré des patterns techniques d'OpenClaw (MIT-licensed), mais spécialisé pour le marketing digital
+2. **Backend Migration** : Porter les workflows n8n vers TypeScript pour architecture production-ready multi-tenant
+
+---
+
+#### Chantier 1 — Web Intelligence MCP Server (Semaines 1-2)
+
+**Objectif :** Donner aux 4 agents la capacité de naviguer, analyser et auditer le web.
+
+| Phase | Tâches | Livrable |
+|-------|--------|----------|
+| **1.1** (Jours 1-3) | Skeleton + 5 outils Cheerio/Axios | `web-scrape`, `web-extract-text`, `competitor-analysis`, `social-meta-check`, `link-checker` |
+| **1.2** (Jours 4-6) | 3 outils Playwright + browser pool | `web-screenshot`, `landing-page-audit`, `ad-verification` + `browser-pool.ts` + `dom-snapshot.ts` |
+| **1.3** (Jours 7-8) | Frontend UI components | 4 nouveaux types UI : `WEB_SCREENSHOT`, `COMPETITOR_REPORT`, `LANDING_PAGE_AUDIT`, `PIXEL_VERIFICATION` |
+| **1.4** (Jours 9-10) | Intégration n8n temporaire | System prompts Orchestrator pour router intents web intelligence |
+
+**Architecture :**
+
+```
+/mcp-servers/web-intelligence-server/
+  src/
+    index.ts                    # MCP server entry (8 tools)
+    tools/
+      web-scrape.ts             # Cheerio — extraction HTML structurée ✅
+      web-extract-text.ts       # Readability — texte article propre ✅
+      competitor-analysis.ts    # Tech stack, SEO, pixels ✅
+      social-meta-check.ts      # Open Graph + Twitter Cards ✅
+      link-checker.ts           # Vérif 100 liens parallèle ✅
+      web-screenshot.ts         # Playwright — screenshot multi-device 🚧
+      landing-page-audit.ts     # Audit CTA, forms, mobile, perf 🚧
+      ad-verification.ts        # Network interception pixels 🚧
+    lib/
+      browser-pool.ts           # Pool Playwright (max 3 browsers) 🚧
+      dom-snapshot.ts           # Accessibility tree + ref labels 🚧
+      url-validator.ts          # SSRF protection ✅
+      sanitizer.ts              # HTML/PII cleaning ✅
+      cloudinary.ts             # Upload screenshots CDN 🚧
+```
+
+**Sécurité :**
+- SSRF protection : blocage IPs privées (10.x, 172.16-31.x, 192.168.x, 127.x)
+- Domaines bloqués : .gov, .mil, .onion, localhost
+- Sanitization : suppression scripts, PII, truncation 50KB/100KB
+- Browser pool : timeout 30s, memory limit 512MB, idle 5min
+
+**Status Phase 1.1 :** ✅ COMPLÉTÉ (5 outils Cheerio/Axios créés, buildés, enregistrés dans MCP Bridge)
+
+---
+
+#### Chantier 2 — Backend TypeScript Migration (Semaines 3-6)
+
+**Objectif :** Remplacer n8n par un backend TypeScript scalable pour 100+ clients.
+
+| Phase | Tâches | Livrable |
+|-------|--------|----------|
+| **2.1** (Jours 11-15) | API Gateway Express/Fastify | Auth middleware, rate limiting, validation Zod, routes (`/api/chat`, `/api/genesis`, `/api/analytics`) |
+| **2.2** (Jours 16-18) | Porter PM + Orchestrator | Routing logic, context-builder, memory-injector en TypeScript |
+| **2.3** (Jours 19-25) | Porter les 4 agents | Luna → Sora → Marcus → Milo (system prompts + MCP calls) |
+| **2.4** (Jours 26-28) | Connecter frontend | Changer `PM_WEBHOOK_URL` → `BACKEND_API_URL`, même payloads |
+| **2.5** (Jours 29-30) | Tests + cutover | Load test 10 req simultanées, couper n8n |
+
+**Architecture cible :**
+
+```
+/backend/
+  src/
+    index.ts                # Express/Fastify entry
+    routes/
+      chat.routes.ts        # POST /api/chat (remplace PM webhook)
+      genesis.routes.ts
+      analytics.routes.ts
+    middleware/
+      auth.middleware.ts           # Vérif token Supabase
+      rate-limit.middleware.ts     # Par user_id + tier
+      validation.middleware.ts     # Zod schemas
+    services/
+      supabase.service.ts   # Client DB typé
+      mcp-bridge.service.ts # Wrapper HTTP MCP calls
+      memory.service.ts     # R/W project_memory
+      claude.service.ts     # Anthropic SDK
+    agents/
+      orchestrator.ts       # Routing intent → agent
+      luna.agent.ts
+      sora.agent.ts
+      marcus.agent.ts
+      milo.agent.ts
+    shared/
+      context-builder.ts
+      response-parser.ts
+      memory-injector.ts
+      write-back.processor.ts
+```
+
+**Ce qui NE change PAS :**
+- Les 14 MCP servers (restent identiques, communiquent via Bridge HTTP)
+- Le MCP Bridge Express.js (reste identique)
+- Supabase (DB + Auth + Realtime)
+- Le frontend React (change juste l'URL d'API)
+
+**Avantages migration :**
+
+| Aspect | n8n | Backend TypeScript |
+|--------|-----|-------------------|
+| Capacité | ~20 clients (queue mode) | 100+ clients (scalable) |
+| Multi-tenancy | Aucun | Natif (isolation par user_id) |
+| Debugging | Cauchemar (20 workflows JSON) | Logs structurés + tracing |
+| Tests | Impossibles | Jest + intégration + e2e |
+| Latence P95 | 12s à 200 users | < 2s avec caching |
+
+**Vérification Chantier 1 :**
+- `curl http://localhost:3456/api/web-intelligence/tools` → 8 outils listés ✅ (5/8)
+- Scraping < 5s ✅ | Screenshots < 10s 🚧 | Audit < 15s 🚧
+- URL validator rejette IPs privées ✅
+- UI components s'affichent dans le chat 🚧
+
+**Vérification Chantier 2 :**
+- `POST /api/chat` avec message Luna → réponse identique à n8n
+- 4 agents fonctionnent via backend TS
+- Write-back commands s'exécutent
+- Auth Supabase bloque requêtes non-auth
+- Rate limiting fonctionne
+- `npx tsc --noEmit` → 0 erreur
+- Load test : 10 req simultanées sans échec
+
+**Impact business :**
+- **Semaine 2 :** Demo "wow" possible — auditer site prospect en live pendant call commercial
+- **Semaine 6 :** Architecture production-ready pour 100 clients SaaS
+- **Différenciateur unique :** Seul outil combinant browsing IA + 4 agents marketing + mémoire collective
+
+**Référence complète :** Voir `/CLAUDE.md` pour timeline détaillée, fichiers critiques, et spécifications techniques complètes.
 
 ---
 
