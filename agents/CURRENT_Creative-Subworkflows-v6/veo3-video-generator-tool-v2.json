@@ -1,0 +1,209 @@
+{
+  "name": "Veo-3 Video Generator Tool V2",
+  "description": "Version 2 - Migration de file.io vers Catbox.moe pour l'upload video",
+  "version": "2.0.0",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "execute-trigger",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// BUILD REQUEST - Prepare prompt for Gemini Veo-3\n// ============================================================================\n\nconst input = $input.first().json;\n\n// Extract prompt from various possible input fields\nconst promptText = input.prompt_text || input.prompt || input.query || input.description || 'A beautiful cinematic video';\n\n// Clean the prompt - remove any problematic characters\nconst cleanPrompt = promptText\n  .replace(/[\\n\\r]+/g, ' ')\n  .replace(/\\s+/g, ' ')\n  .trim()\n  .substring(0, 1000); // Limit prompt length\n\n// Optional parameters\nconst duration = input.duration || 5;\nconst hasImage = !!(input.image_base64 || input.image_url);\n\nreturn [{\n  json: {\n    clean_prompt: cleanPrompt,\n    original_prompt: promptText,\n    duration: duration,\n    has_image: hasImage,\n    promptImage: input.image_base64 || input.image_url || null,\n    promptText: cleanPrompt\n  }\n}];"
+      },
+      "id": "build-request",
+      "name": "Build Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [320, 300]
+    },
+    {
+      "parameters": {
+        "resource": "video",
+        "operation": "generate",
+        "model": "models/veo-3.0-fast-generate-001",
+        "prompt": "={{ $json.clean_prompt }}",
+        "returnAs": "video",
+        "options": {}
+      },
+      "id": "gemini-generate-video",
+      "name": "Generate a video",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.5,
+      "position": [540, 300],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "google-gemini-credentials",
+          "name": "Google Gemini (PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://catbox.moe/user/api.php",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formData",
+              "name": "reqtype",
+              "value": "fileupload"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "fileToUpload",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 180000,
+          "response": {
+            "response": {
+              "fullResponse": false,
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "id": "upload-to-catbox",
+      "name": "Upload Video to Catbox",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [760, 300],
+      "notesInFlow": true,
+      "notes": "V2: Catbox.moe remplace file.io - Retourne URL directement en texte"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// EXTRACT VIDEO URL FROM CATBOX RESPONSE (V2)\n// ============================================================================\n// Catbox retourne directement l'URL en plain text:\n// https://files.catbox.moe/abc123.mp4\n// ============================================================================\n\nconst response = $input.first();\nconst buildData = $('Build Request').item.json;\n\n// Catbox retourne l'URL directement en texte brut\nlet videoUrl = null;\n\n// Le response peut etre dans .json (si parse) ou .data (si texte brut)\nif (response.json && typeof response.json === 'string') {\n  videoUrl = response.json.trim();\n} else if (response.data && typeof response.data === 'string') {\n  videoUrl = response.data.trim();\n} else if (typeof response.json === 'object' && response.json.data) {\n  videoUrl = response.json.data.trim();\n}\n\n// Validation de l'URL Catbox\nif (!videoUrl || !videoUrl.startsWith('https://files.catbox.moe/')) {\n  console.error('Catbox response:', JSON.stringify(response));\n  throw new Error('Video upload to Catbox failed. Response: ' + JSON.stringify(response));\n}\n\nreturn [{\n  json: {\n    success: true,\n    video_url: videoUrl,\n    provider: 'catbox',\n    script: buildData.original_prompt,\n    clean_prompt: buildData.clean_prompt,\n    mime_type: 'video/mp4'\n  }\n}];"
+      },
+      "id": "extract-url",
+      "name": "Extract Video URL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [980, 300],
+      "notesInFlow": true,
+      "notes": "V2: Parse Catbox plain text response"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// SUCCESS OUTPUT - Format final response for Creative V6\n// ============================================================================\n\nconst videoData = $input.first().json;\n\nreturn [{\n  json: {\n    success: true,\n    tool: 'veo3_video_generator',\n    video: {\n      url: videoData.video_url,\n      script: videoData.script,\n      prompt_used: videoData.clean_prompt,\n      provider: videoData.provider || 'catbox',\n      mime_type: videoData.mime_type,\n      downloadable: true\n    },\n    // Pour le frontend - UI Component\n    ui_component: 'AD_PREVIEW',\n    ui_data: {\n      video_url: videoData.video_url,\n      script: videoData.script,\n      title: 'Video generee par Veo-3',\n      downloadable: true\n    },\n    // Format Creative V6\n    video_url: videoData.video_url,\n    prompt_used: videoData.clean_prompt,\n    generated_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "success-output",
+      "name": "Success Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// ERROR HANDLER - Format error response\n// ============================================================================\n\nconst error = $input.first().json;\n\nreturn [{\n  json: {\n    success: false,\n    tool: 'veo3_video_generator',\n    error: {\n      message: error.message || 'Video generation failed',\n      details: JSON.stringify(error)\n    },\n    video: null,\n    generated_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "error-handler",
+      "name": "Error Handler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 500]
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Build Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Request": {
+      "main": [
+        [
+          {
+            "node": "Generate a video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate a video": {
+      "main": [
+        [
+          {
+            "node": "Upload Video to Catbox",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Video to Catbox": {
+      "main": [
+        [
+          {
+            "node": "Extract Video URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Video URL": {
+      "main": [
+        [
+          {
+            "node": "Success Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "creative-v6",
+      "id": "tag-creative-v6"
+    },
+    {
+      "name": "tool",
+      "id": "tag-tool"
+    },
+    {
+      "name": "video-generation",
+      "id": "tag-video"
+    },
+    {
+      "name": "veo3",
+      "id": "tag-veo3"
+    },
+    {
+      "name": "catbox",
+      "id": "tag-catbox"
+    }
+  ],
+  "pinData": {},
+  "versionId": "2.0.0",
+  "meta": {
+    "instanceId": "agency-killer-vps",
+    "templateCredsSetupCompleted": true
+  },
+  "instructions": {
+    "migration": "## Migration de file.io vers Catbox.moe\n\n### Pourquoi ce changement?\nfile.io retournait du HTML/données énormes au lieu de JSON, causant l'échec de l'upload vidéo.\n\n### Changements effectués:\n\n#### 1. Nœud 'Upload Video to Catbox' (remplace 'Upload Video to file.io')\n```\nURL: https://catbox.moe/user/api.php\nMethod: POST\nBody Content Type: Form-Data\nBody Parameters:\n  - reqtype: fileupload (Form Data)\n  - fileToUpload: [Binary] Input Data Field Name: data\nOptions:\n  - Timeout: 180000 (3 minutes pour les grosses vidéos)\n  - Response Format: text (Catbox retourne l'URL en plain text)\n```\n\n#### 2. Nœud 'Extract Video URL' (mis à jour)\nCatbox retourne directement l'URL en texte brut:\n`https://files.catbox.moe/abc123.mp4`\n\nPas besoin de parser du JSON!\n\n### Pour appliquer dans n8n:\n\n1. Ouvre le workflow 'Veo-3 Video Generator Tool'\n2. Supprime le nœud 'Upload Video to file.io'\n3. Crée un nouveau nœud HTTP Request avec les paramètres ci-dessus\n4. Mets à jour le code du nœud 'Extract Video URL' avec la version V2\n5. Reconnecte: Generate a video → Upload Video to Catbox → Extract Video URL\n\n### Avantages de Catbox:\n- Gratuit et sans limite de taille\n- Pas de compte requis\n- URLs permanentes (pas d'expiration)\n- Retourne directement l'URL (pas de JSON complexe)"
+  }
+}

@@ -1,0 +1,259 @@
+{
+  "name": "FINALE SORA MCP - THE HIVE OS V4",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sora-v4-finale",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-entry",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [100, 400],
+      "webhookId": "sora-v4-finale-entry"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ═══════════════════════════════════════════════════════════════════════════\n// LOAD CONTEXT FROM SUPABASE - THE HIVE OS V4\n// Charge: project, task, agents, project_memory, task_dependencies\n// ═══════════════════════════════════════════════════════════════════════════\n\nconst axios = require('axios');\n\nconst SUPABASE_URL = 'https://vngkmmrglfajyccpbukh.supabase.co';\nconst SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZuZ2ttbXJnbGZhanlj Y3BidWtoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQwMDc4NTMsImV4cCI6MjA0OTU4Mzg1M30.8RqLVy3H3zKqmPJX3g9xME8F8v_OxZoN7GvJ9z8q6oE';\n\nconst webhookData = $input.item.json.body || $input.item.json;\nconst projectId = webhookData.project_id;\nconst taskId = webhookData.task_id;\nconst userQuery = webhookData.query || webhookData.message || '';\n\nif (!projectId || !taskId) {\n  throw new Error('Missing required fields: project_id and task_id');\n}\n\n// ─────────────────────────────────────────────────────────────────────────\n// 1. Load Project\n// ─────────────────────────────────────────────────────────────────────────\nconst projectResponse = await axios.get(\n  `${SUPABASE_URL}/rest/v1/projects?id=eq.${projectId}&select=*`,\n  { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } }\n);\nconst project = projectResponse.data[0];\n\n// ─────────────────────────────────────────────────────────────────────────\n// 2. Load Task\n// ─────────────────────────────────────────────────────────────────────────\nconst taskResponse = await axios.get(\n  `${SUPABASE_URL}/rest/v1/tasks?id=eq.${taskId}&select=*`,\n  { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } }\n);\nconst task = taskResponse.data[0];\n\n// ─────────────────────────────────────────────────────────────────────────\n// 3. Load Project Memory\n// ─────────────────────────────────────────────────────────────────────────\nconst memoryContext = project.project_memory || {};\n\nreturn [{\n  json: {\n    project,\n    task,\n    memory_context: memoryContext,\n    user_query: userQuery,\n    agent: 'SORA',\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "load-context",
+      "name": "Load Context from Supabase",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [340, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ═══════════════════════════════════════════════════════════════════════════\n// CHECK TASK DEPENDENCIES - THE HIVE OS V4\n// Vérifie que toutes les dépendances de la tâche sont complètes\n// ═══════════════════════════════════════════════════════════════════════════\n\nconst axios = require('axios');\n\nconst SUPABASE_URL = 'https://vngkmmrglfajyccpbukh.supabase.co';\nconst SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZuZ2ttbXJnbGZhanlj Y3BidWtoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQwMDc4NTMsImV4cCI6MjA0OTU4Mzg1M30.8RqLVy3H3zKqmPJX3g9xME8F8v_OxZoN7GvJ9z8q6oE';\n\nconst context = $input.item.json;\nconst taskId = context.task.id;\n\n// Vérifier les dépendances via SQL function\nconst checkResponse = await axios.post(\n  `${SUPABASE_URL}/rest/v1/rpc/can_start_task`,\n  { p_task_id: taskId },\n  { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json' } }\n);\n\nconst canStart = Array.isArray(checkResponse.data) ? checkResponse.data[0] : checkResponse.data;\n\nif (!canStart.ready) {\n  // Récupérer les tâches bloquantes pour UI\n  const blockingResponse = await axios.post(\n    `${SUPABASE_URL}/rest/v1/rpc/get_blocking_tasks`,\n    { p_task_id: taskId },\n    { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json' } }\n  );\n\n  return [{\n    json: {\n      ...context,\n      dependencies_blocked: true,\n      error_message: canStart.error_message,\n      blocking_tasks: blockingResponse.data || [],\n      ui_component: {\n        type: 'DEPENDENCIES_BLOCKED',\n        data: {\n          error: canStart.error_message,\n          blocking_tasks: blockingResponse.data || [],\n          resolution: 'Complete the blocking tasks before starting this one.'\n        }\n      }\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    ...context,\n    dependencies_ok: true\n  }\n}];"
+      },
+      "id": "check-dependencies",
+      "name": "Check Task Dependencies",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [580, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ═══════════════════════════════════════════════════════════════════════════\n// PREPARE SORA CONTEXT + SYSTEM PROMPT\n// ═══════════════════════════════════════════════════════════════════════════\n\nconst context = $input.item.json;\n\n// Si erreurs précédentes, passer directement\nif (context.dependencies_blocked) {\n  return [{ json: context }];\n}\n\nconst SORA_SYSTEM_PROMPT = `Tu es SORA, l'Analyst de THE HIVE OS V4.\n\n## RÔLE\n\nTu es responsable de:\n- Analyser les performances des campagnes publicitaires (Meta Ads, Google Ads)\n- Créer des rapports de performance\n- Monitorer le Learning Phase (Meta Ads)\n- Analyser les search terms et keywords\n- Configurer Google Tag Manager pour le tracking\n- Créer des dashboards Looker Studio\n- Fournir des insights basés sur les données\n\n## RÈGLES ABSOLUES\n\n### 1. READ-ONLY MODE\n\nTu es en MODE LECTURE SEULE:\n- ❌ NE JAMAIS créer, lancer ou modifier des campagnes\n- ❌ NE JAMAIS changer les budgets ou statuts\n- ✅ SEULEMENT analyser et rapporter les données\n- ✅ SEULEMENT configurer le tracking (GTM, pixels)\n\n### 2. DATA-DRIVEN INSIGHTS\n\nTous tes insights doivent être basés sur:\n- Métriques réelles (ROAS, CPA, CTR, Quality Score)\n- Tendances historiques\n- Seuils de significativité statistique\n- Learning Phase status\n\n### 3. COLLABORATION AVEC MARCUS\n\nTu fournis à Marcus (Trader) des recommandations:\n- \"SCALE\" si ROAS > 5.0 et Learning Phase = GRADUATED\n- \"OPTIMIZE\" si 1.5 ≤ ROAS ≤ 5.0\n- \"CUT\" si ROAS < 1.5\n- Mais Marcus SEUL peut exécuter ces actions\n\n## TOOLS DISPONIBLES (28 FONCTIONS - READ)\n\n### 📊 Google Ads Manager (7 fonctions - READ)\n\n1. **get_accounts**\n   - Liste tous les comptes Google Ads accessibles\n   - Params: (none - uses credentials)\n   - Returns: customer_id, name, currency, timezone, status\n\n2. **get_campaigns**\n   - Récupère les campagnes avec métriques\n   - Params: customer_id, date_range (LAST_7_DAYS, LAST_30_DAYS, THIS_MONTH)\n   - Returns: campaigns[] avec spend, revenue, ROAS, conversions, CTR\n\n3. **get_search_terms**\n   - Analyse les search terms (requêtes utilisateurs)\n   - Params: customer_id, campaign_id, date_range\n   - Returns: search_terms[] avec impressions, clicks, conversions, match_type\n\n4. **get_keywords_quality_score**\n   - Récupère le Quality Score des keywords\n   - Params: customer_id, ad_group_id\n   - Returns: keywords[] avec quality_score (1-10), expected_ctr, ad_relevance\n\n5. **get_conversions**\n   - Analyse les conversions par type\n   - Params: customer_id\n   - Returns: conversion_actions[] avec conversions, value, cost_per_conversion\n\n6. **create_audience**\n   - Crée une audience remarketing\n   - Params: customer_id, audience_config (name, rules, membership_duration)\n   - ⚠️ SEULE fonction WRITE de SORA pour Google Ads\n\n7. **get_performance_report**\n   - Rapport de performance personnalisé\n   - Params: customer_id, metrics[], dimensions[], date_range\n   - Returns: data grid avec métriques croisées\n\n### 📱 Meta Ads Manager (7 fonctions - READ)\n\n8. **get_ad_accounts**\n   - Liste les comptes publicitaires Meta\n   - Params: user_id\n   - Returns: ad_accounts[] avec account_id, name, currency, balance\n\n9. **get_campaigns**\n   - Récupère les campagnes Meta avec insights\n   - Params: ad_account_id, date_range {since, until}\n   - Returns: campaigns[] avec spend, revenue, ROAS, results, frequency\n\n10. **get_insights**\n    - Insights détaillés avec breakdowns\n    - Params: object_id, object_type (campaign/adset/ad), metrics[], date_range, breakdown (age, gender, placement)\n    - Returns: insights[] avec métriques par segment\n\n11. **get_ad_sets**\n    - Récupère les ad sets d'une campagne\n    - Params: campaign_id, include_insights (boolean)\n    - Returns: ad_sets[] avec targeting, budget, optimization_goal\n\n12. **check_learning_phase**\n    - ⭐ Vérifie le statut du Learning Phase\n    - Params: ad_set_id\n    - Returns: learning_phase_status (ACTIVE, EXITED), progress, conversions_needed, warnings\n\n13. **get_pixel_events**\n    - Analyse les événements du pixel Meta\n    - Params: pixel_id, date_range\n    - Returns: events[] avec event_type, count, value\n\n14. **get_audience_overlap**\n    - Analyse le chevauchement d'audiences\n    - Params: ad_account_id, audience_ids[]\n    - Returns: overlap_matrix[][] avec pourcentages\n\n### 🏷️ GTM Manager (7 fonctions - SETUP)\n\n15. **list_containers**\n    - Liste les conteneurs GTM\n    - Params: account_id\n    - Returns: containers[] avec container_id, name, public_id\n\n16. **list_tags**\n    - Liste les tags dans un conteneur\n    - Params: container_id\n    - Returns: tags[] avec tag_id, name, type, firing_triggers\n\n17. **create_tag**\n    - Crée un nouveau tag (GA4, Meta Pixel, conversion)\n    - Params: container_id, tag_config {name, type, parameters, firing_triggers}\n    - ⚠️ WRITE function - Setup tracking\n\n18. **create_trigger**\n    - Crée un trigger (Page View, Click, Form Submit)\n    - Params: container_id, trigger_config {name, type, filters}\n\n19. **create_variable**\n    - Crée une variable GTM\n    - Params: container_id, variable_config {name, type, value}\n\n20. **publish_version**\n    - Publie une version du conteneur\n    - Params: container_id, version_name\n    - ⚠️ Change PRODUCTION tracking\n\n21. **preview_mode**\n    - Active le mode preview pour tester\n    - Params: container_id\n    - Returns: preview_url\n\n### 📈 Looker Manager (7 fonctions - REPORTING)\n\n22. **create_report**\n    - Crée un rapport Looker Studio\n    - Params: report_name, data_sources[] (GA4, Google Ads, Meta Ads, BigQuery)\n    - Returns: report_id, edit_url\n\n23. **add_scorecard**\n    - Ajoute une scorecard (KPI unique)\n    - Params: report_id, config {metric, comparison_type, date_range}\n\n24. **add_time_series_chart**\n    - Ajoute un graphique temporel\n    - Params: report_id, config {metrics[], dimensions, date_range, chart_type}\n\n25. **add_table**\n    - Ajoute un tableau de données\n    - Params: report_id, config {dimensions[], metrics[], filters, sort}\n\n26. **blend_data_sources**\n    - Fusionne plusieurs sources de données\n    - Params: report_id, blend_config {left_source, right_source, join_keys[]}\n\n27. **schedule_email**\n    - Programme l'envoi automatique du rapport\n    - Params: report_id, recipients[], frequency (DAILY, WEEKLY, MONTHLY)\n\n28. **get_report_url**\n    - Récupère l'URL du rapport\n    - Params: report_id\n    - Returns: view_url, edit_url\n\n## WRITE-BACK COMMANDS\n\nAprès chaque analyse, retourne des commandes pour mettre à jour le système:\n\n### MEMORY_WRITE\nContribue à la mémoire collective:\n\\`\\`\\`json\n{\n  \"type\": \"MEMORY_WRITE\",\n  \"memory_contribution\": {\n    \"action\": \"PERFORMANCE_ANALYZED\",\n    \"summary\": \"Analyse des campagnes Meta: 2 winners, 1 loser\",\n    \"key_findings\": [\"Campagne A: ROAS 6.2, ready to scale\", \"Campagne B: ROAS 0.8, cut immédiatement\"],\n    \"deliverables\": [{\"type\": \"report\", \"url\": \"https://lookerstudio.google.com/...\"}],\n    \"recommendations\": [\n      {\"for_agent\": \"marcus\", \"message\": \"Scale Campagne A de +20%\"},\n      {\"for_agent\": \"marcus\", \"message\": \"Cut Campagne B immédiatement\"}\n    ]\n  }\n}\n\\`\\`\\`\n\n### UPDATE_TASK_STATUS\nMet à jour le statut de la tâche:\n\\`\\`\\`json\n{\n  \"type\": \"UPDATE_TASK_STATUS\",\n  \"task_id\": \"{{ task.id }}\",\n  \"status\": \"in_progress\",\n  \"progress_percentage\": 75\n}\n\\`\\`\\`\n\n### UI_COMPONENT\nAffiche des composants UI dans le cockpit:\n\\`\\`\\`json\n{\n  \"type\": \"UI_COMPONENT\",\n  \"component\": \"PERFORMANCE_DASHBOARD\",\n  \"data\": {\n    \"campaigns\": [...],\n    \"insights\": [...],\n    \"recommendations\": [...]\n  }\n}\n\\`\\`\\`\n\n## CONTEXT DISPONIBLE\n\n- **Project:** {{ project }}\n- **Task:** {{ task }}\n- **Memory:** {{ memory_context }}\n- **User Query:** {{ user_query }}\n\n## FORMAT DE RÉPONSE\n\nTu DOIS toujours répondre avec:\n1. Une analyse des données collectées\n2. Des insights clés (3-5 bullet points)\n3. Des recommandations actionables pour Marcus/Luna/Milo\n4. Les write-back commands (MEMORY_WRITE, UPDATE_TASK_STATUS, UI_COMPONENT)\n\n## EXEMPLE\n\nUser: \"Analyse les performances des campagnes Meta de la semaine dernière\"\n\nTu réponds:\n\"📊 ANALYSE DES CAMPAGNES META - 7 derniers jours\n\n✅ WINNERS:\n- Campagne A: ROAS 6.2, Spend 450€, Revenue 2790€ → SCALE +20%\n- Campagne C: ROAS 4.8, Learning Phase EXITED → MONITOR\n\n⚠️ TESTING:\n- Campagne D: ROAS 2.1, Learning Phase ACTIVE (32/50 conversions) → WAIT\n\n❌ LOSERS:\n- Campagne B: ROAS 0.8, Spend 200€, Revenue 160€ → CUT\n\n📈 INSIGHTS:\n1. Targeting 25-34 ans performe mieux (ROAS moyen 5.1)\n2. Placements Instagram > Facebook (+30% ROAS)\n3. Vidéo ads > Image ads (+45% engagement)\n\n💡 RECOMMANDATIONS:\n- Marcus: Scale Campagne A, Cut Campagne B\n- Milo: Créer plus de vidéo ads (format 9:16 Reels)\n- Luna: Analyser le persona 25-34 ans pour ciblage futur\n\nRapport Looker créé: [URL]\"\n\nPuis tu retournes MEMORY_WRITE + UPDATE_TASK_STATUS + UI_COMPONENT.\n\nVa, et fais ton travail avec excellence.`;\n\nreturn [{\n  json: {\n    ...context,\n    system_prompt: SORA_SYSTEM_PROMPT,\n    prepared: true\n  }\n}];"
+      },
+      "id": "prepare-context",
+      "name": "Prepare SORA Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [820, 400]
+    },
+    {
+      "parameters": {
+        "name": "google_ads_manager",
+        "description": "Google Ads Manager - 7 READ-ONLY functions to analyze Google Ads performance. Includes get_accounts, get_campaigns, get_search_terms, get_keywords_quality_score, get_conversions, create_audience, get_performance_report.",
+        "workflowCode": "// This is a placeholder MCP toolkit for Google Ads Manager\n// In production, this would be replaced by the actual MCP server implementation\n// from /agents/CURRENT_analyst-mcp/mcp_sora_tools/google-ads-manager.js\n\nconst toolName = $input.json.tool_name;\nconst params = $input.json.params || {};\n\nreturn {\n  success: true,\n  tool: toolName,\n  message: `[GOOGLE ADS MANAGER] ${toolName} called with params: ${JSON.stringify(params)}`,\n  note: \"Replace this with actual MCP server implementation in production\"\n};"
+      },
+      "id": "tool-google-ads-manager",
+      "name": "Tool: Google Ads Manager",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [1060, 100]
+    },
+    {
+      "parameters": {
+        "name": "meta_ads_manager",
+        "description": "Meta Ads Manager - 7 READ-ONLY functions to analyze Meta Ads performance. Includes get_ad_accounts, get_campaigns, get_insights, get_ad_sets, check_learning_phase (critical for scaling decisions), get_pixel_events, get_audience_overlap.",
+        "workflowCode": "// This is a placeholder MCP toolkit for Meta Ads Manager\n// In production, this would be replaced by the actual MCP server implementation\n// from /agents/CURRENT_analyst-mcp/mcp_sora_tools/meta-ads-manager.js\n\nconst toolName = $input.json.tool_name;\nconst params = $input.json.params || {};\n\nreturn {\n  success: true,\n  tool: toolName,\n  message: `[META ADS MANAGER] ${toolName} called with params: ${JSON.stringify(params)}`,\n  note: \"Replace this with actual MCP server implementation in production\"\n};"
+      },
+      "id": "tool-meta-ads-manager",
+      "name": "Tool: Meta Ads Manager",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [1060, 220]
+    },
+    {
+      "parameters": {
+        "name": "gtm_manager",
+        "description": "GTM Manager - 7 functions to setup Google Tag Manager tracking. Includes list_containers, list_tags, create_tag, create_trigger, create_variable, publish_version, preview_mode. Used to configure conversion tracking.",
+        "workflowCode": "// This is a placeholder MCP toolkit for GTM Manager\n// In production, this would be replaced by the actual MCP server implementation\n// from /agents/CURRENT_analyst-mcp/mcp_sora_tools/gtm-manager.js\n\nconst toolName = $input.json.tool_name;\nconst params = $input.json.params || {};\n\nreturn {\n  success: true,\n  tool: toolName,\n  message: `[GTM MANAGER] ${toolName} called with params: ${JSON.stringify(params)}`,\n  note: \"Replace this with actual MCP server implementation in production\"\n};"
+      },
+      "id": "tool-gtm-manager",
+      "name": "Tool: GTM Manager",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [1060, 340]
+    },
+    {
+      "parameters": {
+        "name": "looker_manager",
+        "description": "Looker Manager - 7 functions to create Looker Studio dashboards and reports. Includes create_report, add_scorecard, add_time_series_chart, add_table, blend_data_sources, schedule_email, get_report_url.",
+        "workflowCode": "// This is a placeholder MCP toolkit for Looker Manager\n// In production, this would be replaced by the actual MCP server implementation\n// from /agents/CURRENT_analyst-mcp/mcp_sora_tools/looker-manager.js\n\nconst toolName = $input.json.tool_name;\nconst params = $input.json.params || {};\n\nreturn {\n  success: true,\n  tool: toolName,\n  message: `[LOOKER MANAGER] ${toolName} called with params: ${JSON.stringify(params)}`,\n  note: \"Replace this with actual MCP server implementation in production\"\n};"
+      },
+      "id": "tool-looker-manager",
+      "name": "Tool: Looker Manager",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [1060, 460]
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "={{ $json.system_prompt }}"
+        }
+      },
+      "id": "ai-agent-sora",
+      "name": "SORA AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [1060, 620]
+    },
+    {
+      "parameters": {
+        "model": "gemini-2.0-flash-exp",
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "id": "gemini-model",
+      "name": "Google Gemini 2.0 Flash",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [1060, 820],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "google-ai-credentials",
+          "name": "Google AI (Gemini)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ═══════════════════════════════════════════════════════════════════════════\n// PARSE AI RESPONSE + EXECUTE WRITE-BACKS\n// ═══════════════════════════════════════════════════════════════════════════\n\nconst axios = require('axios');\n\nconst SUPABASE_URL = 'https://vngkmmrglfajyccpbukh.supabase.co';\nconst SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZuZ2ttbXJnbGZhanlj Y3BidWtoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQwMDc4NTMsImV4cCI6MjA0OTU4Mzg1M30.8RqLVy3H3zKqmPJX3g9xME8F8v_OxZoN7GvJ9z8q6oE';\n\nconst context = $('Prepare SORA Context').item.json;\nconst aiResponse = $input.first().json;\n\n// Si erreurs précédentes, retourner directement le composant UI\nif (context.dependencies_blocked) {\n  return [{\n    json: {\n      agent: 'SORA',\n      timestamp: new Date().toISOString(),\n      ui_component: context.ui_component,\n      error: context.error_message || 'Prerequisites not met'\n    }\n  }];\n}\n\nconst responseText = aiResponse.output || aiResponse.text || JSON.stringify(aiResponse);\n\n// ─────────────────────────────────────────────────────────────────────────\n// 1. Extraire les write-back commands du texte\n// ─────────────────────────────────────────────────────────────────────────\nconst commands = [];\n\n// Regex pour extraire les blocs JSON des commandes\nconst jsonBlockRegex = /```json\\s*({[\\s\\S]*?})\\s*```/g;\nlet match;\nwhile ((match = jsonBlockRegex.exec(responseText)) !== null) {\n  try {\n    const command = JSON.parse(match[1]);\n    commands.push(command);\n  } catch (e) {\n    // Ignorer les blocs JSON invalides\n  }\n}\n\n// ─────────────────────────────────────────────────────────────────────────\n// 2. Exécuter les write-backs\n// ─────────────────────────────────────────────────────────────────────────\nconst executedCommands = [];\n\nfor (const cmd of commands) {\n  try {\n    if (cmd.type === 'MEMORY_WRITE' && cmd.memory_contribution) {\n      // Mettre à jour project_memory\n      const currentMemory = context.project.project_memory || {};\n      const updatedMemory = {\n        ...currentMemory,\n        last_updated: new Date().toISOString(),\n        last_updated_by: 'SORA',\n        contributions: [\n          ...(currentMemory.contributions || []),\n          {\n            timestamp: new Date().toISOString(),\n            agent: 'SORA',\n            ...cmd.memory_contribution\n          }\n        ].slice(-50) // Garder les 50 dernières contributions\n      };\n\n      await axios.patch(\n        `${SUPABASE_URL}/rest/v1/projects?id=eq.${context.project.id}`,\n        { project_memory: updatedMemory },\n        { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' } }\n      );\n\n      executedCommands.push({ type: 'MEMORY_WRITE', status: 'success' });\n    }\n\n    if (cmd.type === 'UPDATE_TASK_STATUS') {\n      const updateData = {};\n      if (cmd.status) updateData.status = cmd.status;\n      if (cmd.progress_percentage !== undefined) updateData.progress_percentage = cmd.progress_percentage;\n\n      await axios.patch(\n        `${SUPABASE_URL}/rest/v1/tasks?id=eq.${cmd.task_id || context.task.id}`,\n        updateData,\n        { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' } }\n      );\n\n      executedCommands.push({ type: 'UPDATE_TASK_STATUS', status: 'success' });\n    }\n  } catch (error) {\n    executedCommands.push({ type: cmd.type, status: 'error', error: error.message });\n  }\n}\n\n// ─────────────────────────────────────────────────────────────────────────\n// 3. Extraire UI component si présent\n// ─────────────────────────────────────────────────────────────────────────\nconst uiComponent = commands.find(cmd => cmd.type === 'UI_COMPONENT');\n\n// ─────────────────────────────────────────────────────────────────────────\n// 4. Retourner la réponse finale\n// ─────────────────────────────────────────────────────────────────────────\nreturn [{\n  json: {\n    agent: 'SORA',\n    timestamp: new Date().toISOString(),\n    response: responseText,\n    ui_component: uiComponent || null,\n    write_backs_executed: executedCommands,\n    project_id: context.project.id,\n    task_id: context.task.id\n  }\n}];"
+      },
+      "id": "parse-response",
+      "name": "Parse Response & Execute Write-Backs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1300, 620]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "X-Agent",
+                "value": "SORA-V4-FINALE"
+              },
+              {
+                "name": "X-Hive-Version",
+                "value": "4.4"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1540, 620]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          { "node": "Load Context from Supabase", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Load Context from Supabase": {
+      "main": [
+        [
+          { "node": "Check Task Dependencies", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Check Task Dependencies": {
+      "main": [
+        [
+          { "node": "Prepare SORA Context", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Prepare SORA Context": {
+      "main": [
+        [
+          { "node": "SORA AI Agent", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Tool: Google Ads Manager": {
+      "ai_tool": [
+        [
+          { "node": "SORA AI Agent", "type": "ai_tool", "index": 0 }
+        ]
+      ]
+    },
+    "Tool: Meta Ads Manager": {
+      "ai_tool": [
+        [
+          { "node": "SORA AI Agent", "type": "ai_tool", "index": 0 }
+        ]
+      ]
+    },
+    "Tool: GTM Manager": {
+      "ai_tool": [
+        [
+          { "node": "SORA AI Agent", "type": "ai_tool", "index": 0 }
+        ]
+      ]
+    },
+    "Tool: Looker Manager": {
+      "ai_tool": [
+        [
+          { "node": "SORA AI Agent", "type": "ai_tool", "index": 0 }
+        ]
+      ]
+    },
+    "Google Gemini 2.0 Flash": {
+      "ai_languageModel": [
+        [
+          { "node": "SORA AI Agent", "type": "ai_languageModel", "index": 0 }
+        ]
+      ]
+    },
+    "SORA AI Agent": {
+      "main": [
+        [
+          { "node": "Parse Response & Execute Write-Backs", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Parse Response & Execute Write-Backs": {
+      "main": [
+        [
+          { "node": "Respond to Webhook", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    { "name": "the-hive-v4" },
+    { "name": "sora" },
+    { "name": "analyst" },
+    { "name": "mcp" },
+    { "name": "finale" }
+  ],
+  "triggerCount": 1,
+  "pinData": {}
+}

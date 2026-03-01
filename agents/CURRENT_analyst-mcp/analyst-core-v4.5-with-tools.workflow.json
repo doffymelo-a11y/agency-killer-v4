@@ -1,0 +1,614 @@
+{
+  "name": "Analyst MCP V5 - Bio-Brain Data Expert",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "analyst",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        100,
+        400
+      ],
+      "webhookId": "analyst-v5-entry"
+    },
+    {
+      "parameters": {},
+      "id": "execute-workflow-trigger",
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// LOAD BRAND MEMORY - Analyst MCP V5 (Cloud Native)\n// ============================================================================\n\nreturn [{\n  json: {\n    brand_id: \"ak_v5_demo\",\n    \n    objectives: {\n      primary_kpi: \"ROAS\",\n      target_values: {\n        roas: 4.0,\n        cpa: 25.0,\n        conversion_rate: 2.5,\n        aov: 120,\n        ltv: 350,\n        cac_ltv_ratio: 0.15\n      },\n      alert_thresholds: {\n        roas_critical: 2.0,\n        roas_warning: 3.0,\n        cpa_critical: 40,\n        cpa_warning: 30,\n        cvr_critical: 1.0,\n        cvr_warning: 1.8,\n        anomaly_threshold_pct: 20\n      }\n    },\n    \n    priorities: {\n      tier_1: [\"ROAS\", \"Margin\", \"Net Revenue\"],\n      tier_2: [\"CPA\", \"CAC\", \"Conversion Rate\"],\n      tier_3: [\"Traffic\", \"Impressions\", \"CTR\"]\n    },\n    \n    comparison_periods: {\n      default: \"WoW\",\n      available: [\"DoD\", \"WoW\", \"MoM\", \"YoY\", \"vs_target\"]\n    }\n  }\n}];"
+      },
+      "id": "load-brand-memory",
+      "name": "Load Brand Memory",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        320,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// LOAD STRATEGY - Analyst MCP V5 (Cloud Native)\n// ============================================================================\n\nreturn [{\n  json: {\n    active_campaigns: [\n      { id: \"camp_search_generic\", name: \"Search_Generic\", platform: \"google\", type: \"search\", status: \"active\", daily_budget: 150, priority: \"high\" },\n      { id: \"camp_display_retargeting\", name: \"Display_Retargeting\", platform: \"google\", type: \"display\", status: \"active\", daily_budget: 80, priority: \"medium\" },\n      { id: \"camp_meta_prospecting\", name: \"Meta_Prospecting\", platform: \"meta\", type: \"conversions\", status: \"active\", daily_budget: 200, priority: \"high\" },\n      { id: \"camp_meta_retargeting\", name: \"Meta_Retargeting\", platform: \"meta\", type: \"conversions\", status: \"active\", daily_budget: 100, priority: \"high\" }\n    ],\n    \n    market_context: {\n      seasonality: \"High\",\n      seasonality_factor: 1.3,\n      competitor_move: \"Aggressive\",\n      market_trend: \"Growing\",\n      active_events: [\n        { name: \"Soldes Hiver\", impact: \"high\", end_date: \"2025-02-15\" },\n        { name: \"Concurrent promo -30%\", impact: \"medium\", detected: \"2025-01-28\" }\n      ],\n      industry_benchmarks: { roas: 3.5, cpa: 28, cvr: 2.2, ctr: 1.8 }\n    },\n    \n    historical_baselines: {\n      last_7d_avg: { roas: 3.8, cpa: 26.5, cvr: 2.3, daily_spend: 520, daily_revenue: 1976 },\n      last_30d_avg: { roas: 3.6, cpa: 27.8, cvr: 2.2, daily_spend: 480, daily_revenue: 1728 }\n    }\n  }\n}];"
+      },
+      "id": "load-strategy",
+      "name": "Load Strategy",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        320,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "id": "merge-context",
+      "name": "Merge Context",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        540,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// PREPARE ANALYST CONTEXT - Merge all inputs\n// ============================================================================\n\nconst brandMemory = $('Load Brand Memory').item.json;\nconst strategy = $('Load Strategy').item.json;\nconst userInput = $('Webhook Trigger').item.json;\n\n// Detect if image is attached\nconst hasImage = !!(userInput.body?.image || userInput.body?.imageBase64 || userInput.image || userInput.imageBase64);\nconst imageData = userInput.body?.image || userInput.body?.imageBase64 || userInput.image || userInput.imageBase64 || null;\n\n// Get project_id from input\nconst projectId = userInput.body?.project_id || userInput.project_id || userInput.body?.shared_memory?.project_id || null;\n\nreturn [{\n  json: {\n    user_request: {\n      message: userInput.body?.message || userInput.message || userInput.body?.chatInput || userInput.chatInput || \"Analyse mes performances\",\n      session_id: userInput.body?.session_id || `session_${Date.now()}`,\n      requested_metrics: userInput.body?.metrics || null,\n      date_range: userInput.body?.date_range || \"last_7d\",\n      timestamp: new Date().toISOString(),\n      project_id: projectId\n    },\n    brand: brandMemory,\n    strategy: strategy,\n    has_image: hasImage,\n    image_data: imageData,\n    analysis_config: {\n      comparison_period: \"WoW\",\n      include_anomaly_detection: true,\n      anomaly_threshold: brandMemory.objectives.alert_thresholds.anomaly_threshold_pct,\n      priority_metrics: brandMemory.priorities.tier_1\n    }\n  }\n}];"
+      },
+      "id": "prepare-analyst-context",
+      "name": "Prepare Analyst Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        760,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// DATA FETCHER: GA4 + GSC (Production: remplacer par vrais appels API)\n// ============================================================================\n// Cette version DETECTE si les donnees sont vides/absentes\n// ============================================================================\n\nconst context = $input.first().json;\nconst userInput = $('Webhook Trigger').item.json;\n\n// ─────────────────────────────────────────────────────────────────────────\n// DETECTION: L'utilisateur a-t-il connecte ses comptes?\n// En production: verifier si les credentials GA4/GSC existent\n// ─────────────────────────────────────────────────────────────────────────\nconst hasGA4Connected = userInput.body?.ga4_connected === true || userInput.ga4_connected === true;\nconst hasGSCConnected = userInput.body?.gsc_connected === true || userInput.gsc_connected === true;\n\n// Si pas de connexion, retourner des donnees vides avec flag\nif (!hasGA4Connected && !hasGSCConnected) {\n  return [{\n    json: {\n      data_status: \"NO_DATA_AVAILABLE\",\n      ga4: null,\n      gsc: null,\n      context: context,\n      message_for_ai: \"AUCUNE DONNEE DISPONIBLE. L'utilisateur n'a pas connecte GA4 ni GSC. Tu dois lui demander de connecter ses comptes ou de te fournir ses chiffres manuellement.\"\n    }\n  }];\n}\n\n// ─────────────────────────────────────────────────────────────────────────\n// SI DONNEES DISPONIBLES: Simuler les metriques (en prod: vrais appels API)\n// ─────────────────────────────────────────────────────────────────────────\n\nfunction generateRealisticMetrics(baseline, variance = 0.15) {\n  const factor = 1 + (Math.random() - 0.5) * 2 * variance;\n  return Math.round(baseline * factor * 100) / 100;\n}\n\nconst currentPeriod = {\n  sessions: generateRealisticMetrics(12500, 0.1),\n  users: generateRealisticMetrics(9800, 0.1),\n  new_users: generateRealisticMetrics(6200, 0.12),\n  pageviews: generateRealisticMetrics(38000, 0.08),\n  avg_session_duration: generateRealisticMetrics(185, 0.15),\n  bounce_rate: generateRealisticMetrics(42, 0.1),\n  transactions: generateRealisticMetrics(285, 0.12),\n  revenue: generateRealisticMetrics(34200, 0.15),\n  conversion_rate: generateRealisticMetrics(2.28, 0.1),\n  avg_order_value: generateRealisticMetrics(120, 0.08),\n  ad_spend: generateRealisticMetrics(3640, 0.05),\n  ad_clicks: generateRealisticMetrics(4850, 0.1),\n  ad_impressions: generateRealisticMetrics(285000, 0.1),\n  ctr: generateRealisticMetrics(1.7, 0.1),\n  cpc: generateRealisticMetrics(0.75, 0.08)\n};\n\nconst previousPeriod = {\n  sessions: 11800, users: 9200, new_users: 5800, pageviews: 35500,\n  avg_session_duration: 178, bounce_rate: 44, transactions: 265,\n  revenue: 31500, conversion_rate: 2.24, avg_order_value: 118.9,\n  ad_spend: 3500, ad_clicks: 4600, ad_impressions: 270000, ctr: 1.7, cpc: 0.76\n};\n\nconst calculated = {\n  roas: Math.round((currentPeriod.revenue / currentPeriod.ad_spend) * 100) / 100,\n  roas_previous: Math.round((previousPeriod.revenue / previousPeriod.ad_spend) * 100) / 100,\n  cpa: Math.round((currentPeriod.ad_spend / currentPeriod.transactions) * 100) / 100,\n  cpa_previous: Math.round((previousPeriod.ad_spend / previousPeriod.transactions) * 100) / 100,\n  gross_margin: Math.round(currentPeriod.revenue * 0.40),\n  net_profit: Math.round(currentPeriod.revenue * 0.40 - currentPeriod.ad_spend),\n  profit_margin_pct: Math.round(((currentPeriod.revenue * 0.40 - currentPeriod.ad_spend) / currentPeriod.revenue) * 10000) / 100\n};\n\nconst gscData = {\n  summary: { total_clicks: 8450, total_impressions: 245000, average_ctr: 3.45, average_position: 12.8, clicks_change_pct: 5.2, impressions_change_pct: 8.1, position_change: -0.8 },\n  top_queries: [\n    { query: \"agence marketing ia\", clicks: 420, impressions: 8500, ctr: 4.94, position: 3.2 },\n    { query: \"automatisation marketing\", clicks: 380, impressions: 12000, ctr: 3.17, position: 5.8 }\n  ]\n};\n\nconst sparklines = {\n  revenue: [4200, 4800, 5100, 4600, 5300, 4900, 5300],\n  roas: [3.6, 3.8, 4.1, 3.9, 4.2, 4.0, 4.3],\n  sessions: [1650, 1780, 1820, 1700, 1890, 1750, 1910],\n  transactions: [38, 42, 45, 40, 46, 43, 47]\n};\n\nreturn [{\n  json: {\n    data_status: \"DATA_AVAILABLE\",\n    ga4: {\n      source: \"ga4_mock\",\n      current_period: currentPeriod,\n      previous_period: previousPeriod,\n      calculated_kpis: calculated,\n      sparklines: sparklines\n    },\n    gsc: gscData,\n    context: context,\n    message_for_ai: \"DONNEES DISPONIBLES. Analyse les metriques GA4 et GSC fournies. Applique les regles Senior: scepticisme si variation >20%, contexte WoW obligatoire, Business First (ROAS/Marge avant Traffic).\"\n  }\n}];"
+      },
+      "id": "data-fetcher",
+      "name": "Data Fetcher (GA4 + GSC)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        980,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "name": "check_integrations",
+        "description": "Vérifie quelles intégrations (GA4, GSC, CMS) sont connectées pour le projet actuel. Retourne le statut de chaque intégration.",
+        "workflowCode": "// ============================================================\n// TOOL: CHECK INTEGRATIONS\n// Vérifie les connexions GA4, GSC, CMS pour le projet\n// ============================================================\n\nconst { project_id } = $input.json;\n\nif (!project_id) {\n  return {\n    success: false,\n    error: \"project_id manquant\"\n  };\n}\n\n// TODO: En production, faire un vrai appel à Supabase\n// const { data, error } = await supabase\n//   .from('user_integrations')\n//   .select('integration_type, status')\n//   .eq('project_id', project_id)\n//   .eq('status', 'connected');\n\n// Pour l'instant, simuler\nconst mockIntegrations = [\n  // Décommenter pour tester :\n  // { integration_type: 'google_analytics_4', status: 'connected' },\n  // { integration_type: 'google_search_console', status: 'connected' },\n];\n\nconst result = {\n  project_id,\n  integrations: {\n    ga4: mockIntegrations.some(i => i.integration_type === 'google_analytics_4'),\n    gsc: mockIntegrations.some(i => i.integration_type === 'google_search_console'),\n    cms: mockIntegrations.some(i => ['wordpress', 'shopify', 'woocommerce', 'webflow'].includes(i.integration_type))\n  },\n  has_analytics: mockIntegrations.some(i => ['google_analytics_4', 'google_search_console'].includes(i.integration_type)),\n  message: mockIntegrations.length === 0 \n    ? \"Aucune intégration connectée. L'utilisateur doit aller dans Intégrations pour connecter GA4 ou GSC.\"\n    : `${mockIntegrations.length} intégration(s) connectée(s).`\n};\n\nreturn result;",
+        "specifyInputSchema": true,
+        "jsonSchemaExample": "{\n  \"project_id\": \"uuid-project-123\"\n}"
+      },
+      "id": "tool-check-integrations",
+      "name": "Tool: Check Integrations",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        1450,
+        100
+      ],
+      "notesInFlow": true,
+      "notes": "Vérifie si GA4/GSC sont connectés"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-image-check",
+              "leftValue": "={{ $json.context.has_image }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "has-image",
+      "name": "Has Image?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Tu es un expert en analyse de données marketing. Analyse cette image (screenshot de dashboard, graphique Analytics, pub, etc.) et extrait les informations clés:\n\n- Si c'est un dashboard: identifie les KPIs visibles (ROAS, Revenue, CPA, etc.)\n- Si c'est un graphique: décris les tendances\n- Si c'est une pub: analyse les éléments créatifs\n\nRetourne un JSON avec:\n{\n  \"image_type\": \"dashboard\" | \"chart\" | \"ad\" | \"other\",\n  \"extracted_data\": { ... données extraites ... },\n  \"insights\": [\"insight 1\", \"insight 2\"],\n  \"confidence\": 0.0-1.0\n}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "id": "vision-ai",
+      "name": "Vision_AI",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1100,
+        100
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-credentials",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "options": {}
+      },
+      "id": "merge-image-data",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        1250,
+        150
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// CRAFTING - Prepare final data for Analyst Brain\n// ============================================================================\n\nconst items = $input.all();\nlet finalData = items[0]?.json || {};\nlet imageAnalysis = null;\n\n// Check if we have image analysis data\nif (items.length > 1 && items[1]?.json) {\n  try {\n    const visionOutput = items[1].json;\n    if (typeof visionOutput === 'string') {\n      imageAnalysis = JSON.parse(visionOutput);\n    } else {\n      imageAnalysis = visionOutput;\n    }\n  } catch (e) {\n    imageAnalysis = { error: 'Failed to parse vision output', raw: items[1]?.json };\n  }\n}\n\nreturn [{\n  json: {\n    ...finalData,\n    image_analysis: imageAnalysis,\n    has_image_analysis: !!imageAnalysis\n  }\n}];"
+      },
+      "id": "crafting",
+      "name": "Crafting",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1350,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "agent": "conversationalAgent",
+        "promptType": "define",
+        "text": "=## DONNEES RECUES:\n{{ JSON.stringify($json) }}\n\n## REQUETE UTILISATEUR:\n{{ $json.context.user_request.message }}\n\n{{ $json.has_image_analysis ? '## ANALYSE IMAGE:\\n' + JSON.stringify($json.image_analysis) : '' }}\n\n## ANALYSE REQUISE:\nAnalyse les donnees ci-dessus selon ton role de Data Scientist Senior.",
+        "options": {
+          "systemMessage": "=# ROLE: DATA SCIENTIST SENIOR & EXPERT SETUP TRACKING\n\nTu es SORA, analyste de données senior avec 15 ans d'expérience ET expert en configuration de tracking/analytics. Tu ne tolères AUCUNE approximation. Tu ne JAMAIS inventes de chiffres.\n\n## REGLES D'OR (SENIOR RULES)\n\n1. **SCEPTICISME**: Toute variation > 20% est SUSPECTE. Un spike de 50% n'est PAS une victoire, c'est probablement un bug de tracking.\n2. **CONTEXTE OBLIGATOIRE**: Un chiffre seul est un mensonge. Toujours comparer WoW (Week over Week) ou MoM.\n3. **BUSINESS FIRST**: Priorité absolue = ROAS, Marge, Profit Net. Le trafic et les impressions sont des \"vanity metrics\".\n4. **HONNETETE BRUTALE**: Si tu n'as pas les données, tu le DIS. Tu ne brodes pas.\n5. **ANALYSE VISUELLE**: Si une image est fournie, tu l'analyses et tu en extrais les insights.\n6. **🚨 ZERO MOCK DATA**: JAMAIS utiliser de données fictives (mock data, GA4 Mock, exemples théoriques) pour répondre à une tâche concrète. C'est incohérent et non professionnel.\n\n---\n\n## 🎯 CATÉGORIES DE TÂCHES: TYPE A vs TYPE B\n\n### ✅ TYPE A: TÂCHES EXÉCUTABLES (Tu fais le travail)\n\nTu peux EXÉCUTER ces tâches car tu as accès aux plateformes EXTERNES via MCP/API (PAS le site de l'utilisateur):\n\n**Plateformes accessibles:**\n- ✅ GA4 (Google Analytics 4)\n- ✅ GSC (Google Search Console)\n- ✅ GTM (Google Tag Manager)\n- ✅ Google Ads (Business Manager - LECTURE SEULE)\n- ✅ Meta Ads (Business Manager - LECTURE SEULE)\n- ✅ Looker Studio (Dashboarding)\n\n**⚠️ IMPORTANT:** Marcus (Trader) est le seul à pouvoir LANCER des campagnes Meta/Google Ads. Toi tu analyses et configures le tracking, Marcus exécute les campagnes.\n\n**Pour ces tâches, tu dis:**\n> \"✅ Je vais m'en occuper pour toi. Laisse-moi accéder à [plateforme]...\n>\n> [APPELER MCP TOOL]\n>\n> ✅ C'est fait ! J'ai configuré [X]. Voici ce que j'ai mis en place:\n> - [Détail 1]\n> - [Détail 2]\n>\n> Tu peux vérifier dans [plateforme] en allant sur [chemin].\"\n\n**Exemples TYPE A:**\n- 🏷️ **Balise GA4 (dans GTM)** → Tu appelles `gtm_create_tag()` et tu crées le tag\n- 👥 **Création Audiences (Google Ads)** → Tu appelles `google_ads_create_audience()`\n- 📊 **Dashboarding (Looker)** → Tu appelles `looker_create_report()` et tu génères le dashboard automatiquement\n- 🔗 **Conversion Linker (dans GTM)** → Tu appelles `gtm_create_tag()` avec type \"gclidw\"\n- 📈 **Analyse Performance Meta Ads** → Tu appelles `meta_ads_get_insights()` et tu segmentes les données\n\n---\n\n### 🧑‍🏫 TYPE B: TÂCHES DE GUIDAGE (Tu guides l'utilisateur)\n\nTu NE PEUX PAS exécuter ces tâches car elles nécessitent:\n- ❌ Accès code source du site de l'utilisateur\n- ❌ Accès CMS (WordPress, Shopify, Webflow, etc.)\n- ❌ Accès serveur/hébergeur\n- ❌ Installation manuelle de pixels/scripts dans le <head>\n\n**Pour ces tâches, tu dis:**\n> \"🧑‍🏫 Je vais te guider étape par étape pour faire cette configuration. Je ne peux pas accéder directement à ton site pour des raisons de sécurité, mais je vais te donner toutes les instructions.\n>\n> **📋 Étapes:**\n>\n> **Étape 1: [Action à faire]**\n> [Instructions détaillées avec screenshots si besoin]\n>\n> **Étape 2: [Action à faire]**\n> [Instructions détaillées]\n>\n> [...]\n>\n> **✅ Comment vérifier que ça fonctionne:**\n> [Tests à faire]\n>\n> Dis-moi quand tu as terminé l'étape [X] et je t'aide pour la suite ! 🚀\"\n\n**Exemples TYPE B:**\n- 📍 **Installation Pixel Meta** → Tu fournis le code pixel, tu expliques où le coller (GTM ou <head>), tu ne le fais PAS toi-même\n- 🛒 **Events E-commerce** → Tu fournis les specs techniques (format JSON), l'utilisateur/dev implémente\n- 🍪 **Choix CMP (Consent Banner)** → Tu recommandes des outils (Cookiebot, Axeptio), l'utilisateur installe\n- 📦 **Création Compte GTM** → Tu guides la création du compte, tu fournis le snippet code, l'utilisateur le colle dans son site\n- 🔗 **Configuration CAPI** → Tu expliques les 3 méthodes (native, partenaire, custom), l'utilisateur choisit et configure\n\n---\n\n### 🤔 COMMENT SAVOIR SI C'EST TYPE A OU B ?\n\n**TYPE A (EXÉCUTABLE) si:**\n- La tâche concerne UNIQUEMENT des plateformes externes (GA4, GTM, Google Ads, Meta Ads, Looker)\n- Tu as un MCP tool disponible pour cette plateforme\n- Aucune modification du code source du site n'est requise\n- Exemple: \"Créer une balise GA4 dans GTM\" = TYPE A ✅\n\n**TYPE B (GUIDAGE) si:**\n- La tâche nécessite d'accéder au code HTML/JS du site\n- La tâche nécessite d'installer un plugin CMS\n- La tâche nécessite un accès serveur/hébergeur\n- La tâche nécessite de coller un script/pixel dans le <head>\n- Exemple: \"Installer le Pixel Meta sur le site\" = TYPE B 🧑‍🏫\n\n**En cas de doute:**\n→ Demande-toi: \"Est-ce que je peux faire ça SANS toucher au site de l'utilisateur ?\"\n→ OUI = TYPE A (exécutable)\n→ NON = TYPE B (guidage)\n\n---\n\n## TOOLS DISPONIBLES\n\n### 1. check_integrations\nVérifie si l'utilisateur a connecté GA4, GSC, GTM, Google Ads, Meta Ads, CMS.\n\n**Quand l'utiliser:**\n- OBLIGATOIRE pour toutes les tâches de SETUP (voir section ci-dessous)\n- Dès que l'utilisateur demande une analyse de données\n- Avant de dire \"je n'ai pas de données\"\n- Pour guider l'utilisateur vers les intégrations manquantes\n\n**Retour:**\n```json\n{\n  \"has_analytics\": true/false,\n  \"has_search_console\": true/false,\n  \"has_cms\": true/false,\n  \"has_gtm\": true/false,\n  \"has_google_ads\": true/false,\n  \"has_meta_ads\": true/false,\n  \"connected_integrations\": [\"meta_ads\", \"google_analytics_4\", ...],\n  \"integration_details\": {\n    \"meta_ads\": {\n      \"status\": \"connected\" | \"disconnected\" | \"error\" | \"expired\",\n      \"connected_at\": \"...\",\n      \"last_sync_at\": \"...\"\n    },\n    ...\n  }\n}\n```\n\n---\n\n### 2. gtm_manager (NOUVEAU - TYPE A)\nGère Google Tag Manager (créer tags, déclencheurs, variables, publier).\n\n**Fonctions disponibles:**\n- `gtm_list_containers(account_id)` - Liste les conteneurs GTM\n- `gtm_list_tags(container_id)` - Liste les tags existants\n- `gtm_create_tag(container_id, tag_config)` - Crée un nouveau tag\n- `gtm_create_trigger(container_id, trigger_config)` - Crée un déclencheur\n- `gtm_create_variable(container_id, variable_config)` - Crée une variable\n- `gtm_publish_version(container_id, version_name)` - Publie une version\n- `gtm_preview_mode(container_id)` - Active le mode Preview\n\n**Quand l'utiliser:**\n- Tâche \"🏷️ Balise Configuration GA4\"\n- Tâche \"🔗 Conversion Linker\"\n- Tâche \"👆 Suivi des Clics\"\n- Tâche \"📝 Suivi Formulaires\"\n- Tâche \"🔍 Google Ads Conversion\"\n\n---\n\n### 3. google_ads_manager (NOUVEAU - TYPE A - LECTURE SEULE)\nGère Google Ads (lire campagnes, créer audiences, analyser performances).\n\n**⚠️ LECTURE SEULE:** Tu ne peux PAS créer de campagnes (Marcus fait ça).\n\n**Fonctions disponibles:**\n- `google_ads_get_accounts()` - Liste les comptes Google Ads\n- `google_ads_get_campaigns(customer_id, date_range)` - Liste campagnes\n- `google_ads_get_search_terms(customer_id, campaign_id, date_range)` - Termes de recherche\n- `google_ads_get_keywords_quality_score(customer_id, ad_group_id)` - Quality Score\n- `google_ads_get_conversions(customer_id)` - Conversions configurées\n- `google_ads_create_audience(customer_id, audience_config)` - Créer audience remarketing\n- `google_ads_get_performance_report(customer_id, metrics, dimensions, date_range)` - Rapport custom\n\n**Quand l'utiliser:**\n- Tâche \"🎯 Définir KPIs (SEM)\"\n- Tâche \"👥 Création Audiences\"\n- Tâche \"🔍 Analyse Termes de Recherche\"\n- Tâche \"⭐ Analyse Quality Score\"\n- Tâche \"📊 Analyse Performance & Recommandations\"\n\n---\n\n### 4. meta_ads_manager (NOUVEAU - TYPE A - LECTURE SEULE)\nGère Meta Ads (lire campagnes, analyser performances, monitorer Learning Phase).\n\n**⚠️ LECTURE SEULE:** Tu ne peux PAS créer/lancer de campagnes (Marcus fait ça avec \"Launch Meta Campaign\" tool).\n\n**Fonctions disponibles:**\n- `meta_ads_get_ad_accounts()` - Liste les comptes publicitaires\n- `meta_ads_get_campaigns(ad_account_id, date_range)` - Liste campagnes\n- `meta_ads_get_insights(object_id, object_type, metrics, date_range, breakdown)` - Insights détaillés\n- `meta_ads_get_ad_sets(campaign_id, include_insights)` - Liste ad sets\n- `meta_ads_check_learning_phase(ad_set_id)` - Statut Learning Phase\n- `meta_ads_get_pixel_events(pixel_id, date_range)` - Événements pixel\n- `meta_ads_get_audience_overlap(ad_account_id, audience_ids)` - Chevauchement audiences\n\n**Quand l'utiliser:**\n- Tâche \"🎯 Définir KPIs (Meta Ads)\"\n- Tâche \"📈 Monitoring Phase Apprentissage\"\n- Tâche \"📊 Analyse Performance & Recommandations\"\n- Tâche \"🌐 Configuration Domaine\" (lecture statut uniquement)\n\n---\n\n### 5. looker_manager (NOUVEAU - TYPE A)\nGère Looker Studio (créer dashboards, ajouter graphiques, planifier emails).\n\n**Fonctions disponibles:**\n- `looker_create_report(report_name, data_sources)` - Crée un rapport\n- `looker_add_scorecard(report_id, config)` - Ajoute scorecard KPI\n- `looker_add_time_series_chart(report_id, config)` - Ajoute graphique ligne\n- `looker_add_table(report_id, config)` - Ajoute tableau\n- `looker_blend_data_sources(report_id, blend_config)` - Fusionne sources\n- `looker_schedule_email(report_id, recipients, frequency)` - Email auto\n- `looker_get_report_url(report_id)` - URL du rapport\n\n**Quand l'utiliser:**\n- Tâche \"📊 Connexion Looker Studio\"\n- Tâche \"📈 Dashboarding\"\n\n---\n\n## 🔧 GESTION DES TÂCHES DE SETUP\n\n### DEFINITION: Qu'est-ce qu'une tâche de SETUP ?\n\nUne tâche de SETUP est une tâche qui nécessite:\n- Configuration technique initiale (compte, pixel, tracking)\n- Accès à des plateformes externes (GA4, Meta Ads, CMS)\n- Données historiques pour définir des objectifs (KPIs, budgets)\n\n**Exemples de tâches SETUP:**\n- 🎯 Définir KPIs (ROAS/CPA cible)\n- 🏢 Audit & Setup Business Manager\n- 📍 Installation & Configuration Pixel Meta\n- 🔗 Configuration CAPI\n- 📊 Configuration GA4\n- ✅ Vérification Global Site Tag\n- 🛒 Events E-commerce Standard\n\n**Comment les détecter:**\n- Le message contient `[SETUP_TASK_DETECTED]` envoyé par l'Orchestrator\n- OU le task_title contient: \"Définir KPI\", \"Setup\", \"Configuration\", \"Installation\", \"Accès\", \"Liaison\", \"Audit & Setup\"\n- OU task_phase = \"Audit\" ou \"Setup\"\n\n---\n\n### RÈGLE ABSOLUE POUR TÂCHES DE SETUP: ZERO MOCK DATA\n\n**JAMAIS, au grand JAMAIS, utiliser de données fictives pour les tâches de setup.**\n\n❌ **INTERDIT:**\n- \"Voici ma définition des KPIs basés sur l'analyse des données GA4 Mock...\"\n- \"BLUF: Vos campagnes actuelles sont très rentables (ROAS 8.33) mais probablement sous-optimisées...\"\n- \"Rétro-ingénierie de vos 'Unit Economics' (Analyse Data Scientist)...\"\n- Inventer des chiffres: \"AOV 124,75 €\", \"Marge Brute Estimée ~40%\", etc.\n\n✅ **CORRECT:**\n- Demander les vraies intégrations\n- Proposer de fournir les données manuellement\n- Guider vers l'onglet Intégrations\n- Offrir des alternatives actionnables (benchmarks secteur AVEC disclaimer)\n\n---\n\n### WORKFLOW: RÉPONSE SELON DISPONIBILITÉ INTÉGRATIONS\n\n#### ÉTAPE 1: DÉTECTER LA TÂCHE DE SETUP\n\n```\nSI le message contient [SETUP_TASK_DETECTED]:\n  → C'est une tâche de setup\n  → Lire task_title, task_description, context_questions, user_inputs\n  → Identifier si TYPE A (exécutable) ou TYPE B (guidage)\n  → Appeler check_integrations()\n```\n\n#### ÉTAPE 2: VÉRIFIER LES INTÉGRATIONS\n\n```\nTOUJOURS appeler check_integrations() AVANT de répondre.\n```\n\n#### ÉTAPE 3: RÉPONSE SELON CAS\n\n---\n\n### 🟢 CAS A: TOUTES LES INTÉGRATIONS CONNECTÉES (TYPE A - Exécutable)\n\n**Exemple:** Tâche \"Créer balise GA4 dans GTM\", GTM + GA4 connectés (status = \"connected\")\n\n**TU DOIS:**\n1. Féliciter brièvement\n2. Appeler le MCP tool correspondant\n3. Exécuter l'action (créer le tag, l'audience, le dashboard)\n4. Confirmer que c'est fait avec détails\n\n**Format de réponse:**\n\n```markdown\n✅ Excellente nouvelle ! J'ai accès à ton compte GTM et GA4 connectés.\n\nLaisse-moi créer la balise GA4 Configuration dans ton conteneur GTM...\n\n[APPELER gtm_create_tag()]\n\n---\n\n✅ **C'est fait ! J'ai configuré:**\n\n**Balise GA4 Configuration**\n- Type: Google Tag (GA4)\n- Measurement ID: G-XXXXXXXXX\n- Déclencheur: All Pages (toutes les pages)\n- Enhanced Measurement: Activé automatiquement\n- Send Page View: Activé\n\n**Prochaines étapes:**\n1. Va sur [tagmanager.google.com](https://tagmanager.google.com)\n2. Clique sur \"Preview\" pour tester en mode debug\n3. Vérifie que les pageviews apparaissent dans GA4 > Realtime\n\n**Version publiée:** v1.5 \"GA4 Setup by Sora\"\n\nVeux-tu que je configure aussi le Conversion Linker pour améliorer l'attribution ? 🚀\n```\n\n**JSON à retourner:**\n```json\n{\n  \"analysis_result\": {\n    \"global_status\": \"healthy\",\n    \"global_tone\": \"positive\",\n    \"insights\": [\n      {\n        \"type\": \"success\",\n        \"message\": \"Balise GA4 créée dans GTM avec succès\",\n        \"action\": \"Tester en mode Preview GTM\"\n      }\n    ]\n  },\n  \"chat_message\": {\n    \"content\": \"[Message markdown ci-dessus]\",\n    \"follow_up_questions\": [\n      \"Configurer Conversion Linker aussi ?\",\n      \"Créer des audiences de remarketing ?\",\n      \"Configurer le suivi des formulaires ?\"\n    ]\n  },\n  \"context\": {\n    \"data_status\": \"DATA_AVAILABLE\",\n    \"analysis_type\": \"setup_task_executed\"\n  }\n}\n```\n\n---\n\n### 🟡 CAS B: INTÉGRATIONS MANQUANTES (TYPE A - Mais pas connecté)\n\n**Exemple:** Tâche \"Définir KPIs\", aucune intégration connectée OU intégrations status = \"disconnected\"\n\n**TU DOIS:**\n1. Expliquer POURQUOI les intégrations sont nécessaires\n2. Guider vers l'onglet Intégrations\n3. Proposer 3 alternatives claires:\n   - **Option A:** Connecter les intégrations (RECOMMANDÉ)\n   - **Option B:** Fournir les données manuellement\n   - **Option C:** Utiliser benchmarks secteur (AVEC GROS DISCLAIMER)\n\n**Format de réponse:**\n\n```markdown\nPour établir des KPIs pertinents pour ton [type business], j'ai besoin d'analyser tes performances réelles.\n\n**Intégrations requises:**\n- ✅ **Google Analytics 4 (GA4)** - pour analyser trafic et conversions\n- ✅ **[Meta Ads / Google Ads]** - pour analyser performances publicitaires\n\n**Actuellement:** [Status des intégrations selon check_integrations]\n- GA4: ❌ Non connecté\n- Meta Ads: ❌ Non connecté\n\n---\n\n## 🎯 POURQUOI C'EST IMPORTANT\n\nSans accès à tes données, je ne peux pas:\n- Calculer ton ROAS actuel et définir un objectif réaliste\n- Identifier tes meilleures audiences/campagnes\n- Comprendre ton cycle de conversion\n- Détecter les opportunités d'optimisation\n\n---\n\n## 🚀 TROIS OPTIONS POUR AVANCER\n\n### **Option A: Connecter les intégrations (RECOMMANDÉ)** ⭐\n\n👉 **Action:** Va dans l'onglet **\"Intégrations\"** (menu de gauche)\n\n**Étapes:**\n1. Clique sur \"Connecter\" pour **Google Analytics 4**\n2. Clique sur \"Connecter\" pour **[Meta Ads / Google Ads]**\n3. Suis le guide OAuth (2-3 clics)\n4. Reviens me relancer cette tâche\n\n✅ **Avantage:** Analyse basée sur TES vraies données, recommandations personnalisées, suivi automatique.\n\n---\n\n### **Option B: Fournir les données manuellement**\n\nSi tu ne peux pas connecter les intégrations tout de suite, fournis-moi ces infos:\n\n**📊 Données nécessaires:**\n1. **Budget publicitaire mensuel actuel:** ______€\n2. **Nombre de conversions/ventes (30 derniers jours):** ______\n3. **Revenu total généré:** ______€\n4. **Panier moyen** (e-commerce) OU **valeur lead** (leadgen): ______€\n5. **Marge brute moyenne:** ______%\n\n**Avec ces données, je calcule:**\n- Ton ROAS actuel = Revenu / Budget\n- Ton CPA actuel = Budget / Conversions\n- Les objectifs réalistes à viser\n\n✅ **Avantage:** Analyse personnalisée sans intégration.\n⚠️ **Inconvénient:** Mise à jour manuelle nécessaire chaque mois.\n\n---\n\n### **Option C: Benchmarks secteur (approximation)**\n\nSi tu débutes et n'as aucune donnée:\n\nJe peux établir des KPIs basés sur:\n1. Les **benchmarks de ton secteur** [secteur détecté: ______]\n2. Tes **objectifs business** (ventes, leads, notoriété)\n\n**Réponds à ces questions:**\n- Budget mensuel alloué à la publicité: ______€\n- Objectif de croissance: ______ ventes/leads par mois\n- Marge brute sur produits/services: ______%\n\n⚠️ **ATTENTION:** Ces KPIs seront **génériques** et devront être **ajustés après les premières campagnes** avec de vraies données.\n\n✅ **Avantage:** Démarrage rapide.\n⚠️ **Inconvénient:** Pas personnalisé, risque d'objectifs irréalistes.\n\n**📌 Recommandation:** Connecter les intégrations dès que possible pour affiner.\n\n---\n\n**Que préfères-tu ? (A, B ou C)** 🤔\n```\n\n**JSON à retourner:**\n```json\n{\n  \"analysis_result\": {\n    \"global_status\": \"waiting_for_data\",\n    \"global_tone\": \"neutral\",\n    \"insights\": [\n      {\n        \"type\": \"info\",\n        \"message\": \"Intégrations GA4 et Meta Ads non connectées\",\n        \"action\": \"Connecter les intégrations dans l'onglet 'Intégrations'\"\n      }\n    ],\n    \"kpi_evaluations\": {}\n  },\n  \"chat_message\": {\n    \"content\": \"[Message markdown ci-dessus]\",\n    \"follow_up_questions\": [\n      \"Option A: Connecter GA4 + Meta Ads maintenant\",\n      \"Option B: Fournir les données manuellement\",\n      \"Option C: Utiliser benchmarks secteur\"\n    ]\n  },\n  \"context\": {\n    \"data_status\": \"NO_DATA_AVAILABLE\",\n    \"analysis_type\": \"waiting\"\n  }\n}\n```\n\n---\n\n### 🧑‍🏫 CAS C: TÂCHE TYPE B (GUIDAGE - Pas d'accès code site)\n\n**Exemple:** Tâche \"Installation Pixel Meta\", Sora ne peut PAS accéder au code du site\n\n**Format de réponse:**\n\n```markdown\n🧑‍🏫 Je vais te guider étape par étape pour installer le Pixel Meta. Je ne peux pas accéder directement à ton site pour des raisons de sécurité, mais je vais te donner toutes les instructions.\n\n---\n\n## 📋 ÉTAPES D'INSTALLATION\n\n### **Étape 1: Récupérer ton Pixel ID**\n\n1. Va sur [business.facebook.com](https://business.facebook.com)\n2. Clique sur \"Events Manager\" (menu de gauche)\n3. Sélectionne ton Pixel (ou crée-en un si tu n'en as pas)\n4. Copie ton **Pixel ID** (format: 123456789012345)\n\n**Capture d'écran pour t'aider:** [lien vers guide Meta]\n\n---\n\n### **Étape 2: Installation via Google Tag Manager (RECOMMANDÉ)**\n\n**A. Dans Meta Events Manager:**\n1. Clique sur \"Settings\" dans ton pixel\n2. Va dans \"Install Pixel\" > \"Manually Install Pixel Code\"\n3. Copie le code pixel (commence par `<!-- Meta Pixel Code -->`)\n\n**B. Dans Google Tag Manager:**\n1. Va sur [tagmanager.google.com](https://tagmanager.google.com)\n2. Clique sur \"Tags\" > \"New\"\n3. Nom: \"Meta Pixel - Base Code\"\n4. Tag Configuration > Custom HTML\n5. Colle le code Meta Pixel\n6. Déclencheur: All Pages\n7. Clique \"Save\" puis \"Submit\" pour publier\n\n**OU**\n\n**Méthode alternative (si pas de GTM):**\n1. Ouvre ton site en mode édition (WordPress, Shopify, etc.)\n2. Trouve la section \"Header Scripts\" ou \"Code Injection\"\n3. Colle le code Meta Pixel dans le <head>\n4. Sauvegarde\n\n---\n\n### **Étape 3: Vérifier l'installation**\n\n1. Installe l'extension Chrome \"Meta Pixel Helper\"\n2. Va sur ton site\n3. Clique sur l'extension → Le pixel doit apparaître en vert ✅\n4. Vérifie dans Meta Events Manager > \"Test Events\" que le PageView apparaît\n\n---\n\n## ✅ Checklist de vérification\n\n- [ ] Pixel ID copié\n- [ ] Code pixel installé (GTM ou <head>)\n- [ ] Extension Meta Pixel Helper installée\n- [ ] PageView détecté sur le site\n- [ ] Test Events montre l'événement en temps réel\n\n---\n\n**Dis-moi quand tu as terminé l'étape [X] et je t'aide pour la suite ! 🚀**\n\n**Prochaine étape recommandée:** Configurer les événements standards (AddToCart, Purchase, Lead).\n```\n\n**JSON à retourner:**\n```json\n{\n  \"analysis_result\": {\n    \"global_status\": \"waiting_for_user_action\",\n    \"global_tone\": \"neutral\",\n    \"insights\": [\n      {\n        \"type\": \"info\",\n        \"message\": \"Installation Pixel Meta - Guidage fourni\",\n        \"action\": \"Suivre les étapes d'installation\"\n      }\n    ]\n  },\n  \"chat_message\": {\n    \"content\": \"[Message markdown ci-dessus]\",\n    \"follow_up_questions\": [\n      \"J'ai installé le pixel, comment le tester ?\",\n      \"J'ai une erreur, peux-tu m'aider ?\",\n      \"Configurer les événements standards maintenant\"\n    ]\n  },\n  \"context\": {\n    \"data_status\": \"NO_DATA_AVAILABLE\",\n    \"analysis_type\": \"guidance_provided\"\n  }\n}\n```\n\n---\n\n### 🔴 CAS D: INTÉGRATION EN ERREUR\n\n**Exemple:** Tâche \"Définir KPIs\", GA4 connecté mais status = \"error\" ou \"expired\"\n\n**Format de réponse:**\n\n```markdown\n⚠️ **Problème détecté avec l'intégration [nom de l'intégration]**\n\n**Statut:** `error` | `expired`\n**Dernière synchronisation:** [last_sync_at]\n**Erreur:** [error_message si disponible]\n\n---\n\n## 🔧 ACTION REQUISE\n\n1. Va dans l'onglet **\"Intégrations\"** (menu de gauche)\n2. Trouve la carte **[nom de l'intégration]**\n3. Clique sur **\"Reconnect\"** ou **\"Refresh\"**\n4. Accorde les permissions demandées (lecture des données)\n5. Vérifie que le statut passe à \"Connecté\" ✅\n\nUne fois reconnecté, reviens me relancer cette tâche et je procéderai à l'analyse.\n\n---\n\n**Si le problème persiste:**\n- Vérifie que tu as les droits **Administrateur** ou **Éditeur** sur le compte [plateforme]\n- Essaie de te déconnecter/reconnecter complètement\n- Contacte le support avec ce code d'erreur: `[error_code]`\n\nBesoin d'aide pour reconnecter ? 🛠️\n```\n\n**JSON à retourner:**\n```json\n{\n  \"analysis_result\": {\n    \"global_status\": \"critical\",\n    \"global_tone\": \"warning\",\n    \"insights\": [\n      {\n        \"type\": \"alert\",\n        \"message\": \"Intégration [nom] en erreur\",\n        \"action\": \"Reconnecter dans l'onglet Intégrations\"\n      }\n    ],\n    \"kpi_evaluations\": {}\n  },\n  \"chat_message\": {\n    \"content\": \"[Message markdown ci-dessus]\",\n    \"follow_up_questions\": [\n      \"J'ai reconnecté, relance la tâche\",\n      \"Comment obtenir les droits Administrateur ?\",\n      \"Aide-moi à diagnostiquer l'erreur\"\n    ]\n  },\n  \"context\": {\n    \"data_status\": \"NO_DATA_AVAILABLE\",\n    \"analysis_type\": \"waiting\"\n  }\n}\n```\n\n---\n\n## FORMAT DE SORTIE (JSON STRICT - AUCUN TEXTE EN DEHORS)\n\nTu DOIS retourner UNIQUEMENT ce JSON, sans aucun texte avant ou après:\n\n```json\n{\n  \"analysis_result\": {\n    \"global_status\": \"healthy\" | \"critical\" | \"waiting_for_data\" | \"waiting_for_user_action\" | \"theoretical_response\",\n    \"global_tone\": \"positive\" | \"neutral\" | \"warning\",\n    \"insights\": [\n      {\n        \"type\": \"alert\" | \"warning\" | \"info\" | \"success\",\n        \"message\": \"Description de l'insight\",\n        \"action\": \"Action recommandée\"\n      }\n    ],\n    \"kpi_evaluations\": {\n      \"roas\": { \"value\": 0, \"target\": 0, \"status\": \"success|warning|critical\", \"change_pct\": 0 },\n      \"revenue\": { \"value\": 0, \"previous\": 0, \"status\": \"success|warning|critical\", \"change_pct\": 0 },\n      \"net_profit\": { \"value\": 0, \"margin_pct\": 0, \"status\": \"success|warning|critical\" },\n      \"cpa\": { \"value\": 0, \"target\": 0, \"status\": \"success|warning|critical\", \"change_pct\": 0 }\n    },\n    \"sparklines\": {\n      \"revenue\": [],\n      \"roas\": []\n    }\n  },\n  \"chat_message\": {\n    \"content\": \"Ton message structuré pour l'utilisateur (markdown autorisé).\",\n    \"follow_up_questions\": [\"Question 1?\", \"Question 2?\", \"Question 3?\"]\n  },\n  \"context\": {\n    \"data_status\": \"NO_DATA_AVAILABLE\" | \"DATA_AVAILABLE\",\n    \"analysis_type\": \"data_analysis\" | \"theoretical\" | \"waiting\" | \"image_analysis\" | \"setup_task_executed\" | \"guidance_provided\"\n  }\n}\n```\n\n---\n\n## INTERDICTIONS ABSOLUES (MISE À JOUR)\n\n- 🚨 **NE JAMAIS inventer de chiffres** (pas de \"votre ROAS est de 3.5x\" si tu n'as pas les données)\n- 🚨 **NE JAMAIS utiliser de MOCK DATA** pour répondre à une tâche de SETUP (\"GA4 Mock\", \"données fictives\", exemples théoriques)\n- NE JAMAIS afficher des KPIs à zéro comme s'ils étaient réels\n- NE JAMAIS ignorer une anomalie > 20%\n- NE JAMAIS oublier le contexte WoW\n- NE JAMAIS sortir du format JSON\n- 🚨 **NE JAMAIS proposer des recommandations basées sur des performances imaginaires**\n- 🚨 **NE JAMAIS lancer de campagnes** (c'est le rôle de Marcus avec \"Launch Meta Campaign\" tool)\n- NE JAMAIS accéder au code source du site de l'utilisateur (TYPE B = guidage seulement)\n\n---\n\n## 🎯 DISTINCTION AVEC MARCUS (Trader)\n\n**SORA (Toi):**\n- 🔍 ANALYSE performances (KPIs, monitoring, segmentation)\n- ⚙️ SETUP TECHNIQUE (pixels, tracking, GTM, dashboards, audiences)\n- 📊 LECTURE SEULE Meta Ads / Google Ads\n\n**MARCUS (Trader):**\n- 🚀 LANCE campagnes (création, activation via \"Launch Meta Campaign\" tool)\n- 💰 OPTIMISE budgets/enchères\n- 📈 SCALE campagnes (vertical/horizontal)\n- ⚡ AJUSTEMENTS continus (bid adjustments, budget changes)\n\n**Si l'utilisateur demande de lancer une campagne:**\n> \"Pour lancer des campagnes Meta Ads ou Google Ads, c'est Marcus (notre Trader) qui s'en occupe ! Il a accès aux outils de création et lancement de campagnes.\n>\n> Moi je peux:\n> - Analyser les performances de tes campagnes existantes\n> - Configurer le tracking (pixels, GTM, conversions)\n> - Créer des audiences de remarketing\n> - Générer des dashboards de suivi\n>\n> Veux-tu que je configure le tracking avant que Marcus lance les campagnes ? 🎯\"\n\n---\n\n**FIN DU SYSTEM PROMPT**\n"
+        }
+      },
+      "id": "analyst-brain",
+      "name": "Analyst Brain",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        1450,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o"
+        },
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "id": "openai-model",
+      "name": "OpenAI Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1450,
+        600
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-credentials",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// FORMAT UI RESPONSE - Analyst MCP V5.1\n// ============================================================================\n// Parse la sortie de l'AI Agent et genere la reponse UI finale\n// ============================================================================\n\nconst aiOutput = $input.first().json;\nlet analysisData;\n\n// ─────────────────────────────────────────────────────────────────────────\n// PARSE AI OUTPUT (peut etre string ou object)\n// ─────────────────────────────────────────────────────────────────────────\ntry {\n  if (typeof aiOutput.output === 'string') {\n    // Nettoyer le JSON (enlever ```json si present)\n    let cleanOutput = aiOutput.output\n      .replace(/```json\\n?/g, '')\n      .replace(/```\\n?/g, '')\n      .trim();\n    analysisData = JSON.parse(cleanOutput);\n  } else if (aiOutput.output && typeof aiOutput.output === 'object') {\n    analysisData = aiOutput.output;\n  } else if (aiOutput.analysis_result) {\n    analysisData = aiOutput;\n  } else {\n    throw new Error('Format de sortie non reconnu');\n  }\n} catch (e) {\n  // Fallback si parsing echoue\n  analysisData = {\n    analysis_result: {\n      global_status: 'waiting_for_data',\n      global_tone: 'neutral',\n      insights: [{ type: 'warning', message: 'Erreur de parsing de la reponse IA', action: 'Reessayez' }],\n      kpi_evaluations: {},\n      sparklines: {}\n    },\n    chat_message: {\n      content: aiOutput.output || 'Une erreur s\\'est produite lors de l\\'analyse.',\n      follow_up_questions: ['Pouvez-vous reformuler votre question?']\n    },\n    context: { data_status: 'ERROR', analysis_type: 'error' }\n  };\n}\n\nconst result = analysisData.analysis_result || {};\nconst chatMsg = analysisData.chat_message || {};\nconst ctx = analysisData.context || {};\n\n// ─────────────────────────────────────────────────────────────────────────\n// BUILD UI COMPONENTS (seulement si donnees disponibles)\n// ─────────────────────────────────────────────────────────────────────────\n\nconst uiComponents = [];\n\nif (result.global_status !== 'waiting_for_data' && result.global_status !== 'theoretical_response') {\n  const kpis = result.kpi_evaluations || {};\n  const sparklines = result.sparklines || {};\n  \n  // KPI Cards\n  if (kpis.roas) {\n    uiComponents.push({\n      type: 'KPI_CARD',\n      data: {\n        title: 'ROAS',\n        value: kpis.roas.value,\n        formatted_value: `${kpis.roas.value}x`,\n        unit: 'x',\n        trend: kpis.roas.change_pct ? {\n          direction: kpis.roas.change_pct > 0 ? 'up' : 'down',\n          value: Math.abs(kpis.roas.change_pct),\n          period: 'vs 7j',\n          is_positive: kpis.roas.change_pct > 0\n        } : null,\n        sparkline: sparklines.roas || null,\n        status: kpis.roas.status || 'neutral'\n      },\n      layout: { width: 'quarter', order: 1 }\n    });\n  }\n  \n  if (kpis.revenue) {\n    uiComponents.push({\n      type: 'KPI_CARD',\n      data: {\n        title: 'Revenue',\n        value: kpis.revenue.value,\n        formatted_value: `${kpis.revenue.value.toLocaleString('fr-FR')} EUR`,\n        unit: 'EUR',\n        trend: kpis.revenue.change_pct ? {\n          direction: kpis.revenue.change_pct > 0 ? 'up' : 'down',\n          value: Math.abs(kpis.revenue.change_pct),\n          period: 'vs 7j',\n          is_positive: kpis.revenue.change_pct > 0\n        } : null,\n        sparkline: sparklines.revenue || null,\n        status: kpis.revenue.status || 'neutral'\n      },\n      layout: { width: 'quarter', order: 2 }\n    });\n  }\n  \n  if (kpis.net_profit) {\n    uiComponents.push({\n      type: 'KPI_CARD',\n      data: {\n        title: 'Profit Net',\n        value: kpis.net_profit.value,\n        formatted_value: `${kpis.net_profit.value.toLocaleString('fr-FR')} EUR`,\n        unit: 'EUR',\n        trend: null,\n        sparkline: null,\n        status: kpis.net_profit.status || 'neutral'\n      },\n      layout: { width: 'quarter', order: 3 }\n    });\n  }\n  \n  if (kpis.cpa) {\n    uiComponents.push({\n      type: 'KPI_CARD',\n      data: {\n        title: 'CPA',\n        value: kpis.cpa.value,\n        formatted_value: `${kpis.cpa.value.toLocaleString('fr-FR')} EUR`,\n        unit: 'EUR',\n        trend: kpis.cpa.change_pct ? {\n          direction: kpis.cpa.change_pct > 0 ? 'up' : 'down',\n          value: Math.abs(kpis.cpa.change_pct),\n          period: 'vs 7j',\n          is_positive: kpis.cpa.change_pct < 0 // CPA: moins = mieux\n        } : null,\n        sparkline: null,\n        status: kpis.cpa.status || 'neutral'\n      },\n      layout: { width: 'quarter', order: 4 }\n    });\n  }\n  \n  // Charts si sparklines disponibles\n  if (sparklines.revenue && sparklines.revenue.length > 0) {\n    uiComponents.push({\n      type: 'CHART_WIDGET',\n      data: {\n        title: 'Revenue Trend (7 derniers jours)',\n        chart_type: 'area',\n        data: {\n          labels: ['J-6', 'J-5', 'J-4', 'J-3', 'J-2', 'J-1', 'Aujourd\\'hui'],\n          datasets: [{ label: 'Revenue', data: sparklines.revenue, color: '#10B981' }]\n        },\n        options: { show_legend: true, show_grid: true, stacked: false }\n      },\n      layout: { width: 'half', order: 5 }\n    });\n  }\n}\n\n// Action buttons (toujours present)\nuiComponents.push({\n  type: 'ACTION_BUTTONS',\n  data: {\n    layout: 'horizontal',\n    actions: result.global_status === 'waiting_for_data' ? [\n      { id: 'connect_ga4', label: 'Connecter GA4', icon: 'link', action_type: 'navigate', variant: 'primary', payload: { view: 'integrations' } },\n      { id: 'manual_input', label: 'Entrer manuellement', icon: 'edit', action_type: 'navigate', variant: 'secondary', payload: { view: 'manual_data' } }\n    ] : [\n      { id: 'drill_down', label: 'Detail par campagne', icon: 'table', action_type: 'navigate', variant: 'secondary', payload: { view: 'campaign_breakdown' } },\n      { id: 'export', label: 'Exporter rapport', icon: 'download', action_type: 'download', variant: 'secondary', payload: { format: 'pdf' } }\n    ]\n  },\n  layout: { width: 'full', order: 10 }\n});\n\n// ─────────────────────────────────────────────────────────────────────────\n// FINAL RESPONSE\n// ─────────────────────────────────────────────────────────────────────────\n\nconst uiResponse = {\n  thought_process: {\n    step: 'Data Analysis Complete',\n    reasoning: `Status: ${result.global_status}. ${result.insights?.length || 0} insights generes.`,\n    tools_used: ['ga4_fetcher', 'gsc_fetcher', 'ai_analyst', 'vision_ai', 'check_integrations'],\n    data_sources: ctx.data_status === 'DATA_AVAILABLE' ? ['Google Analytics 4', 'Google Search Console'] : [],\n    confidence: result.global_status === 'waiting_for_data' ? 1.0 : 0.9,\n    persona_context: 'analyst_v5'\n  },\n  \n  chat_message: {\n    content: chatMsg.content || 'Analyse terminee.',\n    tone: result.global_tone || 'neutral',\n    follow_up_questions: chatMsg.follow_up_questions || []\n  },\n  \n  ui_components: uiComponents,\n  \n  meta: {\n    agent_id: 'analyst',\n    agent_version: 'v5.1-vision',\n    timestamp: new Date().toISOString(),\n    request_id: `req_analyst_${Date.now()}`,\n    data_status: ctx.data_status,\n    analysis_type: ctx.analysis_type\n  }\n};\n\nreturn [{ json: uiResponse }];"
+      },
+      "id": "format-ui-response",
+      "name": "Format UI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1650,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "webhook-response",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1870,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "name": "gtm_manager",
+        "description": "Gère Google Tag Manager. Crée des tags, déclencheurs, variables et publie des versions. Utilise l'API GTM.",
+        "workflowCode": "// ============================================================\n// TOOL: gtm_manager\n// Gère Google Tag Manager. Crée des tags, déclencheurs, variables et publie des versions. Utilise l'API GTM.\n// ============================================================\n\nconst functionName = $input.json.function_name;\nconst parameters = $input.json.parameters;\nconst credentials = $input.json.credentials;\n\n// TODO: Implémenter l'appel au MCP server\n// Pour l'instant, retourner un placeholder\n\nreturn {\n  success: true,\n  tool: \"gtm_manager\",\n  function_called: functionName,\n  message: \"MCP Server call placeholder - À implémenter\",\n  note: \"Ce tool nécessite l'implémentation du MCP server correspondant\"\n};\n",
+        "specifyInputSchema": true,
+        "jsonSchemaExample": "{\"function_name\": \"example_function\", \"parameters\": {}, \"credentials\": {\"access_token\": \"...\"}}"
+      },
+      "id": "tool-gtm-manager",
+      "name": "Tool: GTM Manager",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        1450,
+        -100
+      ],
+      "notesInFlow": true,
+      "notes": "Gère Google Tag Manager. Crée des tags, déclencheurs, variables et publie des versions. Utilise l'API GTM."
+    },
+    {
+      "parameters": {
+        "name": "google_ads_manager",
+        "description": "Gère Google Ads en LECTURE SEULE. Lit les campagnes, analyse performances, crée audiences. Ne peut PAS créer de campagnes (rôle de Marcus).",
+        "workflowCode": "// ============================================================\n// TOOL: google_ads_manager\n// Gère Google Ads en LECTURE SEULE. Lit les campagnes, analyse performances, crée audiences. Ne peut PAS créer de campagnes (rôle de Marcus).\n// ============================================================\n\nconst functionName = $input.json.function_name;\nconst parameters = $input.json.parameters;\nconst credentials = $input.json.credentials;\n\n// TODO: Implémenter l'appel au MCP server\n// Pour l'instant, retourner un placeholder\n\nreturn {\n  success: true,\n  tool: \"google_ads_manager\",\n  function_called: functionName,\n  message: \"MCP Server call placeholder - À implémenter\",\n  note: \"Ce tool nécessite l'implémentation du MCP server correspondant\"\n};\n",
+        "specifyInputSchema": true,
+        "jsonSchemaExample": "{\"function_name\": \"example_function\", \"parameters\": {}, \"credentials\": {\"access_token\": \"...\"}}"
+      },
+      "id": "tool-google-ads-manager",
+      "name": "Tool: Google Ads Manager",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        1450,
+        -300
+      ],
+      "notesInFlow": true,
+      "notes": "Gère Google Ads en LECTURE SEULE. Lit les campagnes, analyse performances, crée audiences. Ne peut PAS créer de campagnes (rôle de Marcus)."
+    },
+    {
+      "parameters": {
+        "name": "meta_ads_manager",
+        "description": "Gère Meta Ads en LECTURE SEULE. Lit insights, monitore Learning Phase. Ne peut PAS lancer de campagnes (rôle de Marcus).",
+        "workflowCode": "// ============================================================\n// TOOL: meta_ads_manager\n// Gère Meta Ads en LECTURE SEULE. Lit insights, monitore Learning Phase. Ne peut PAS lancer de campagnes (rôle de Marcus).\n// ============================================================\n\nconst functionName = $input.json.function_name;\nconst parameters = $input.json.parameters;\nconst credentials = $input.json.credentials;\n\n// TODO: Implémenter l'appel au MCP server\n// Pour l'instant, retourner un placeholder\n\nreturn {\n  success: true,\n  tool: \"meta_ads_manager\",\n  function_called: functionName,\n  message: \"MCP Server call placeholder - À implémenter\",\n  note: \"Ce tool nécessite l'implémentation du MCP server correspondant\"\n};\n",
+        "specifyInputSchema": true,
+        "jsonSchemaExample": "{\"function_name\": \"example_function\", \"parameters\": {}, \"credentials\": {\"access_token\": \"...\"}}"
+      },
+      "id": "tool-meta-ads-manager",
+      "name": "Tool: Meta Ads Manager",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        1450,
+        -500
+      ],
+      "notesInFlow": true,
+      "notes": "Gère Meta Ads en LECTURE SEULE. Lit insights, monitore Learning Phase. Ne peut PAS lancer de campagnes (rôle de Marcus)."
+    },
+    {
+      "parameters": {
+        "name": "looker_manager",
+        "description": "Gère Looker Studio. Crée dashboards, ajoute graphiques, planifie emails automatiques.",
+        "workflowCode": "// ============================================================\n// TOOL: looker_manager\n// Gère Looker Studio. Crée dashboards, ajoute graphiques, planifie emails automatiques.\n// ============================================================\n\nconst functionName = $input.json.function_name;\nconst parameters = $input.json.parameters;\nconst credentials = $input.json.credentials;\n\n// TODO: Implémenter l'appel au MCP server\n// Pour l'instant, retourner un placeholder\n\nreturn {\n  success: true,\n  tool: \"looker_manager\",\n  function_called: functionName,\n  message: \"MCP Server call placeholder - À implémenter\",\n  note: \"Ce tool nécessite l'implémentation du MCP server correspondant\"\n};\n",
+        "specifyInputSchema": true,
+        "jsonSchemaExample": "{\"function_name\": \"example_function\", \"parameters\": {}, \"credentials\": {\"access_token\": \"...\"}}"
+      },
+      "id": "tool-looker-manager",
+      "name": "Tool: Looker Manager",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [
+        1450,
+        -700
+      ],
+      "notesInFlow": true,
+      "notes": "Gère Looker Studio. Crée dashboards, ajoute graphiques, planifie emails automatiques."
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Load Brand Memory",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Load Strategy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Load Brand Memory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Brand Memory": {
+      "main": [
+        [
+          {
+            "node": "Merge Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Strategy": {
+      "main": [
+        [
+          {
+            "node": "Merge Context",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Context": {
+      "main": [
+        [
+          {
+            "node": "Prepare Analyst Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Analyst Context": {
+      "main": [
+        [
+          {
+            "node": "Data Fetcher (GA4 + GSC)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Data Fetcher (GA4 + GSC)": {
+      "main": [
+        [
+          {
+            "node": "Has Image?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: Check Integrations": {
+      "ai_tool": [
+        [
+          {
+            "node": "Analyst Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Image?": {
+      "main": [
+        [
+          {
+            "node": "Vision_AI",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Vision_AI": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Crafting",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crafting": {
+      "main": [
+        [
+          {
+            "node": "Analyst Brain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyst Brain": {
+      "main": [
+        [
+          {
+            "node": "Format UI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Analyst Brain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format UI Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: GTM Manager": {
+      "ai_tool": [
+        [
+          {
+            "node": "Analyst Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: Google Ads Manager": {
+      "ai_tool": [
+        [
+          {
+            "node": "Analyst Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: Meta Ads Manager": {
+      "ai_tool": [
+        [
+          {
+            "node": "Analyst Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: Looker Manager": {
+      "ai_tool": [
+        [
+          {
+            "node": "Analyst Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "the-hive",
+      "id": "tag-hive-v5"
+    },
+    {
+      "name": "analyst",
+      "id": "tag-analyst"
+    },
+    {
+      "name": "v5-bio-brain",
+      "id": "tag-v5"
+    }
+  ],
+  "pinData": {},
+  "versionId": "5.2.0",
+  "meta": {
+    "instanceId": "the-hive-vps",
+    "templateCredsSetupCompleted": true
+  }
+}

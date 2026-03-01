@@ -1,0 +1,555 @@
+{
+  "name": "PM Central Brain - Agency Killer V4.4 (Phase 0 Validated)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "pm-v4-entry",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "main-webhook",
+      "name": "Main Entry Point",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-200, 400],
+      "webhookId": "pm-v4-entry",
+      "notesInFlow": true,
+      "notes": "UNIQUE ENTRY POINT - All frontend calls go here"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// PM CENTRAL BRAIN - ROUTE DISPATCHER V4.4\n// ============================================================================\n\nconst input = $input.first().json;\nconst body = input.body || input;\n\nconst action = body.action || 'quick_action';\n\nconst context = {\n  action: action,\n  session_id: body.session_id || `session_${Date.now()}`,\n  timestamp: new Date().toISOString(),\n  \n  genesis_data: action === 'genesis' ? {\n    scope: body.scope,\n    answers: body.answers,\n    project_name: body.project_name,\n    deadline: body.deadline,\n    context_data: body.context_data || {}\n  } : null,\n  \n  task_data: action === 'task_launch' ? {\n    task_id: body.task_id,\n    project_id: body.project_id || body.shared_memory?.project_id,\n    user_message: body.chatInput || body.message,\n    active_agent_id: body.activeAgentId || 'orchestrator',\n    shared_memory: body.shared_memory || {},\n    task_context: body.task_context || {}\n  } : null,\n  \n  chat_data: action === 'quick_action' || action === 'chat' ? {\n    message: body.chatInput || body.message,\n    project_id: body.project_id || body.shared_memory?.project_id,\n    active_agent_id: body.activeAgentId || 'orchestrator',\n    image: body.image,\n    shared_memory: body.shared_memory || {},\n    task_context: body.task_context || {}\n  } : null,\n  \n  writeback_data: action === 'write_back' ? {\n    task_id: body.task_id,\n    project_id: body.project_id,\n    updates: body.updates,\n    deliverable_url: body.deliverable_url,\n    state_flags: body.state_flags\n  } : null\n};\n\nreturn [{ json: context }];"
+      },
+      "id": "route-dispatcher",
+      "name": "Route Dispatcher",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [20, 400],
+      "notesInFlow": true,
+      "notes": "Detect action type and build context"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+                "conditions": [{ "leftValue": "={{ $json.action }}", "rightValue": "genesis", "operator": { "type": "string", "operation": "equals" } }],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "genesis"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+                "conditions": [{ "leftValue": "={{ $json.action }}", "rightValue": "task_launch", "operator": { "type": "string", "operation": "equals" } }],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "task_launch"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+                "conditions": [{ "leftValue": "={{ $json.action }}", "rightValue": "write_back", "operator": { "type": "string", "operation": "equals" } }],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "write_back"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+                "conditions": [{ "leftValue": "={{ $json.action }}", "rightValue": "quick_action", "operator": { "type": "string", "operation": "equals" } }],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "quick_action"
+            }
+          ]
+        },
+        "options": { "fallbackOutput": "extra" }
+      },
+      "id": "action-switch",
+      "name": "Action Switch",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [240, 400],
+      "notesInFlow": true,
+      "notes": "Route to appropriate handler"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// GENESIS HANDLER - Create Project + Tasks\n// ============================================================================\n\nconst TASK_TEMPLATES = {\n  meta_ads: [\n    { title: 'Setup Technique & Budget CBO', description: 'Configurer la structure de campagne Meta', assignee: 'marcus', phase: 'Setup', estimated_hours: 2, context_questions: ['Budget quotidien ?', 'ROAS cible ?'], depends_on: [] },\n    { title: 'Setup Tracking (Pixel/CAPI)', description: 'Installer Pixel Meta + CAPI', assignee: 'sora', phase: 'Setup', estimated_hours: 3, context_questions: ['GTM installé ?', 'Events à tracker ?'], depends_on: [] },\n    { title: 'Copywriting Ads (3 variations)', description: 'Rédiger 3 variations de textes', assignee: 'milo', phase: 'Production', estimated_hours: 3, context_questions: ['Ton de la marque ?', 'Offre principale ?'], depends_on: ['Setup Tracking (Pixel/CAPI)'] },\n    { title: 'Génération Visuels Meta', description: 'Créer les visuels avec IA', assignee: 'milo', phase: 'Production', estimated_hours: 4, context_questions: ['Format préféré ?', 'Éléments de marque ?'], depends_on: ['Setup Tracking (Pixel/CAPI)'] }\n  ],\n  seo: [\n    { title: 'Audit Sémantique & Technique', description: 'Analyser structure SEO', assignee: 'luna', phase: 'Audit', estimated_hours: 5, context_questions: ['URL du site ?', 'Concurrents ?'], depends_on: [] },\n    { title: 'Recherche Keywords', description: 'Identifier mots-clés potentiel', assignee: 'luna', phase: 'Audit', estimated_hours: 3, context_questions: ['Thématiques ?', 'Zone géo ?'], depends_on: ['Audit Sémantique & Technique'] },\n    { title: 'Configuration GSC & GA4', description: 'Connecter Search Console', assignee: 'sora', phase: 'Setup', estimated_hours: 1, context_questions: ['Accès GSC ?'], depends_on: [] },\n    { title: 'Rédaction Page Pilier', description: 'Rédiger contenu SEO', assignee: 'milo', phase: 'Production', estimated_hours: 4, context_questions: ['Sujet ?', 'Longueur ?'], depends_on: ['Recherche Keywords'] }\n  ],\n  sem: [\n    { title: 'Audit Compte Google Ads', description: 'Analyser performance actuelle', assignee: 'sora', phase: 'Audit', estimated_hours: 2, context_questions: ['Accès Google Ads ?'], depends_on: [] },\n    { title: 'Setup Campagne Search', description: 'Créer campagne Google Search', assignee: 'marcus', phase: 'Setup', estimated_hours: 3, context_questions: ['Budget ?', 'Zones géo ?'], depends_on: ['Audit Compte Google Ads'] },\n    { title: 'Copywriting RSA', description: 'Rédiger titres et descriptions', assignee: 'milo', phase: 'Production', estimated_hours: 2, context_questions: ['USP ?'], depends_on: [] }\n  ],\n  analytics: [\n    { title: 'Plan de Taggage GA4 + GTM', description: 'Définir plan de taggage', assignee: 'sora', phase: 'Setup', estimated_hours: 4, context_questions: ['Events clés ?'], depends_on: [] },\n    { title: 'Debugging Data Layer', description: 'Vérifier anomalies', assignee: 'sora', phase: 'Audit', estimated_hours: 2, context_questions: ['Anomalies ?'], depends_on: ['Plan de Taggage GA4 + GTM'] },\n    { title: 'Création Dashboard', description: 'Construire tableau de bord', assignee: 'sora', phase: 'Production', estimated_hours: 3, context_questions: ['KPIs ?'], depends_on: ['Debugging Data Layer'] }\n  ]\n};\n\nfunction calculateDueDates(tasks, deadline) {\n  const phases = ['Audit', 'Setup', 'Production', 'Optimization'];\n  let currentDate = new Date();\n  const sortedTasks = [...tasks].sort((a, b) => phases.indexOf(a.phase) - phases.indexOf(b.phase));\n  return sortedTasks.map(task => {\n    while (currentDate.getDay() === 0 || currentDate.getDay() === 6) currentDate.setDate(currentDate.getDate() + 1);\n    const dueDate = currentDate.toISOString().split('T')[0];\n    currentDate.setDate(currentDate.getDate() + Math.ceil(task.estimated_hours / 6));\n    return { ...task, due_date: dueDate, status: 'todo' };\n  });\n}\n\nconst context = $input.first().json;\nconst { scope, project_name, deadline, context_data } = context.genesis_data;\n\nlet baseTasks = TASK_TEMPLATES[scope] || [];\nif (scope === 'full_scale') baseTasks = [...TASK_TEMPLATES.meta_ads, ...TASK_TEMPLATES.seo, ...TASK_TEMPLATES.sem, ...TASK_TEMPLATES.analytics];\n\nconst tasksWithDates = calculateDueDates(baseTasks, deadline);\nconst totalHours = tasksWithDates.reduce((sum, t) => sum + t.estimated_hours, 0);\n\nreturn [{\n  json: {\n    action: 'genesis_complete',\n    project: { name: project_name, scope, status: 'planning', current_phase: 'Audit', state_flags: { strategy_validated: false, budget_approved: false, creatives_ready: false, tracking_ready: false, ads_live: false }, metadata: context_data || {} },\n    tasks: tasksWithDates,\n    chat_message: `**Projet créé!** ${tasksWithDates.length} tâches générées pour **${project_name}** (${totalHours}h estimées).`,\n    meta: { agent_id: 'pm', action: 'genesis', tasks_count: tasksWithDates.length }\n  }\n}];"
+      },
+      "id": "genesis-handler",
+      "name": "Genesis Handler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 100],
+      "notesInFlow": true,
+      "notes": "Create Project + Tasks"
+    },
+    {
+      "parameters": {
+        "jsCode": "// TASK LAUNCH HANDLER - Prepare for Memory Read\nconst context = $input.first().json;\nconst taskData = context.task_data;\n\nreturn [{\n  json: {\n    ...context,\n    project_id_for_memory: taskData.project_id,\n    active_agent_id: taskData.active_agent_id,\n    user_message: taskData.user_message,\n    shared_memory: taskData.shared_memory,\n    task_context: taskData.task_context\n  }\n}];"
+      },
+      "id": "task-launch-handler",
+      "name": "Task Launch Handler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 300],
+      "notesInFlow": true,
+      "notes": "Prepare for memory read"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT agent_id, action, summary, key_findings, deliverables, recommendations, created_at\nFROM project_memory\nWHERE project_id = '{{ $json.project_id_for_memory }}'\nORDER BY created_at DESC\nLIMIT 10",
+        "options": {}
+      },
+      "id": "read-project-memory",
+      "name": "Read Project Memory",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [720, 300],
+      "credentials": {
+        "supabaseApi": {
+          "id": "VOTRE_CREDENTIAL_ID",
+          "name": "Supabase - The Hive V4"
+        }
+      },
+      "notesInFlow": true,
+      "notes": "V4.3: Read collective memory"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// BUILD MEMORY CONTEXT V4.4\n// ============================================================================\n\nconst originalContext = $('Task Launch Handler').first().json;\nconst memoryRecords = $input.all().map(item => item.json) || [];\n\nconst previousWork = memoryRecords.map(record => ({\n  agent: record.agent_id,\n  what_was_done: record.summary,\n  key_findings: record.key_findings || [],\n  deliverables: record.deliverables || [],\n  recommendations: record.recommendations || [],\n  timestamp: record.created_at\n}));\n\nfunction extractRelevantRecommendations(previousWork, currentAgent) {\n  const recommendations = [];\n  for (const work of previousWork) {\n    if (work.recommendations && work.recommendations.length > 0) {\n      const agentRecos = work.recommendations.filter(r => \n        typeof r === 'string' && r.toLowerCase().includes(currentAgent.toLowerCase())\n      );\n      if (agentRecos.length > 0) {\n        recommendations.push({ from_agent: work.agent, recommendations: agentRecos.slice(0, 3) });\n      }\n    }\n  }\n  return recommendations.slice(0, 5);\n}\n\nconst memoryContext = {\n  project_summary: originalContext.shared_memory?.project_name || 'Projet en cours',\n  previous_work: previousWork,\n  validated_elements: {\n    usp: originalContext.shared_memory?.metadata?.usp || null,\n    persona: originalContext.shared_memory?.metadata?.targetPersona || null,\n    competitors: originalContext.shared_memory?.metadata?.competitors || [],\n    tone: originalContext.shared_memory?.metadata?.editorial_tone || 'professional'\n  },\n  current_state: {\n    phase: originalContext.shared_memory?.current_phase || 'setup',\n    flags: originalContext.shared_memory?.state_flags || {}\n  },\n  recommendations_for_current_task: extractRelevantRecommendations(previousWork, originalContext.active_agent_id)\n};\n\nreturn [{\n  json: {\n    user_message: originalContext.user_message,\n    session_id: originalContext.session_id,\n    suggested_agent_id: originalContext.active_agent_id,\n    shared_memory: originalContext.shared_memory,\n    task_context: originalContext.task_context,\n    memory_context: memoryContext,\n    previous_work_summary: previousWork.map(w => `${w.agent}: ${w.what_was_done}`).join('\\n'),\n    project_id: originalContext.project_id_for_memory\n  }\n}];"
+      },
+      "id": "build-memory-context",
+      "name": "Build Memory Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [940, 300],
+      "notesInFlow": true,
+      "notes": "V4.4: Build enriched context"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// PHASE 0 - DETECT AGENT ACTION\n// ============================================================================\n// Analyse le message utilisateur + agent actif pour détecter quelle action\n// critique est sur le point d'être exécutée\n\nconst context = $input.first().json;\nconst userMessage = (context.user_message || '').toLowerCase();\nconst agentId = context.suggested_agent_id;\n\n// Map agent_id vers type agent\nconst agentTypeMap = {\n  'marcus': 'trader',\n  'milo': 'creative',\n  'sora': 'analyst',\n  'luna': 'strategist'\n};\n\nconst agentType = agentTypeMap[agentId] || null;\n\n// Détection d'action par patterns de mots-clés\nlet detectedAction = null;\n\nif (agentType === 'trader') {\n  if (userMessage.includes('lance') || userMessage.includes('lancer') || userMessage.includes('campagne')) {\n    detectedAction = 'launch_campaign';\n  } else if (userMessage.includes('scale') || userMessage.includes('augment')) {\n    detectedAction = 'scale_campaign';\n  } else if (userMessage.includes('stop') || userMessage.includes('arrête') || userMessage.includes('kill')) {\n    detectedAction = 'kill_campaign';\n  } else if (userMessage.includes('budget') && (userMessage.includes('modif') || userMessage.includes('change'))) {\n    detectedAction = 'update_budget';\n  }\n} else if (agentType === 'creative') {\n  if (userMessage.includes('génère') || userMessage.includes('crée') || userMessage.includes('final')) {\n    detectedAction = 'generate_final_creatives';\n  } else if (userMessage.includes('vidéo') || userMessage.includes('video')) {\n    detectedAction = 'generate_video';\n  } else if (userMessage.includes('brand') || userMessage.includes('marque')) {\n    detectedAction = 'generate_brand_assets';\n  }\n} else if (agentType === 'analyst') {\n  if (userMessage.includes('dashboard')) {\n    detectedAction = 'create_dashboard';\n  } else if (userMessage.includes('analys') || userMessage.includes('performance')) {\n    detectedAction = 'analyze_campaign_performance';\n  } else if (userMessage.includes('audit') && userMessage.includes('tracking')) {\n    detectedAction = 'audit_tracking';\n  } else if (userMessage.includes('rapport') || userMessage.includes('report')) {\n    detectedAction = 'generate_report';\n  }\n} else if (agentType === 'strategist') {\n  if (userMessage.includes('finalise') || userMessage.includes('valide') && userMessage.includes('stratég')) {\n    detectedAction = 'finalize_strategy';\n  } else if (userMessage.includes('concurrent') || userMessage.includes('compet')) {\n    detectedAction = 'competitive_analysis';\n  } else if (userMessage.includes('positionnement')) {\n    detectedAction = 'validate_positioning';\n  }\n}\n\nreturn [{\n  json: {\n    ...context,\n    agent_type: agentType,\n    detected_action: detectedAction,\n    requires_validation: detectedAction !== null\n  }\n}];"
+      },
+      "id": "detect-agent-action",
+      "name": "🔍 Detect Agent Action",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1160, 300],
+      "notesInFlow": true,
+      "notes": "PHASE 0: Detect critical action from user message"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "requires-validation", "leftValue": "={{ $json.requires_validation }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }],
+          "combinator": "and"
+        }
+      },
+      "id": "check-requires-validation",
+      "name": "Requires Validation?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1380, 300],
+      "notesInFlow": true,
+      "notes": "PHASE 0: Check if action requires state validation"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT state_flags, current_phase, metadata, created_at FROM projects WHERE id = '{{ $json.project_id }}' LIMIT 1",
+        "options": {}
+      },
+      "id": "read-project-state",
+      "name": "📊 Read Project State",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1600, 200],
+      "credentials": {
+        "supabaseApi": {
+          "id": "VOTRE_CREDENTIAL_ID",
+          "name": "Supabase - The Hive V4"
+        }
+      },
+      "notesInFlow": true,
+      "notes": "PHASE 0: Load project state for validation"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// PHASE 0 - VALIDATE STATE FLAGS\n// ============================================================================\n// Implémentation inline de validateStateBeforeAction()\n\nconst STATE_VALIDATION_RULES = {\n  trader: {\n    launch_campaign: {\n      required_flags: ['strategy_validated', 'budget_approved', 'creatives_ready', 'tracking_ready'],\n      required_phase: ['Production', 'Optimization'],\n      error_message: \"Impossible de lancer la campagne: validations manquantes\",\n      help_text: \"Complétez d'abord: Stratégie (Luna) → Budget (Approval) → Assets (Milo) → Tracking (Sora)\",\n      severity: 'blocking'\n    },\n    scale_campaign: {\n      required_flags: ['ads_live'],\n      minimum_runtime_hours: 48,\n      error_message: \"Impossible de scaler: campagne trop récente (attendez fin Learning Phase)\",\n      help_text: \"Meta Ads nécessite 48h minimum de Learning Phase avant scaling\",\n      severity: 'blocking'\n    },\n    kill_campaign: {\n      required_flags: ['ads_live'],\n      error_message: \"Aucune campagne active à arrêter\",\n      help_text: \"Il n'y a actuellement aucune campagne en cours d'exécution\",\n      severity: 'warning'\n    },\n    update_budget: {\n      required_flags: ['ads_live'],\n      error_message: \"Impossible de modifier le budget: aucune campagne active\",\n      severity: 'blocking'\n    }\n  },\n  creative: {\n    generate_final_creatives: {\n      required_flags: ['strategy_validated'],\n      required_phase: ['Production', 'Optimization'],\n      error_message: \"Attendez validation de la stratégie avant génération finale\",\n      help_text: \"Luna doit d'abord valider le positionnement et le ton de marque\",\n      severity: 'blocking'\n    },\n    generate_video: {\n      required_flags: ['strategy_validated'],\n      cost_approval_threshold: 50,\n      error_message: \"Génération vidéo nécessite validation stratégie + approbation coût\",\n      help_text: \"Les vidéos sont coûteuses. Assurez-vous que la stratégie est validée.\",\n      severity: 'warning'\n    },\n    generate_brand_assets: {\n      required_flags: ['strategy_validated'],\n      error_message: \"Validez d'abord l'identité de marque avec Luna\",\n      help_text: \"Les assets de marque doivent respecter le positionnement validé\",\n      severity: 'blocking'\n    }\n  },\n  analyst: {\n    create_dashboard: {\n      required_flags: ['tracking_ready'],\n      error_message: \"Tracking non configuré: données indisponibles\",\n      help_text: \"Installez d'abord le pixel Meta ou le tag GA4 pour collecter des données\",\n      severity: 'blocking'\n    },\n    analyze_campaign_performance: {\n      required_flags: ['ads_live'],\n      minimum_runtime_hours: 24,\n      error_message: \"Campagne trop récente pour une analyse fiable\",\n      help_text: \"Attendez au minimum 24h de données avant analyse\",\n      severity: 'warning'\n    },\n    audit_tracking: {\n      required_phase: ['Setup', 'Production'],\n      error_message: \"L'audit tracking doit être fait en phase Setup ou Production\",\n      severity: 'warning'\n    },\n    generate_report: {\n      required_flags: ['tracking_ready'],\n      minimum_runtime_hours: 24,\n      error_message: \"Données insuffisantes pour générer un rapport\",\n      help_text: \"Attendez au moins 24h de collecte de données\",\n      severity: 'warning'\n    }\n  },\n  strategist: {\n    finalize_strategy: {\n      required_phase: ['Audit', 'Setup'],\n      error_message: \"Finalisez d'abord l'audit avant de valider la stratégie\",\n      help_text: \"Phase Audit doit être complétée pour avoir toutes les données\",\n      severity: 'blocking'\n    },\n    competitive_analysis: {\n      required_phase: ['Audit'],\n      error_message: \"L'analyse concurrentielle se fait en phase Audit\",\n      severity: 'warning'\n    },\n    validate_positioning: {\n      required_phase: ['Audit', 'Setup'],\n      error_message: \"Le positionnement se valide après l'audit\",\n      severity: 'blocking'\n    }\n  }\n};\n\nconst FLAG_DESCRIPTIONS = {\n  strategy_validated: { label: \"Stratégie validée\", responsible_agent: \"luna\", icon: \"target\" },\n  budget_approved: { label: \"Budget approuvé\", responsible_agent: \"user\", icon: \"dollar-sign\" },\n  creatives_ready: { label: \"Assets créatifs prêts\", responsible_agent: \"creative\", icon: \"image\" },\n  tracking_ready: { label: \"Tracking configuré\", responsible_agent: \"analyst\", icon: \"activity\" },\n  ads_live: { label: \"Campagne active\", responsible_agent: \"trader\", icon: \"play-circle\" }\n};\n\nconst context = $('Detect Agent Action').first().json;\nconst projectState = $input.first().json;\n\nconst agentType = context.agent_type;\nconst action = context.detected_action;\n\nconst rules = STATE_VALIDATION_RULES[agentType]?.[action];\n\nif (!rules) {\n  // Pas de règle = validation OK\n  return [{ json: { ...context, validation_passed: true, validation_result: { valid: true } } }];\n}\n\nconst project = projectState;\n\n// ─────────────────────────────────────────────────────────────────────────\n// 2. Vérifier les flags requis\n// ─────────────────────────────────────────────────────────────────────────\nif (rules.required_flags && rules.required_flags.length > 0) {\n  const missingFlags = rules.required_flags.filter(\n    flag => !project.state_flags?.[flag]\n  );\n\n  if (missingFlags.length > 0) {\n    return [{\n      json: {\n        ...context,\n        validation_passed: false,\n        validation_result: {\n          valid: false,\n          error: rules.error_message,\n          missing_flags: missingFlags.map(flag => ({\n            flag: flag,\n            ...FLAG_DESCRIPTIONS[flag]\n          })),\n          resolution: rules.help_text,\n          severity: rules.severity || 'blocking',\n          validation_type: 'missing_flags'\n        }\n      }\n    }];\n  }\n}\n\n// ─────────────────────────────────────────────────────────────────────────\n// 3. Vérifier la phase requise\n// ─────────────────────────────────────────────────────────────────────────\nif (rules.required_phase && rules.required_phase.length > 0) {\n  if (!rules.required_phase.includes(project.current_phase)) {\n    return [{\n      json: {\n        ...context,\n        validation_passed: false,\n        validation_result: {\n          valid: false,\n          error: `Action autorisée seulement en phase: ${rules.required_phase.join(' ou ')}`,\n          current_phase: project.current_phase,\n          required_phases: rules.required_phase,\n          resolution: `Passez d'abord à la phase ${rules.required_phase[0]}`,\n          severity: rules.severity || 'blocking',\n          validation_type: 'wrong_phase'\n        }\n      }\n    }];\n  }\n}\n\n// ─────────────────────────────────────────────────────────────────────────\n// 4. Vérifier le runtime minimum (pour scale, analyze, etc.)\n// ─────────────────────────────────────────────────────────────────────────\nif (rules.minimum_runtime_hours) {\n  const campaign = project.metadata?.campaign;\n\n  if (!campaign?.launched_at) {\n    return [{\n      json: {\n        ...context,\n        validation_passed: false,\n        validation_result: {\n          valid: false,\n          error: \"Aucune campagne active trouvée\",\n          resolution: \"Lancez d'abord une campagne avec Marcus\",\n          severity: rules.severity || 'blocking',\n          validation_type: 'no_campaign'\n        }\n      }\n    }];\n  }\n\n  const hoursSinceLaunch =\n    (Date.now() - new Date(campaign.launched_at).getTime()) / 3600000;\n\n  if (hoursSinceLaunch < rules.minimum_runtime_hours) {\n    const hoursRemaining = Math.ceil(rules.minimum_runtime_hours - hoursSinceLaunch);\n\n    return [{\n      json: {\n        ...context,\n        validation_passed: false,\n        validation_result: {\n          valid: false,\n          error: rules.error_message,\n          hours_remaining: hoursRemaining,\n          hours_since_launch: Math.floor(hoursSinceLaunch),\n          minimum_hours: rules.minimum_runtime_hours,\n          resolution: rules.help_text,\n          severity: rules.severity || 'warning',\n          validation_type: 'insufficient_runtime'\n        }\n      }\n    }];\n  }\n}\n\n// ✅ Toutes les validations passées\nreturn [{\n  json: {\n    ...context,\n    validation_passed: true,\n    validation_result: {\n      valid: true,\n      message: `Validation OK pour ${agentType}.${action}`\n    }\n  }\n}];"
+      },
+      "id": "validate-state-flags",
+      "name": "🛡️ Validate State Flags",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1820, 200],
+      "notesInFlow": true,
+      "notes": "PHASE 0: Validate state flags before critical action"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "validation-passed", "leftValue": "={{ $json.validation_passed }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }],
+          "combinator": "and"
+        }
+      },
+      "id": "check-validation-passed",
+      "name": "Validation Passed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2040, 200],
+      "notesInFlow": true,
+      "notes": "PHASE 0: Check if state validation passed"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// PHASE 0 - FORMAT BLOCKED ERROR\n// ============================================================================\n\nconst context = $input.first().json;\nconst validationResult = context.validation_result;\n\nlet errorMessage = `❌ **Action bloquée**: ${validationResult.error}\\n\\n`;\n\nif (validationResult.validation_type === 'missing_flags') {\n  errorMessage += `**Flags manquants:**\\n`;\n  for (const flag of validationResult.missing_flags) {\n    errorMessage += `- ${flag.label} (${flag.icon}) - Responsable: ${flag.responsible_agent}\\n`;\n  }\n  errorMessage += `\\n**Résolution:** ${validationResult.resolution}`;\n} else if (validationResult.validation_type === 'wrong_phase') {\n  errorMessage += `**Phase actuelle:** ${validationResult.current_phase}\\n`;\n  errorMessage += `**Phases requises:** ${validationResult.required_phases.join(', ')}\\n\\n`;\n  errorMessage += `**Résolution:** ${validationResult.resolution}`;\n} else if (validationResult.validation_type === 'insufficient_runtime') {\n  errorMessage += `**Heures écoulées:** ${validationResult.hours_since_launch}h\\n`;\n  errorMessage += `**Minimum requis:** ${validationResult.minimum_hours}h\\n`;\n  errorMessage += `**Temps restant:** ${validationResult.hours_remaining}h\\n\\n`;\n  errorMessage += `**Résolution:** ${validationResult.resolution}`;\n} else {\n  errorMessage += `**Résolution:** ${validationResult.resolution || 'Contactez support'}`;\n}\n\nreturn [{\n  json: {\n    success: true,\n    action: 'action_blocked',\n    chat_message: errorMessage,\n    ui_components: [{\n      type: 'ERROR_BLOCKED_ACTION',\n      data: validationResult\n    }],\n    meta: {\n      agent_id: 'pm',\n      action: 'validation_blocked',\n      blocked_action: context.detected_action,\n      blocked_agent: context.agent_type,\n      severity: validationResult.severity,\n      timestamp: new Date().toISOString()\n    }\n  }\n}];"
+      },
+      "id": "format-blocked-error",
+      "name": "❌ Format Blocked Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2260, 100],
+      "notesInFlow": true,
+      "notes": "PHASE 0: Format error response for blocked action"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "pm-ai-agent",
+      "name": "PM AI Brain",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [2260, 300],
+      "notesInFlow": true,
+      "notes": "CERVEAU IA du Chef de Projet - Analyse, décide, enrichit"
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o",
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "id": "pm-chat-model",
+      "name": "PM Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [2260, 500],
+      "credentials": {
+        "openAiApi": {
+          "id": "VOTRE_OPENAI_CREDENTIAL_ID",
+          "name": "OpenAI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "={{ $json.chatInput || $json.user_message }}"
+      },
+      "id": "pm-prompt-input",
+      "name": "User Message",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1,
+      "position": [2260, 700]
+    },
+    {
+      "parameters": {
+        "text": "=Tu es Felix, le Chef de Projet (PM) de THE HIVE OS. Tu es le cerveau stratégique qui coordonne les agents spécialistes.\n\n## TON ROLE\n- Analyser les demandes utilisateur\n- Décider quel agent doit intervenir\n- Enrichir le contexte avec la mémoire collective\n- Assurer la cohérence du projet\n\n## AGENTS DISPONIBLES\n- **luna** (Strategist): SEO, stratégie marketing, analyse concurrentielle, positionnement\n- **milo** (Creative): Copywriting, génération images/videos, contenu créatif\n- **marcus** (Trader): Campagnes publicitaires, Meta Ads, Google Ads, budget, ROAS\n- **sora** (Analyst): Tracking, GA4, GTM, dashboards, analyse de données\n\n## MEMOIRE COLLECTIVE DU PROJET\n{{ $json.previous_work_summary || 'Aucun travail précédent.' }}\n\n## ELEMENTS VALIDES DU PROJET\n- USP: {{ $json.memory_context.validated_elements.usp || 'Non définie' }}\n- Persona: {{ $json.memory_context.validated_elements.persona || 'Non défini' }}\n- Ton: {{ $json.memory_context.validated_elements.tone || 'Professionnel' }}\n\n## PHASE ACTUELLE\n{{ $json.memory_context.current_state.phase || 'Setup' }}\n\n## RECOMMANDATIONS DES AGENTS PRECEDENTS\n{{ JSON.stringify($json.memory_context.recommendations_for_current_task) || 'Aucune' }}\n\n## TA TACHE\nAnalyse la demande utilisateur et retourne un JSON avec:\n1. `selected_agent`: L'agent le plus adapté (luna, milo, marcus, sora)\n2. `routing_reason`: Pourquoi cet agent (1 phrase)\n3. `context_enrichment`: Instructions supplémentaires pour l'agent basées sur la mémoire\n4. `coherence_notes`: Ce que l'agent doit respecter pour rester cohérent avec les travaux précédents\n\n## DEMANDE UTILISATEUR\n{{ $json.user_message }}\n\n## AGENT SUGGERE PAR LE FRONTEND\n{{ $json.suggested_agent_id || 'orchestrator' }}\n\nRéponds UNIQUEMENT en JSON valide."
+      },
+      "id": "pm-system-prompt",
+      "name": "PM System Prompt",
+      "type": "@n8n/n8n-nodes-langchain.prompt",
+      "typeVersion": 1,
+      "position": [2480, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// PARSE PM AI RESPONSE & BUILD ORCHESTRATOR PAYLOAD\n// ============================================================================\n\nconst originalContext = $('Detect Agent Action').first().json;\nconst aiResponse = $input.first().json;\n\n// Parse AI response\nlet pmDecision = {};\ntry {\n  const output = aiResponse.output || aiResponse.text || JSON.stringify(aiResponse);\n  const jsonMatch = output.match(/\\{[\\s\\S]*\\}/);\n  if (jsonMatch) {\n    pmDecision = JSON.parse(jsonMatch[0]);\n  }\n} catch (e) {\n  pmDecision = {\n    selected_agent: originalContext.suggested_agent_id || 'orchestrator',\n    routing_reason: 'Fallback to suggested agent',\n    context_enrichment: '',\n    coherence_notes: ''\n  };\n}\n\n// Build memory injection for orchestrator\nconst memoryInjection = originalContext.memory_context.previous_work.length > 0 ? `\n\n## CONTEXTE PROJET (MEMOIRE COLLECTIVE)\n\n**Projet:** ${originalContext.memory_context.project_summary}\n**Phase:** ${originalContext.memory_context.current_state.phase}\n\n### Travaux précédents:\n${originalContext.memory_context.previous_work.map(w => `- **${w.agent.toUpperCase()}:** ${w.what_was_done}`).join('\\n')}\n\n### Recommandations PM:\n${pmDecision.context_enrichment || 'Aucune instruction supplémentaire.'}\n\n### Cohérence à respecter:\n${pmDecision.coherence_notes || 'Aucune contrainte spécifique.'}\n\n### Eléments validés:\n- USP: ${originalContext.memory_context.validated_elements.usp || 'Non définie'}\n- Persona: ${originalContext.memory_context.validated_elements.persona || 'Non défini'}\n- Ton: ${originalContext.memory_context.validated_elements.tone || 'Professionnel'}\n` : '';\n\n// Build orchestrator payload\nconst orchestratorPayload = {\n  chatInput: originalContext.user_message,\n  session_id: originalContext.session_id,\n  activeAgentId: pmDecision.selected_agent || originalContext.suggested_agent_id,\n  shared_memory: originalContext.shared_memory,\n  task_context: originalContext.task_context,\n  system_instruction: memoryInjection,\n  memory_context: originalContext.memory_context,\n  pm_decision: pmDecision\n};\n\nreturn [{ json: orchestratorPayload }];"
+      },
+      "id": "parse-pm-response",
+      "name": "Parse PM Decision",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2700, 300],
+      "notesInFlow": true,
+      "notes": "Parse AI decision and build Orchestrator payload"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.ORCHESTRATOR_WEBHOOK_URL || 'https://votre-n8n.com/webhook/orchestrator-v4-entry' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": { "timeout": 300000 }
+      },
+      "id": "call-orchestrator",
+      "name": "Call Orchestrator",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2920, 300],
+      "notesInFlow": true,
+      "notes": "HTTP call to Orchestrator"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// PROCESS ORCHESTRATOR RESPONSE V4.4\n// ============================================================================\n\nconst originalContext = $('Parse PM Decision').first().json;\nconst orchestratorResponse = $input.first().json;\n\nconst memoryContribution = orchestratorResponse.memory_contribution || null;\n\nconst writeBackData = memoryContribution ? {\n  project_id: originalContext.shared_memory?.project_id,\n  agent_id: orchestratorResponse.meta?.agent_id || originalContext.activeAgentId,\n  task_id: originalContext.task_context?.task_id || null,\n  action: memoryContribution.action || 'TASK_COMPLETED',\n  summary: memoryContribution.summary || (orchestratorResponse.chat_message || '').substring(0, 200),\n  key_findings: memoryContribution.key_findings || [],\n  deliverables: memoryContribution.deliverables || [],\n  recommendations: memoryContribution.recommendations_for_next_agent || []\n} : null;\n\nconst flagsToUpdate = memoryContribution?.flags_to_update || null;\n\nreturn [{\n  json: {\n    chat_message: orchestratorResponse.chat_message,\n    ui_components: orchestratorResponse.ui_components || [],\n    meta: orchestratorResponse.meta,\n    write_back_data: writeBackData,\n    flags_to_update: flagsToUpdate,\n    has_memory_contribution: writeBackData !== null,\n    project_id: originalContext.shared_memory?.project_id,\n    task_id: originalContext.task_context?.task_id,\n    pm_decision: originalContext.pm_decision\n  }\n}];"
+      },
+      "id": "process-orchestrator-response",
+      "name": "Process Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3140, 300],
+      "notesInFlow": true,
+      "notes": "Extract memory contribution"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "has-memory", "leftValue": "={{ $json.has_memory_contribution }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }],
+          "combinator": "and"
+        }
+      },
+      "id": "check-memory-contribution",
+      "name": "Has Memory?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [3360, 300],
+      "notesInFlow": true,
+      "notes": "Check for memory contribution"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO project_memory (project_id, agent_id, task_id, action, summary, key_findings, deliverables, recommendations)\nVALUES (\n  '{{ $json.write_back_data.project_id }}',\n  '{{ $json.write_back_data.agent_id }}',\n  {{ $json.write_back_data.task_id ? \"'\" + $json.write_back_data.task_id + \"'\" : 'NULL' }},\n  '{{ $json.write_back_data.action }}',\n  '{{ $json.write_back_data.summary.replace(/'/g, \"''\") }}',\n  '{{ JSON.stringify($json.write_back_data.key_findings) }}'::jsonb,\n  '{{ JSON.stringify($json.write_back_data.deliverables) }}'::jsonb,\n  '{{ JSON.stringify($json.write_back_data.recommendations) }}'::jsonb\n)\nRETURNING id",
+        "options": {}
+      },
+      "id": "write-memory-contribution",
+      "name": "Write Memory",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [3580, 200],
+      "credentials": {
+        "supabaseApi": {
+          "id": "VOTRE_CREDENTIAL_ID",
+          "name": "Supabase - The Hive V4"
+        }
+      },
+      "notesInFlow": true,
+      "notes": "Write to collective memory"
+    },
+    {
+      "parameters": {
+        "jsCode": "const processedResponse = $('Process Response').first().json;\nconst memoryWriteResult = $('Write Memory').first()?.json || null;\nreturn [{ json: { ...processedResponse, memory_written: memoryWriteResult !== null, memory_id: memoryWriteResult?.id || null } }];"
+      },
+      "id": "merge-memory-result",
+      "name": "Merge Memory Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3800, 200],
+      "notesInFlow": true,
+      "notes": "Merge memory write result"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nreturn [{ json: { ...input, memory_written: false } }];"
+      },
+      "id": "no-memory-passthrough",
+      "name": "No Memory Path",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3580, 400],
+      "notesInFlow": true,
+      "notes": "Pass through when no memory"
+    },
+    {
+      "parameters": {
+        "jsCode": "// WRITE-BACK HANDLER\nconst context = $input.first().json;\nconst { task_id, project_id, updates, deliverable_url, state_flags } = context.writeback_data;\n\nreturn [{\n  json: {\n    action: 'write_back_complete',\n    result: { success: true, task_id, project_id, updates_applied: { task_status: updates?.status || 'done', deliverable_url, state_flags_updated: state_flags || {}, completed_at: new Date().toISOString() } },\n    chat_message: '**Tâche mise à jour!** Livrable enregistré.',\n    meta: { agent_id: 'pm', action: 'write_back', task_id }\n  }\n}];"
+      },
+      "id": "writeback-handler",
+      "name": "Write-Back Handler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 500],
+      "notesInFlow": true,
+      "notes": "Update task state"
+    },
+    {
+      "parameters": {
+        "jsCode": "// QUICK ACTION HANDLER - Prepare for memory read\nconst context = $input.first().json;\nconst chatData = context.chat_data;\n\nreturn [{\n  json: {\n    ...context,\n    project_id_for_memory: chatData.project_id,\n    active_agent_id: chatData.active_agent_id,\n    user_message: chatData.message,\n    shared_memory: chatData.shared_memory,\n    task_context: chatData.task_context,\n    image: chatData.image\n  }\n}];"
+      },
+      "id": "quick-action-handler",
+      "name": "Quick Action Handler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 700],
+      "notesInFlow": true,
+      "notes": "Forward to memory read"
+    },
+    {
+      "parameters": {
+        "jsCode": "// NO VALIDATION NEEDED - Continue to PM AI Brain\nconst context = $input.first().json;\nreturn [{ json: context }];"
+      },
+      "id": "no-validation-needed",
+      "name": "✅ No Validation Needed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1600, 400],
+      "notesInFlow": true,
+      "notes": "PHASE 0: Continue normal flow (no critical action detected)"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// FORMAT FINAL RESPONSE V4.4\n// ============================================================================\n\nconst input = $input.first().json;\n\nconst finalResponse = {\n  success: true,\n  action: input.action || 'task_response',\n  chat_message: input.chat_message || 'Demande traitée.',\n  ui_components: input.ui_components || [],\n  project: input.project || null,\n  tasks: input.tasks || null,\n  write_back_result: input.result || null,\n  memory_updated: input.memory_written || input.has_memory_contribution || false,\n  write_back: input.flags_to_update ? [{ type: 'UPDATE_STATE_FLAGS', flags: input.flags_to_update }] : [],\n  meta: {\n    ...input.meta,\n    pm_version: 'v4.4-phase0-validated',\n    pm_decision: input.pm_decision || null,\n    timestamp: new Date().toISOString()\n  }\n};\n\nreturn [{ json: finalResponse }];"
+      },
+      "id": "format-response",
+      "name": "Format Final Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [4020, 400],
+      "notesInFlow": true,
+      "notes": "Format response for frontend"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              { "name": "Content-Type", "value": "application/json" },
+              { "name": "X-Agent", "value": "pm-central-brain-v4.4-phase0" }
+            ]
+          }
+        }
+      },
+      "id": "webhook-response",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [4240, 400]
+    }
+  ],
+  "connections": {
+    "Main Entry Point": {
+      "main": [[{ "node": "Route Dispatcher", "type": "main", "index": 0 }]]
+    },
+    "Route Dispatcher": {
+      "main": [[{ "node": "Action Switch", "type": "main", "index": 0 }]]
+    },
+    "Action Switch": {
+      "main": [
+        [{ "node": "Genesis Handler", "type": "main", "index": 0 }],
+        [{ "node": "Task Launch Handler", "type": "main", "index": 0 }],
+        [{ "node": "Write-Back Handler", "type": "main", "index": 0 }],
+        [{ "node": "Quick Action Handler", "type": "main", "index": 0 }]
+      ]
+    },
+    "Genesis Handler": {
+      "main": [[{ "node": "Format Final Response", "type": "main", "index": 0 }]]
+    },
+    "Task Launch Handler": {
+      "main": [[{ "node": "Read Project Memory", "type": "main", "index": 0 }]]
+    },
+    "Read Project Memory": {
+      "main": [[{ "node": "Build Memory Context", "type": "main", "index": 0 }]]
+    },
+    "Build Memory Context": {
+      "main": [[{ "node": "🔍 Detect Agent Action", "type": "main", "index": 0 }]]
+    },
+    "🔍 Detect Agent Action": {
+      "main": [[{ "node": "Requires Validation?", "type": "main", "index": 0 }]]
+    },
+    "Requires Validation?": {
+      "main": [
+        [{ "node": "📊 Read Project State", "type": "main", "index": 0 }],
+        [{ "node": "✅ No Validation Needed", "type": "main", "index": 0 }]
+      ]
+    },
+    "📊 Read Project State": {
+      "main": [[{ "node": "🛡️ Validate State Flags", "type": "main", "index": 0 }]]
+    },
+    "🛡️ Validate State Flags": {
+      "main": [[{ "node": "Validation Passed?", "type": "main", "index": 0 }]]
+    },
+    "Validation Passed?": {
+      "main": [
+        [{ "node": "PM AI Brain", "type": "main", "index": 0 }],
+        [{ "node": "❌ Format Blocked Error", "type": "main", "index": 0 }]
+      ]
+    },
+    "❌ Format Blocked Error": {
+      "main": [[{ "node": "Format Final Response", "type": "main", "index": 0 }]]
+    },
+    "✅ No Validation Needed": {
+      "main": [[{ "node": "PM AI Brain", "type": "main", "index": 0 }]]
+    },
+    "PM Chat Model": {
+      "ai_languageModel": [[{ "node": "PM AI Brain", "type": "ai_languageModel", "index": 0 }]]
+    },
+    "PM AI Brain": {
+      "main": [[{ "node": "Parse PM Decision", "type": "main", "index": 0 }]]
+    },
+    "Parse PM Decision": {
+      "main": [[{ "node": "Call Orchestrator", "type": "main", "index": 0 }]]
+    },
+    "Call Orchestrator": {
+      "main": [[{ "node": "Process Response", "type": "main", "index": 0 }]]
+    },
+    "Process Response": {
+      "main": [[{ "node": "Has Memory?", "type": "main", "index": 0 }]]
+    },
+    "Has Memory?": {
+      "main": [
+        [{ "node": "Write Memory", "type": "main", "index": 0 }],
+        [{ "node": "No Memory Path", "type": "main", "index": 0 }]
+      ]
+    },
+    "Write Memory": {
+      "main": [[{ "node": "Merge Memory Result", "type": "main", "index": 0 }]]
+    },
+    "Merge Memory Result": {
+      "main": [[{ "node": "Format Final Response", "type": "main", "index": 0 }]]
+    },
+    "No Memory Path": {
+      "main": [[{ "node": "Format Final Response", "type": "main", "index": 0 }]]
+    },
+    "Write-Back Handler": {
+      "main": [[{ "node": "Format Final Response", "type": "main", "index": 0 }]]
+    },
+    "Quick Action Handler": {
+      "main": [[{ "node": "Read Project Memory", "type": "main", "index": 0 }]]
+    },
+    "Format Final Response": {
+      "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": [
+    { "name": "agency-killer-v4" },
+    { "name": "pm" },
+    { "name": "central-brain" },
+    { "name": "collective-memory" },
+    { "name": "v4.4" },
+    { "name": "phase-0" },
+    { "name": "state-validation" }
+  ],
+  "pinData": {},
+  "versionId": "4.4.0-phase0-validated"
+}

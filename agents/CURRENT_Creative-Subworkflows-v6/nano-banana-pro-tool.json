@@ -1,0 +1,118 @@
+{
+  "name": "Nano Banana Pro Tool - DALL-E 3",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "execute-trigger",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// NANO BANANA PRO - PROMPT ENHANCER\n// Enrichit le prompt pour DALL-E 3 avec l'identite visuelle The Hive\n// ============================================================================\n\nconst input = $input.first().json;\n\n// Parametres d'entree\nconst userPrompt = input.positive_prompt || input.prompt || 'Modern minimalist marketing visual';\nconst aspectRatio = input.aspect_ratio || '1:1';\nconst style = input.style || 'minimalist, tech, premium';\nconst brandColors = input.brand_colors || '#000000, #FFFFFF, #FF00FF, #00FFFF';\n\n// Determiner la taille DALL-E 3\nlet size = '1024x1024'; // Default: 1:1\nif (aspectRatio === '9:16' || aspectRatio === '9/16') {\n  size = '1024x1792'; // Portrait/Story\n} else if (aspectRatio === '16:9' || aspectRatio === '16/9') {\n  size = '1792x1024'; // Landscape\n}\n\n// Enrichir le prompt avec le style The Hive\nconst enhancedPrompt = `${userPrompt}\n\nSTYLE REQUIREMENTS:\n- Ultra high quality, 8K resolution\n- ${style}\n- Color palette: ${brandColors}\n- Dark background (black or deep slate)\n- Neon accents and glow effects\n- Clean composition with 30% negative space\n- Professional marketing aesthetic\n- NO text, NO watermarks, NO logos\n- Photorealistic lighting with dramatic shadows`;\n\nreturn [{\n  json: {\n    enhanced_prompt: enhancedPrompt,\n    original_prompt: userPrompt,\n    size: size,\n    aspect_ratio: aspectRatio,\n    style: style\n  }\n}];"
+      },
+      "id": "prompt-enhancer",
+      "name": "Enhance Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [320, 300]
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "generate",
+        "model": "dall-e-3",
+        "prompt": "={{ $json.enhanced_prompt }}",
+        "options": {
+          "size": "={{ $json.size }}",
+          "quality": "hd",
+          "style": "vivid",
+          "n": 1,
+          "response_format": "url"
+        }
+      },
+      "id": "openai-dalle",
+      "name": "OpenAI DALL-E 3",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.3,
+      "position": [540, 300],
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-credentials",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// NANO BANANA PRO - OUTPUT FORMATTER\n// Structure la reponse pour l'Agent Principal\n// ============================================================================\n\nconst dalleResponse = $input.first().json;\nconst enhancerData = $('Enhance Prompt').item.json;\n\n// Extraire l'URL de l'image\nlet imageUrl = '';\nlet revisedPrompt = '';\n\nif (dalleResponse.data && dalleResponse.data[0]) {\n  imageUrl = dalleResponse.data[0].url || '';\n  revisedPrompt = dalleResponse.data[0].revised_prompt || '';\n} else if (dalleResponse.url) {\n  imageUrl = dalleResponse.url;\n} else if (typeof dalleResponse === 'string' && dalleResponse.startsWith('http')) {\n  imageUrl = dalleResponse;\n}\n\n// Structure de sortie pour l'Agent Principal\nreturn [{\n  json: {\n    success: !!imageUrl,\n    tool: 'nano_banana_pro',\n    image: {\n      url: imageUrl,\n      prompt_used: enhancerData.enhanced_prompt,\n      original_prompt: enhancerData.original_prompt,\n      revised_prompt: revisedPrompt,\n      size: enhancerData.size,\n      aspect_ratio: enhancerData.aspect_ratio,\n      style: enhancerData.style,\n      model: 'dall-e-3',\n      quality: 'hd'\n    },\n    generated_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "output-formatter",
+      "name": "Format Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [760, 300]
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Enhance Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enhance Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenAI DALL-E 3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI DALL-E 3": {
+      "main": [
+        [
+          {
+            "node": "Format Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "creative-v6",
+      "id": "tag-creative-v6"
+    },
+    {
+      "name": "tool",
+      "id": "tag-tool"
+    },
+    {
+      "name": "image-generation",
+      "id": "tag-image"
+    }
+  ],
+  "pinData": {},
+  "versionId": "1.0.0",
+  "meta": {
+    "instanceId": "agency-killer-vps",
+    "templateCredsSetupCompleted": true
+  }
+}

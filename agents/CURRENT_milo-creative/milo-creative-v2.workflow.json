@@ -1,0 +1,102 @@
+{
+  "name": "Milo - Creative Designer V2 (MCP-Connected)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "milo-webhook",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-milo",
+      "name": "When Called by PM",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [240, 300],
+      "webhookId": "milo-creative-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ═══════════════════════════════════════════════════════════════\n// Extract Task Context + Collective Memory\n// ═══════════════════════════════════════════════════════════════\n\nconst requestBody = $input.item.json.body;\n\n// Task context from PM\nconst task_id = requestBody.task_id;\nconst task_title = requestBody.task_title;\nconst task_description = requestBody.task_description || '';\nconst task_phase = requestBody.task_phase;\nconst assignee = requestBody.assignee;\nconst context_questions = requestBody.context_questions || [];\nconst user_inputs = requestBody.user_inputs || {};\nconst depends_on = requestBody.depends_on || [];\nconst shared_memory = requestBody.shared_memory || {};\nconst project_id = shared_memory.project_id || requestBody.project_id;\n\n// IMPORTANT: Load Collective Memory (last 20 entries)\n// Milo needs to know what Luna (strategy) and previous Milo work said\nlet projectMemory = [];\ntry {\n  const memoryQuery = await $supabase.query(\n    `SELECT * FROM project_memory \n     WHERE project_id = $1 \n     ORDER BY created_at DESC \n     LIMIT 20`,\n    [project_id]\n  );\n  projectMemory = memoryQuery.rows || [];\n} catch (error) {\n  console.error('Failed to load project memory:', error);\n}\n\n// Load brand memory if exists\nlet brandMemory = {};\ntry {\n  const brandQuery = await $supabase.query(\n    `SELECT * FROM brand_memory WHERE project_id = $1`,\n    [project_id]\n  );\n  brandMemory = brandQuery.rows[0] || {};\n} catch (error) {\n  console.error('Failed to load brand memory:', error);\n}\n\nreturn {\n  json: {\n    task_id,\n    task_title,\n    task_description,\n    task_phase,\n    assignee,\n    context_questions,\n    user_inputs,\n    depends_on,\n    shared_memory,\n    project_id,\n    project_memory: projectMemory,\n    brand_memory: brandMemory,\n  }\n};"
+      },
+      "id": "extract-context",
+      "name": "Extract Context + Memory",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "model": "claude-opus-4-5-20251101",
+        "promptType": "define",
+        "text": "={{ JSON.stringify($json, null, 2) }}",
+        "hasOutputParser": true,
+        "options": {
+          "temperature": 0.7,
+          "maxTokens": 8000
+        }
+      },
+      "id": "milo-brain",
+      "name": "Milo Brain (Agent)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ═══════════════════════════════════════════════════════════════\n// Parse Milo Response & Extract Write-Back Commands\n// ═══════════════════════════════════════════════════════════════\n\nconst miloResponse = $input.item.json;\nconst responseText = miloResponse.text || miloResponse.content || '';\n\n// Extract COMMAND blocks (pattern: COMMAND: XXX)\nconst commandPattern = /COMMAND:\\s*([A-Z_]+)[\\s\\S]*?REASON:\\s*([^\\n]+)[\\s\\S]*?PAYLOAD:\\s*(\\{[\\s\\S]*?\\})/g;\nconst commands = [];\n\nlet match;\nwhile ((match = commandPattern.exec(responseText)) !== null) {\n  const [_, command, reason, payloadStr] = match;\n  try {\n    const payload = JSON.parse(payloadStr);\n    commands.push({\n      command,\n      reason,\n      payload\n    });\n  } catch (e) {\n    console.error('Failed to parse command payload:', e, payloadStr);\n  }\n}\n\nreturn {\n  json: {\n    agent_response: {\n      message: responseText.split('COMMAND:')[0].trim(),\n      agent_used: 'milo',\n      commands,\n      raw_response: responseText\n    },\n    task_context: $('Extract Context + Memory').item.json\n  }\n};"
+      },
+      "id": "parse-response",
+      "name": "Parse Response & Commands",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ═══════════════════════════════════════════════════════════════\n// Execute Write-Back Commands to Supabase\n// ═══════════════════════════════════════════════════════════════\n\nconst { commands } = $input.item.json.agent_response;\nconst taskContext = $input.item.json.task_context;\nconst project_id = taskContext.project_id;\n\nfor (const cmd of commands) {\n  try {\n    switch (cmd.command) {\n      case 'ADD_FILE':\n        // Store generated creative assets\n        await $supabase.query(\n          `INSERT INTO project_files \n           (project_id, file_type, file_name, file_base64, metadata, created_by) \n           VALUES ($1, $2, $3, $4, $5, $6)`,\n          [\n            project_id,\n            cmd.payload.file_type,\n            cmd.payload.file_name,\n            cmd.payload.file_base64,\n            JSON.stringify(cmd.payload.metadata || {}),\n            'milo'\n          ]\n        );\n        console.log(`✅ File added: ${cmd.payload.file_name}`);\n        break;\n\n      case 'UPDATE_TASK_STATUS':\n        // Mark task as done\n        await $supabase.query(\n          `UPDATE tasks \n           SET status = $1, completion_notes = $2, completed_at = NOW(), updated_at = NOW() \n           WHERE id = $3`,\n          [\n            cmd.payload.status,\n            cmd.payload.completion_notes,\n            cmd.payload.task_id\n          ]\n        );\n        console.log(`✅ Task ${cmd.payload.task_id} updated to ${cmd.payload.status}`);\n        break;\n\n      case 'MEMORY_WRITE':\n        // Write to collective memory\n        await $supabase.query(\n          `INSERT INTO project_memory \n           (project_id, agent_id, task_id, action, summary, key_findings, deliverables, recommendations) \n           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,\n          [\n            project_id,\n            'milo',\n            taskContext.task_id,\n            cmd.payload.action || 'CREATIVE_WORK_COMPLETED',\n            cmd.payload.summary || cmd.payload.content,\n            JSON.stringify(cmd.payload.key_findings || []),\n            JSON.stringify(cmd.payload.deliverables || []),\n            JSON.stringify(cmd.payload.recommendations || [])\n          ]\n        );\n        console.log(`✅ Memory written to collective memory`);\n        break;\n\n      case 'NOTIFY_USER':\n        // Send notification (Supabase Realtime or email)\n        await $supabase.query(\n          `INSERT INTO notifications \n           (project_id, type, title, message, metadata, created_by) \n           VALUES ($1, $2, $3, $4, $5, $6)`,\n          [\n            project_id,\n            'task_update',\n            'Milo a terminé',\n            cmd.payload.message,\n            JSON.stringify({ attachments: cmd.payload.attachments || [] }),\n            'milo'\n          ]\n        );\n        console.log(`✅ User notified`);\n        break;\n\n      case 'REQUEST_TASK':\n        // Create follow-up task\n        await $supabase.query(\n          `INSERT INTO tasks \n           (project_id, title, description, assignee, priority, depends_on, status, phase) \n           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,\n          [\n            project_id,\n            cmd.payload.task_title,\n            cmd.payload.task_description,\n            cmd.payload.assignee || 'milo',\n            cmd.payload.priority || 'medium',\n            JSON.stringify(cmd.payload.depends_on || [taskContext.task_id]),\n            'todo',\n            cmd.payload.phase || 'Production'\n          ]\n        );\n        console.log(`✅ New task created: ${cmd.payload.task_title}`);\n        break;\n\n      default:\n        console.warn(`⚠️ Unknown command: ${cmd.command}`);\n    }\n  } catch (error) {\n    console.error(`❌ Error executing command ${cmd.command}:`, error);\n  }\n}\n\nreturn {\n  json: {\n    success: true,\n    commands_executed: commands.length,\n    agent_response: $input.item.json.agent_response\n  }\n};"
+      },
+      "id": "execute-writeback",
+      "name": "Execute Write-Back Commands",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "id": "return-to-pm",
+      "name": "Return to PM",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 300]
+    }
+  ],
+  "connections": {
+    "When Called by PM": {
+      "main": [[{ "node": "Extract Context + Memory", "type": "main", "index": 0 }]]
+    },
+    "Extract Context + Memory": {
+      "main": [[{ "node": "Milo Brain (Agent)", "type": "main", "index": 0 }]]
+    },
+    "Milo Brain (Agent)": {
+      "main": [[{ "node": "Parse Response & Commands", "type": "main", "index": 0 }]]
+    },
+    "Parse Response & Commands": {
+      "main": [[{ "node": "Execute Write-Back Commands", "type": "main", "index": 0 }]]
+    },
+    "Execute Write-Back Commands": {
+      "main": [[{ "node": "Return to PM", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2026-02-10T00:00:00.000Z",
+  "versionId": "2.0.0"
+}

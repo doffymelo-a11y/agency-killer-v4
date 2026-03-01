@@ -1,0 +1,229 @@
+{
+  "name": "Trader MCP - Agency Killer V4",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "trader-v4",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-entry",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [100, 300],
+      "webhookId": "trader-v4-entry"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// CODE NODE 1 : LOAD BRAND MEMORY (HARDCODED)\n// Architecture Cloud Native - Pas de Read File!\n// ============================================\n\nreturn [{\n  json: {\n    brand_id: \"ak_v4_demo\",\n    financial_rules: {\n      target_roas: 4.0,\n      max_cpa: 25.0,\n      daily_budget_limit: 500,\n      stop_loss_threshold: 1.5\n    }\n  }\n}];"
+      },
+      "id": "load-brand-memory",
+      "name": "Load Brand Memory",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [340, 200],
+      "notesInFlow": true,
+      "notes": "CODE NODE 1: Regles financieres hardcodees"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// CODE NODE 2 : LOAD LIVE MARKET DATA (MOCK)\n// Simule les performances des campagnes actives\n// ============================================\n\nreturn [{\n  json: {\n    campaigns: [\n      {\n        id: \"c1\",\n        name: \"Promo_Banana_V1\",\n        status: \"ACTIVE\",\n        spend: 150,\n        revenue: 900,\n        roas: 6.0,\n        funnel_stage: \"TOFU\",\n        conversions: 36,\n        cpa: 4.17\n      },\n      {\n        id: \"c2\",\n        name: \"Test_Creative_B\",\n        status: \"ACTIVE\",\n        spend: 200,\n        revenue: 100,\n        roas: 0.5,\n        funnel_stage: \"TOFU\",\n        conversions: 2,\n        cpa: 100\n      }\n    ],\n    snapshot_time: new Date().toISOString(),\n    total_spend: 350,\n    total_revenue: 1000\n  }\n}];"
+      },
+      "id": "load-market-data",
+      "name": "Load Live Market Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [340, 420],
+      "notesInFlow": true,
+      "notes": "CODE NODE 2: Mock campagnes (c1=TOP, c2=FLOP)"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "mergeByFields": {
+          "values": []
+        },
+        "combinationMode": "mergeByPosition",
+        "options": {}
+      },
+      "id": "merge-data",
+      "name": "Merge Data",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [580, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// PREPARE TRADER CONTEXT + INJECT SYSTEM PROMPT V4.1\n// Fusionne les donnees et injecte le cerveau IA + TOOLS\n// ============================================\n\nconst items = $input.all();\nconst brandMemory = items[0]?.json || {};\nconst marketData = items[1]?.json || {};\n\n// Calcul du ROAS global\nconst totalSpend = marketData.total_spend || 350;\nconst totalRevenue = marketData.total_revenue || 1000;\nconst portfolioRoas = totalSpend > 0 ? (totalRevenue / totalSpend).toFixed(2) : 0;\n\n// System Prompt du Trader Algorithmique V4.1 avec TOOLS\nconst TRADER_SYSTEM_PROMPT = `Tu es le TRADER ALGORITHMIQUE de l'agence \"The Hive\" - Agency Killer V4.\nTon role: Optimiser la rentabilite des campagnes publicitaires avec une precision chirurgicale.\n\n## REGLES DE TRADING ABSOLUES\n\n### 1. THE KILL SWITCH\nSi ROAS < ${brandMemory.financial_rules?.stop_loss_threshold || 1.5}:\n-> ACTION: CUT IMMEDIAT\n-> Raison: Hemorragie financiere, couper les pertes.\n\n### 2. THE SCALE RULE\nSi ROAS > 5.0:\n-> ACTION: SCALE +20%\n-> Raison: Machine a cash, capturer plus de volume.\n\n### 3. HOLD ZONE\nSi 1.5 <= ROAS <= 5.0:\n-> ACTION: OPTIMIZE\n-> Raison: Zone grise, ajuster les creatifs.\n\n## TOOLS DISPONIBLES\n\n### launch_meta_campaign\nCrée une VRAIE campagne Meta Ads (Facebook/Instagram). ⚠️ DÉPENSE DE L'ARGENT RÉEL.\n\n**SÉCURITÉ ABSOLUE:**\n1. TOUJOURS demander confirmation EXPLICITE avec le mot \"GO\"\n2. JAMAIS lancer sans user_approval='GO'\n3. Afficher aperçu COMPLET : nom, budget, ciblage, créatifs, dépense estimée\n4. Calculer dépense mensuelle estimée (daily_budget * 30)\n\n**Exemple d'usage:**\nSi l'utilisateur dit: \"Lance une campagne Meta pour promouvoir notre nouveau produit\"\n-> PREMIÈRE RÉPONSE (TOUJOURS):\n\"⚠️ APPROBATION REQUISE\\n\\nCampagne: Promo_NouveauProduit\\nBudget: 50 USD/jour (1500 USD/mois estimé)\\nCiblage: BROAD (USA)\\nURL: https://...\\nHeadline: ...\\nCopy: ...\\n\\n🚨 Réponds 'GO' pour lancer\\n🛑 Réponds 'CANCEL' pour annuler\"\n\n-> SEULEMENT SI USER DIT \"GO\":\nlance le tool avec user_approval='GO'\n\n**JAMAIS:**\n- Lancer sans montrer le preview\n- Utiliser user_approval='GO' sans confirmation explicite\n- Créer des campagnes sans budget clair\n\n## FORMAT DE REPONSE OBLIGATOIRE\nReponds UNIQUEMENT avec ce JSON (pas de texte avant/apres):\n\n{\n  \"ui_component\": \"CAMPAIGN_TABLE\",\n  \"dashboard\": {\n    \"snapshot_time\": \"<ISO timestamp>\",\n    \"overall_health\": \"HEALTHY|WARNING|CRITICAL\",\n    \"total_spend\": <number>,\n    \"total_revenue\": <number>,\n    \"portfolio_roas\": <number>\n  },\n  \"decisions\": [\n    {\n      \"campaign_id\": \"<id>\",\n      \"campaign_name\": \"<name>\",\n      \"current_roas\": <number>,\n      \"action\": \"CUT|SCALE|OPTIMIZE|LAUNCH\",\n      \"action_emoji\": \"<emoji>\",\n      \"reasoning\": \"<explication courte>\",\n      \"priority\": \"HIGH|MEDIUM|LOW\"\n    }\n  ],\n  \"alerts\": [\n    {\n      \"type\": \"DANGER|WARNING|SUCCESS\",\n      \"message\": \"<alerte>\"\n    }\n  ]\n}`;\n\n// Contexte complet pour l'IA\nconst traderContext = {\n  brand_id: brandMemory.brand_id || \"ak_v4_demo\",\n  rules: brandMemory.financial_rules || { target_roas: 4.0, max_cpa: 25.0, stop_loss_threshold: 1.5 },\n  market: {\n    campaigns: marketData.campaigns || [],\n    snapshot_time: marketData.snapshot_time || new Date().toISOString(),\n    totals: {\n      spend: totalSpend,\n      revenue: totalRevenue,\n      portfolio_roas: parseFloat(portfolioRoas)\n    }\n  },\n  system_prompt: TRADER_SYSTEM_PROMPT,\n  user_query: $('Webhook Trigger').item.json.body?.query || $('Webhook Trigger').item.json.query || \"Analyse les campagnes et prends des decisions.\"\n};\n\nreturn [{ json: traderContext }];"
+      },
+      "id": "prepare-context",
+      "name": "Prepare Trader Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [800, 300],
+      "notesInFlow": true,
+      "notes": "Fusion + System Prompt V4.1 + Tools Rules"
+    },
+    {
+      "parameters": {
+        "name": "launch_meta_campaign",
+        "description": "Crée une nouvelle campagne Meta Ads (Facebook/Instagram) avec budget, ciblage et créatifs. ATTENTION: Cette action dépense de l'argent réel. L'utilisateur doit d'abord APPROUVER avec le mot 'GO' avant l'exécution.",
+        "workflowCode": "// ============================================================\n// TOOL: LAUNCH META CAMPAIGN\n// Crée une campagne Meta Ads réelle via Facebook Graph API\n// ============================================================\n\nconst axios = require('axios');\n\n// ⚠️ L'utilisateur doit configurer ses credentials Meta dans n8n\n// Aller dans Settings > Credentials > New Credential > Meta for Business\n// Ce code récupère automatiquement les credentials de l'utilisateur\nconst credentials = await this.getCredentials('metaApi');\nconst ACCESS_TOKEN = credentials.accessToken;\nconst AD_ACCOUNT_ID = credentials.adAccountId; // Format: act_XXXXXXXXX\nconst PAGE_ID = credentials.pageId;\n\nif (!ACCESS_TOKEN || !AD_ACCOUNT_ID) {\n  return {\n    success: false,\n    error: \"⚠️ ERREUR: Credentials Meta non configurées. Va dans Settings > Credentials > New Credential > Meta for Business et configure ton Access Token et Ad Account ID.\"\n  };\n}\n\n// Paramètres du tool\nconst {\n  campaign_name,\n  daily_budget,\n  start_time,\n  targeting_category = 'BROAD',\n  creative_url,\n  ad_copy,\n  headline,\n  cta = 'LEARN_MORE',\n  user_approval = 'PENDING'\n} = $input.json;\n\n// ============================================================\n// SÉCURITÉ: Vérifier l'approbation utilisateur\n// ============================================================\n\nif (user_approval !== 'GO') {\n  return {\n    success: false,\n    requires_approval: true,\n    preview: {\n      campaign_name,\n      daily_budget: `${daily_budget} USD`,\n      targeting: targeting_category,\n      creative_url,\n      headline,\n      ad_copy: ad_copy.substring(0, 100) + '...',\n      estimated_monthly_spend: daily_budget * 30\n    },\n    message: `⚠️ APPROBATION REQUISE\\n\\nCampagne: ${campaign_name}\\nBudget journalier: ${daily_budget} USD\\nDépense mensuelle estimée: ${daily_budget * 30} USD\\nCiblage: ${targeting_category}\\nURL: ${creative_url}\\nHeadline: ${headline}\\n\\n🚨 Pour lancer cette campagne, réponds avec: \"GO\"\\n🛑 Pour annuler, réponds avec: \"CANCEL\"`\n  };\n}\n\n// ============================================================\n// ÉTAPE 1: Créer la Campaign\n// ============================================================\n\nconst GRAPH_API = 'https://graph.facebook.com/v21.0';\n\nlet campaignId;\ntry {\n  const campaignResponse = await axios.post(\n    `${GRAPH_API}/${AD_ACCOUNT_ID}/campaigns`,\n    {\n      name: campaign_name,\n      objective: 'OUTCOME_TRAFFIC', // Traffic vers site web\n      status: 'PAUSED', // Démarrer en pause par sécurité\n      special_ad_categories: []\n    },\n    {\n      params: { access_token: ACCESS_TOKEN }\n    }\n  );\n  \n  campaignId = campaignResponse.data.id;\n} catch (error) {\n  return {\n    success: false,\n    step: 'CREATE_CAMPAIGN',\n    error: error.response?.data?.error?.message || error.message\n  };\n}\n\n// ============================================================\n// ÉTAPE 2: Créer l'Ad Set (ciblage + budget)\n// ============================================================\n\nconst targetingSpec = {\n  geo_locations: { countries: ['US'] },\n  ...(targeting_category === 'BROAD' ? {} : {\n    interests: targeting_category === 'TECH' ? [{ id: '6003139266461', name: 'Technology' }] :\n               targeting_category === 'MARKETING' ? [{ id: '6003020834693', name: 'Digital marketing' }] :\n               {}\n  })\n};\n\nlet adSetId;\ntry {\n  const adSetResponse = await axios.post(\n    `${GRAPH_API}/${AD_ACCOUNT_ID}/adsets`,\n    {\n      name: `${campaign_name} - AdSet 1`,\n      campaign_id: campaignId,\n      billing_event: 'IMPRESSIONS',\n      optimization_goal: 'LINK_CLICKS',\n      daily_budget: Math.round(daily_budget * 100), // Convertir en cents\n      start_time: start_time || new Date(Date.now() + 3600000).toISOString(), // Démarrer dans 1h par défaut\n      targeting: targetingSpec,\n      status: 'PAUSED'\n    },\n    {\n      params: { access_token: ACCESS_TOKEN }\n    }\n  );\n  \n  adSetId = adSetResponse.data.id;\n} catch (error) {\n  return {\n    success: false,\n    step: 'CREATE_ADSET',\n    error: error.response?.data?.error?.message || error.message,\n    campaign_id: campaignId\n  };\n}\n\n// ============================================================\n// ÉTAPE 3: Créer l'Ad Creative\n// ============================================================\n\nlet creativeId;\ntry {\n  const creativeResponse = await axios.post(\n    `${GRAPH_API}/${AD_ACCOUNT_ID}/adcreatives`,\n    {\n      name: `${campaign_name} - Creative`,\n      object_story_spec: {\n        page_id: PAGE_ID,\n        link_data: {\n          link: creative_url,\n          message: ad_copy,\n          name: headline,\n          call_to_action: {\n            type: cta\n          }\n        }\n      }\n    },\n    {\n      params: { access_token: ACCESS_TOKEN }\n    }\n  );\n  \n  creativeId = creativeResponse.data.id;\n} catch (error) {\n  return {\n    success: false,\n    step: 'CREATE_CREATIVE',\n    error: error.response?.data?.error?.message || error.message,\n    campaign_id: campaignId,\n    adset_id: adSetId\n  };\n}\n\n// ============================================================\n// ÉTAPE 4: Créer l'Ad (liaison finale)\n// ============================================================\n\nlet adId;\ntry {\n  const adResponse = await axios.post(\n    `${GRAPH_API}/${AD_ACCOUNT_ID}/ads`,\n    {\n      name: `${campaign_name} - Ad 1`,\n      adset_id: adSetId,\n      creative: { creative_id: creativeId },\n      status: 'PAUSED' // Toujours démarrer en pause\n    },\n    {\n      params: { access_token: ACCESS_TOKEN }\n    }\n  );\n  \n  adId = adResponse.data.id;\n} catch (error) {\n  return {\n    success: false,\n    step: 'CREATE_AD',\n    error: error.response?.data?.error?.message || error.message,\n    campaign_id: campaignId,\n    adset_id: adSetId,\n    creative_id: creativeId\n  };\n}\n\n// ============================================================\n// SUCCÈS: Campagne créée\n// ============================================================\n\nreturn {\n  success: true,\n  message: `✅ Campagne Meta Ads créée avec succès!\\n\\nCampagne: ${campaign_name}\\nStatut: PAUSED (active manuellement dans Meta Ads Manager)\\nBudget: ${daily_budget} USD/jour\\n\\n🔗 Voir dans Meta Ads Manager:\\nhttps://business.facebook.com/adsmanager/manage/campaigns?act=${AD_ACCOUNT_ID.replace('act_', '')}&selected_campaign_ids=${campaignId}`,\n  campaign_id: campaignId,\n  adset_id: adSetId,\n  creative_id: creativeId,\n  ad_id: adId,\n  dashboard_url: `https://business.facebook.com/adsmanager/manage/campaigns?act=${AD_ACCOUNT_ID.replace('act_', '')}&selected_campaign_ids=${campaignId}`\n};",
+        "specifyInputSchema": true,
+        "jsonSchemaExample": "{\n  \"campaign_name\": \"Promo_Summer_2026\",\n  \"daily_budget\": 50,\n  \"start_time\": \"2026-06-01T10:00:00Z\",\n  \"targeting_category\": \"BROAD\",\n  \"creative_url\": \"https://example.com/landing\",\n  \"ad_copy\": \"Découvre notre nouvelle collection été 2026! Livraison gratuite.\",\n  \"headline\": \"Collection Été 2026\",\n  \"cta\": \"SHOP_NOW\",\n  \"user_approval\": \"PENDING\"\n}"
+      },
+      "id": "tool-launch-meta-campaign",
+      "name": "Tool: Launch Meta Campaign",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [1060, 100],
+      "notesInFlow": true,
+      "notes": "Tool Meta Ads - Credentials utilisateur"
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "={{ $json.system_prompt }}"
+        }
+      },
+      "id": "ai-trader-agent",
+      "name": "Trader AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [1060, 300],
+      "notesInFlow": true,
+      "notes": "Cerveau IA - GPT-4o + Tools"
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o",
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "id": "openai-model",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [1060, 520]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// FORMAT UI RESPONSE\n// Conforme au schema ui-response.schema.js\n// ============================================\n\nconst aiResponse = $input.first().json;\nconst context = $('Prepare Trader Context').item.json;\n\n// Extraire la reponse de l'IA\nlet traderDecisions;\ntry {\n  let jsonStr = aiResponse.output || aiResponse.text || JSON.stringify(aiResponse);\n  \n  // Nettoyer les balises markdown si presentes\n  jsonStr = jsonStr.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n  \n  // Parser le JSON\n  traderDecisions = JSON.parse(jsonStr);\n} catch (e) {\n  // Fallback avec decisions calculees manuellement\n  const campaigns = context.market?.campaigns || [];\n  const rules = context.rules || {};\n  \n  traderDecisions = {\n    ui_component: 'CAMPAIGN_TABLE',\n    dashboard: {\n      snapshot_time: new Date().toISOString(),\n      overall_health: 'WARNING',\n      total_spend: context.market?.totals?.spend || 0,\n      total_revenue: context.market?.totals?.revenue || 0,\n      portfolio_roas: context.market?.totals?.portfolio_roas || 0\n    },\n    decisions: campaigns.map(c => {\n      let action, actionEmoji, priority, reasoning;\n      \n      if (c.roas < (rules.stop_loss_threshold || 1.5)) {\n        action = 'CUT';\n        actionEmoji = '🛑';\n        priority = 'HIGH';\n        reasoning = `ROAS ${c.roas} < seuil ${rules.stop_loss_threshold || 1.5} - Hemorragie financiere`;\n      } else if (c.roas > 5.0) {\n        action = 'SCALE';\n        actionEmoji = '🚀';\n        priority = 'HIGH';\n        reasoning = `ROAS ${c.roas} > 5.0 - Machine a cash, augmenter budget +20%`;\n      } else {\n        action = 'OPTIMIZE';\n        actionEmoji = '⏸️';\n        priority = 'MEDIUM';\n        reasoning = `ROAS ${c.roas} en zone grise - Ajuster creatifs`;\n      }\n      \n      return {\n        campaign_id: c.id,\n        campaign_name: c.name,\n        current_roas: c.roas,\n        current_spend: c.spend,\n        current_revenue: c.revenue,\n        action: action,\n        action_emoji: actionEmoji,\n        reasoning: reasoning,\n        priority: priority\n      };\n    }),\n    alerts: [\n      {\n        type: 'WARNING',\n        message: 'Reponse IA parsee en fallback: ' + e.message\n      }\n    ]\n  };\n}\n\n// Enrichir avec metadonnees V4\nconst uiResponse = {\n  agent: 'TRADER',\n  version: 'V4_CLOUD_NATIVE',\n  timestamp: new Date().toISOString(),\n  ...traderDecisions,\n  _meta: {\n    workflow: 'Trader MCP - Agency Killer V4',\n    brand_id: context.brand_id,\n    execution_id: $execution?.id || 'local'\n  }\n};\n\nreturn [{ json: uiResponse }];"
+      },
+      "id": "format-ui-response",
+      "name": "Format UI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1300, 300],
+      "notesInFlow": true,
+      "notes": "Output: CAMPAIGN_TABLE pour UI Split-Screen"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "X-Agent",
+                "value": "Trader-V4"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1540, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          { "node": "Load Brand Memory", "type": "main", "index": 0 },
+          { "node": "Load Live Market Data", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Load Brand Memory": {
+      "main": [
+        [
+          { "node": "Merge Data", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Load Live Market Data": {
+      "main": [
+        [
+          { "node": "Merge Data", "type": "main", "index": 1 }
+        ]
+      ]
+    },
+    "Merge Data": {
+      "main": [
+        [
+          { "node": "Prepare Trader Context", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Prepare Trader Context": {
+      "main": [
+        [
+          { "node": "Trader AI Agent", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Tool: Launch Meta Campaign": {
+      "ai_tool": [
+        [
+          { "node": "Trader AI Agent", "type": "ai_tool", "index": 0 }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          { "node": "Trader AI Agent", "type": "ai_languageModel", "index": 0 }
+        ]
+      ]
+    },
+    "Trader AI Agent": {
+      "main": [
+        [
+          { "node": "Format UI Response", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Format UI Response": {
+      "main": [
+        [
+          { "node": "Respond to Webhook", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    { "name": "agency-killer-v4" },
+    { "name": "trader" },
+    { "name": "cloud-native" },
+    { "name": "mcp" },
+    { "name": "meta-ads" }
+  ],
+  "triggerCount": 1,
+  "pinData": {}
+}

@@ -1,0 +1,199 @@
+{
+  "name": "Veo-3 Video Generator Tool - Cloudinary",
+  "description": "Version Production - Upload vidéo via Cloudinary (SaaS-ready)",
+  "version": "3.0.0",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "execute-trigger",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// BUILD REQUEST - Prepare prompt for Gemini Veo-3\n// ============================================================================\n\nconst input = $input.first().json;\n\n// Extract prompt from various possible input fields\nconst promptText = input.prompt_text || input.prompt || input.query || input.description || 'A beautiful cinematic video';\n\n// Clean the prompt - remove any problematic characters\nconst cleanPrompt = promptText\n  .replace(/[\\n\\r]+/g, ' ')\n  .replace(/\\s+/g, ' ')\n  .trim()\n  .substring(0, 1000); // Limit prompt length\n\n// Optional parameters\nconst duration = input.duration || 5;\nconst hasImage = !!(input.image_base64 || input.image_url);\n\nreturn [{\n  json: {\n    clean_prompt: cleanPrompt,\n    original_prompt: promptText,\n    duration: duration,\n    has_image: hasImage,\n    promptImage: input.image_base64 || input.image_url || null,\n    promptText: cleanPrompt\n  }\n}];"
+      },
+      "id": "build-request",
+      "name": "Build Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [320, 300]
+    },
+    {
+      "parameters": {
+        "resource": "video",
+        "operation": "generate",
+        "model": "models/veo-3.0-fast-generate-001",
+        "prompt": "={{ $json.clean_prompt }}",
+        "returnAs": "video",
+        "options": {}
+      },
+      "id": "gemini-generate-video",
+      "name": "Generate a video",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.5,
+      "position": [540, 300],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "google-gemini-credentials",
+          "name": "Google Gemini (PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.cloudinary.com/v1_1/{{ $credentials.cloudinaryApi.cloudName }}/video/upload",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            },
+            {
+              "parameterType": "formData",
+              "name": "upload_preset",
+              "value": "={{ $credentials.cloudinaryApi.uploadPreset || 'agency_killer_videos' }}"
+            },
+            {
+              "parameterType": "formData",
+              "name": "folder",
+              "value": "agency-killer/videos"
+            },
+            {
+              "parameterType": "formData",
+              "name": "resource_type",
+              "value": "video"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "id": "upload-to-cloudinary",
+      "name": "Upload Video to Cloudinary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [760, 300],
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "cloudinary-basic-auth",
+          "name": "Cloudinary API"
+        }
+      },
+      "notesInFlow": true,
+      "notes": "V3: Cloudinary - Production ready"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// EXTRACT VIDEO URL FROM CLOUDINARY RESPONSE (V3)\n// ============================================================================\n// Cloudinary retourne un JSON avec secure_url, url, public_id, etc.\n// ============================================================================\n\nconst response = $input.first().json;\nconst buildData = $('Build Request').item.json;\n\n// Cloudinary response structure:\n// {\n//   \"secure_url\": \"https://res.cloudinary.com/xxx/video/upload/v123/folder/video.mp4\",\n//   \"url\": \"http://res.cloudinary.com/xxx/video/upload/v123/folder/video.mp4\",\n//   \"public_id\": \"agency-killer/videos/abc123\",\n//   \"format\": \"mp4\",\n//   \"resource_type\": \"video\",\n//   \"duration\": 5.2,\n//   \"width\": 1920,\n//   \"height\": 1080\n// }\n\nconst videoUrl = response.secure_url || response.url || null;\n\nif (!videoUrl) {\n  console.error('Cloudinary response:', JSON.stringify(response));\n  throw new Error('Video upload to Cloudinary failed. Response: ' + JSON.stringify(response));\n}\n\nreturn [{\n  json: {\n    success: true,\n    video_url: videoUrl,\n    public_id: response.public_id || null,\n    provider: 'cloudinary',\n    format: response.format || 'mp4',\n    duration: response.duration || null,\n    width: response.width || null,\n    height: response.height || null,\n    script: buildData.original_prompt,\n    clean_prompt: buildData.clean_prompt,\n    mime_type: 'video/mp4'\n  }\n}];"
+      },
+      "id": "extract-url",
+      "name": "Extract Video URL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [980, 300],
+      "notesInFlow": true,
+      "notes": "V3: Parse Cloudinary JSON response"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// SUCCESS OUTPUT - Format final response for Creative V6\n// ============================================================================\n\nconst videoData = $input.first().json;\n\nreturn [{\n  json: {\n    success: true,\n    tool: 'veo3_video_generator',\n    video: {\n      url: videoData.video_url,\n      script: videoData.script,\n      prompt_used: videoData.clean_prompt,\n      provider: 'cloudinary',\n      public_id: videoData.public_id,\n      format: videoData.format,\n      duration: videoData.duration,\n      width: videoData.width,\n      height: videoData.height,\n      mime_type: videoData.mime_type,\n      downloadable: true\n    },\n    // Pour le frontend - UI Component (MÊME FORMAT QUE AVANT)\n    ui_component: 'AD_PREVIEW',\n    ui_data: {\n      video_url: videoData.video_url,\n      script: videoData.script,\n      title: 'Video generee par Veo-3',\n      downloadable: true\n    },\n    // Format Creative V6 (MÊME FORMAT QUE AVANT)\n    video_url: videoData.video_url,\n    prompt_used: videoData.clean_prompt,\n    generated_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "success-output",
+      "name": "Success Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// ERROR HANDLER - Format error response\n// ============================================================================\n\nconst error = $input.first().json;\n\nreturn [{\n  json: {\n    success: false,\n    tool: 'veo3_video_generator',\n    error: {\n      message: error.message || 'Video generation failed',\n      details: JSON.stringify(error)\n    },\n    video: null,\n    generated_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "error-handler",
+      "name": "Error Handler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 500]
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Build Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Request": {
+      "main": [
+        [
+          {
+            "node": "Generate a video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate a video": {
+      "main": [
+        [
+          {
+            "node": "Upload Video to Cloudinary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Video to Cloudinary": {
+      "main": [
+        [
+          {
+            "node": "Extract Video URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Video URL": {
+      "main": [
+        [
+          {
+            "node": "Success Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    { "name": "creative-v6", "id": "tag-creative-v6" },
+    { "name": "tool", "id": "tag-tool" },
+    { "name": "video-generation", "id": "tag-video" },
+    { "name": "veo3", "id": "tag-veo3" },
+    { "name": "cloudinary", "id": "tag-cloudinary" },
+    { "name": "production", "id": "tag-production" }
+  ],
+  "meta": {
+    "instanceId": "agency-killer-vps"
+  }
+}

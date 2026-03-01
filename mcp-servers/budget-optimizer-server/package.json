@@ -1,0 +1,23 @@
+{
+  "name": "budget-optimizer-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP Server for Budget Optimization (MARCUS Agent)",
+  "type": "module",
+  "bin": {
+    "budget-optimizer-mcp-server": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "keywords": ["mcp", "budget", "optimization", "marcus"],
+  "author": "The Hive OS",
+  "license": "ISC",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.2"
+  }
+}

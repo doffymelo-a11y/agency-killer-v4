@@ -1,0 +1,216 @@
+{
+  "name": "FINALE LUNA MCP - Strategist with Security",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "luna-strategist-final",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [100, 500],
+      "webhookId": "luna-strategist-final"
+    },
+    {
+      "parameters": {},
+      "id": "execute-workflow-trigger",
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// LOAD FULL CONTEXT FROM SUPABASE - LUNA FINAL\n// ============================================================================\n\nconst userInput = $('Webhook Trigger').item.json.body || $('Webhook Trigger').item.json;\nconst projectId = userInput.project_id;\nconst taskId = userInput.task_id;\n\nif (!projectId) {\n  throw new Error('project_id is required');\n}\n\nconst SUPABASE_URL = $env.SUPABASE_URL;\nconst SUPABASE_ANON_KEY = $env.SUPABASE_ANON_KEY;\n\nif (!SUPABASE_URL || !SUPABASE_ANON_KEY) {\n  throw new Error('SUPABASE_URL and SUPABASE_ANON_KEY must be set in environment variables');\n}\n\nasync function supabaseRequest(endpoint, options = {}) {\n  const response = await fetch(`${SUPABASE_URL}/rest/v1/${endpoint}`, {\n    ...options,\n    headers: {\n      'apikey': SUPABASE_ANON_KEY,\n      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,\n      'Content-Type': 'application/json',\n      ...options.headers\n    }\n  });\n  \n  if (!response.ok) {\n    const errorText = await response.text();\n    throw new Error(`Supabase error (${response.status}): ${errorText}`);\n  }\n  \n  return await response.json();\n}\n\nconst projects = await supabaseRequest(`projects?id=eq.${projectId}&select=*`);\nconst project = projects[0];\n\nif (!project) {\n  throw new Error(`Project ${projectId} not found`);\n}\n\nlet task = null;\nif (taskId) {\n  const tasks = await supabaseRequest(`tasks?id=eq.${taskId}&select=*`);\n  task = tasks[0];\n}\n\nconst projectMemory = await supabaseRequest(\n  `project_memory?project_id=eq.${projectId}&select=*&order=created_at.desc&limit=20`\n);\n\nconst brandIdentity = project.metadata?.brand_identity || {\n  brand_name: project.name,\n  target_audience: \"Marketing professionals\",\n  industry: project.scope\n};\n\nreturn [{\n  json: {\n    project,\n    task,\n    brand_identity: brandIdentity,\n    project_memory: projectMemory,\n    user_input: userInput,\n    session_id: userInput.session_id || `session_${Date.now()}`,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "load-context",
+      "name": "Load Full Context (Supabase)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [320, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// CHECK TASK DEPENDENCIES - PHASE 0 SECURITY\n// ============================================================================\n\nconst context = $input.first().json;\nconst task = context.task;\n\nif (!task) {\n  return [{ json: { ...context, dependencies_ok: true, skip_reason: 'no_task' } }];\n}\n\nif (task.status === 'in_progress' || task.status === 'done') {\n  return [{ json: { ...context, dependencies_ok: true, skip_reason: 'task_already_started' } }];\n}\n\nconst SUPABASE_URL = $env.SUPABASE_URL;\nconst SUPABASE_ANON_KEY = $env.SUPABASE_ANON_KEY;\n\nconst response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/can_start_task`, {\n  method: 'POST',\n  headers: {\n    'apikey': SUPABASE_ANON_KEY,\n    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,\n    'Content-Type': 'application/json'\n  },\n  body: JSON.stringify({ p_task_id: task.id })\n});\n\nif (!response.ok) {\n  const errorText = await response.text();\n  throw new Error(`Failed to check dependencies: ${errorText}`);\n}\n\nconst result = await response.json();\nconst checkResult = Array.isArray(result) ? result[0] : result;\n\nif (!checkResult.ready) {\n  const blockingResponse = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_blocking_tasks`, {\n    method: 'POST',\n    headers: {\n      'apikey': SUPABASE_ANON_KEY,\n      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,\n      'Content-Type': 'application/json'\n    },\n    body: JSON.stringify({ p_task_id: task.id })\n  });\n  \n  const blockingTasks = await blockingResponse.json();\n  \n  throw new Error(JSON.stringify({\n    dependencies_not_met: true,\n    error_message: checkResult.error_message,\n    blocking_count: checkResult.blocking_count,\n    ui_component: {\n      type: 'DEPENDENCIES_BLOCKED',\n      data: {\n        error: checkResult.error_message,\n        blocking_tasks: blockingTasks\n      }\n    }\n  }));\n}\n\nreturn [{ json: { ...context, dependencies_ok: true } }];"
+      },
+      "id": "check-dependencies",
+      "name": "Check Task Dependencies",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [540, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// PREPARE LUNA CONTEXT - Format for AI Agent\n// ============================================================================\n\nconst context = $input.first().json;\n\nreturn [{\n  json: {\n    task_context: {\n      project_id: context.project.id,\n      project_name: context.project.name,\n      project_scope: context.project.scope,\n      project_phase: context.project.current_phase,\n      task_id: context.task?.id || null,\n      task_title: context.task?.title || \"Strategy Request\",\n      task_description: context.task?.description || \"\",\n      user_inputs: context.task?.user_inputs || context.user_input\n    },\n    brand: context.brand_identity,\n    project_memory: context.project_memory,\n    strategy_request: {\n      message: context.user_input.message || context.user_input.chatInput || \"Analyze SEO and provide recommendations\",\n      action: context.user_input.action || 'seo_audit',\n      session_id: context.session_id,\n      timestamp: context.timestamp\n    },\n    full_context: context\n  }\n}];"
+      },
+      "id": "prepare-context",
+      "name": "Prepare Luna Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [760, 400]
+    },
+    {
+      "parameters": {
+        "agent": "conversationalAgent",
+        "promptType": "define",
+        "text": "=## STRATEGY TASK:\n{{ JSON.stringify($json.task_context) }}\n\n## BRAND CONTEXT:\n{{ JSON.stringify($json.brand) }}\n\n## RECENT PROJECT WORK:\n{{ JSON.stringify($json.project_memory.slice(0, 5)) }}\n\n## USER REQUEST:\n{{ $json.strategy_request.message }}\n\n---\n\nProvide strategic insights and recommendations following best practices.",
+        "options": {
+          "systemMessage": "# LUNA - STRATEGIST (FINAL VERSION)\n\n## Your Identity\nYou are **Luna**, the marketing strategist of The Hive OS. You specialize in SEO, keyword research, competitive analysis, and content strategy.\n\n## Core Capabilities\n\nYou have access to 2 powerful MCP toolkits with 14 total functions:\n\n### 1. **SEO Audit Tool** (7 functions)\n\n**seo_technical_audit(url)**\n- PageSpeed Insights score\n- Mobile-friendliness check\n- HTTPS security check\n- Indexability status\n- Robots.txt analysis\n- Sitemap validation\n\n**seo_semantic_audit(url)**\n- Meta title and description analysis\n- Heading structure (H1-H6)\n- Keyword density analysis\n- Image optimization (alt tags)\n- Internal linking structure\n- Content quality score\n\n**competitor_analysis(url, competitors)**\n- Domain authority comparison\n- Backlink profile analysis\n- Top ranking keywords\n- Content gap analysis\n- Traffic estimates\n\n**site_health_check(url)**\n- Broken links detection (404s)\n- Redirect chains identification\n- Duplicate content detection\n- Page load performance\n- Core Web Vitals\n\n### 2. **Keyword Research Tool** (7 functions)\n\n**keyword_research(seed_keywords, location)**\n- Search volume (monthly)\n- Keyword difficulty (0-100)\n- CPC estimates\n- Search intent classification\n- Seasonal trends\n\n**related_questions(keyword)**\n- \"People Also Ask\" questions from Google\n- Question-based content opportunities\n- FAQ schema suggestions\n\n**trending_keywords(topic, timeframe)**\n- Google Trends data\n- Rising queries\n- Breakout keywords\n- Geographic interest\n\n**keyword_gap_analysis(your_url, competitor_urls)**\n- Keywords competitors rank for (you don't)\n- Low-hanging fruit opportunities\n- Content gap identification\n\n**IMPORTANT:** All tools are read-only. You analyze and recommend, but don't make changes.\n\n## Workflow\n\n### Step 1: Understand the Request\n1. Identify the goal: SEO audit, keyword research, competitor analysis, or strategy\n2. Check project memory for existing work (avoid duplicating analysis)\n3. Determine which tools are needed\n\n### Step 2: Execute Analysis\n\n**Example - SEO Audit:**\n```\nI'll perform a comprehensive SEO audit of your site.\n```\nThen call:\n1. seo_technical_audit() → Check technical SEO\n2. seo_semantic_audit() → Analyze on-page SEO\n3. site_health_check() → Identify issues\n\n**Example - Keyword Research:**\n```\nI'll research keywords for your target market.\n```\nThen call:\n1. keyword_research() → Get volume + difficulty\n2. related_questions() → Find content opportunities\n3. trending_keywords() → Identify trends\n\n**Example - Competitive Analysis:**\n```\nI'll analyze your competitors' SEO strategies.\n```\nThen call:\n1. competitor_analysis() → Domain metrics\n2. keyword_gap_analysis() → Find opportunities\n\n### Step 3: Synthesize Insights\n\n1. Combine data from multiple tools\n2. Prioritize recommendations by impact vs effort\n3. Provide actionable next steps\n4. Identify quick wins vs long-term strategies\n\n### Step 4: Write Back Results\n\n**CRITICAL:** Use these commands to save your work:\n\n**MEMORY_WRITE** - Save strategic insights\n```\nCOMMAND: MEMORY_WRITE\nREASON: Document SEO analysis and recommendations\nPAYLOAD: {\n  \"action\": \"STRATEGY_VALIDATED\",\n  \"summary\": \"Completed SEO audit: 3 technical issues, 15 keyword opportunities identified\",\n  \"key_findings\": [\n    \"PageSpeed score: 45/100 (needs optimization)\",\n    \"Missing H1 tags on 3 pages\",\n    \"15 high-volume, low-competition keywords found\"\n  ],\n  \"deliverables\": [\n    {\"type\": \"report\", \"title\": \"SEO Audit Report\", \"url\": \"...\"}\n  ],\n  \"recommendations\": [\n    \"Optimize images (reduce size by 60%)\",\n    \"Add H1 tags to product pages\",\n    \"Create content for 'marketing automation' keyword cluster\"\n  ]\n}\n```\n\n**UPDATE_TASK_STATUS** - Mark task complete\n```\nCOMMAND: UPDATE_TASK_STATUS\nREASON: SEO audit completed\nPAYLOAD: {\n  \"task_id\": \"[task_id]\",\n  \"status\": \"done\",\n  \"completion_notes\": \"SEO audit complete. 15 opportunities identified.\",\n  \"deliverable_url\": \"[report_url]\",\n  \"deliverable_type\": \"seo_report\"\n}\n```\n\n**UI_COMPONENT** - Return visualization\n```\nCOMMAND: UI_COMPONENT\nREASON: Show keyword research results\nPAYLOAD: {\n  \"type\": \"PDF_REPORT\",\n  \"data\": {\n    \"title\": \"SEO Strategy Report\",\n    \"sections\": [\n      {\"title\": \"Technical Issues\", \"content\": \"...\"},\n      {\"title\": \"Keyword Opportunities\", \"content\": \"...\"}\n    ]\n  }\n}\n```\n\n## Best Practices\n\n1. **Prioritize Impact**: Focus on high-ROI recommendations\n2. **Be Specific**: Don't just say \"improve SEO\" - specify exactly what to fix\n3. **Provide Context**: Explain why each recommendation matters\n4. **Consider Resources**: Balance quick wins with long-term strategies\n5. **Leverage Memory**: Build on previous work from project_memory\n\n## Communication Style\n\n- **Professional yet accessible**: Explain technical concepts clearly\n- **Data-driven**: Back recommendations with metrics\n- **Actionable**: Every insight should lead to a clear next step\n- **Strategic**: Connect SEO tactics to business goals\n\nYou are now ready to craft winning strategies! 🔮"
+        }
+      },
+      "id": "luna-brain",
+      "name": "Luna Brain (AI Agent)",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [980, 400]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gemini-2.0-flash-exp"
+        },
+        "options": {
+          "temperature": 0.5,
+          "maxOutputTokens": 8000
+        }
+      },
+      "id": "gemini-model",
+      "name": "Google Gemini 2.0 Flash",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [980, 600],
+      "credentials": {
+        "googleGeminiOAuth2Api": {
+          "id": "google-gemini-credentials",
+          "name": "Google Gemini OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "window-memory",
+      "name": "Window Buffer Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.2,
+      "position": [980, 700]
+    },
+    {
+      "parameters": {
+        "name": "seo_audit",
+        "description": "Comprehensive SEO audit including technical, semantic, and site health checks. Returns PageSpeed, mobile-friendliness, meta tags, headings, broken links, and recommendations.",
+        "workflowCode": "// TODO: Implement real MCP server call to seo-audit-tool\n// For now, returning structured mock data that matches real API response\n\nconst config = $input.json;\nif (!config.url) {\n  return { success: false, error: 'url is required' };\n}\n\nreturn {\n  success: true,\n  tool: 'seo_audit',\n  output: {\n    url: config.url,\n    technical: {\n      pagespeed_score: 65,\n      mobile_friendly: true,\n      https: true,\n      indexable: true\n    },\n    semantic: {\n      meta_title: 'Good (55 chars)',\n      meta_description: 'Missing',\n      h1_count: 1,\n      keyword_density: 'Moderate'\n    },\n    health: {\n      broken_links: 3,\n      redirects: 5,\n      duplicate_content: false\n    },\n    recommendations: [\n      'Add meta descriptions to all pages',\n      'Fix 3 broken links',\n      'Improve PageSpeed score (currently 65/100)'\n    ]\n  },\n  message: 'SEO audit completed',\n  note: 'TEMPORARY: Replace with real MCP server call to seo-audit-tool.js'\n};"
+      },
+      "id": "tool-seo-audit",
+      "name": "Tool: SEO Audit",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [980, 100]
+    },
+    {
+      "parameters": {
+        "name": "keyword_research",
+        "description": "Keyword research with search volume, difficulty, CPC, and intent analysis. Returns opportunities ranked by potential.",
+        "workflowCode": "// TODO: Implement real MCP server call to keyword-research-tool\n// For now, returning structured mock data\n\nconst config = $input.json;\nif (!config.keywords || !Array.isArray(config.keywords)) {\n  return { success: false, error: 'keywords array is required' };\n}\n\nreturn {\n  success: true,\n  tool: 'keyword_research',\n  output: {\n    keywords: config.keywords.map(kw => ({\n      keyword: kw,\n      search_volume: Math.floor(Math.random() * 10000) + 1000,\n      difficulty: Math.floor(Math.random() * 100),\n      cpc: (Math.random() * 5).toFixed(2),\n      intent: ['informational', 'commercial', 'transactional'][Math.floor(Math.random() * 3)]\n    })),\n    opportunities: [\n      { keyword: config.keywords[0], volume: 5000, difficulty: 35, potential: 'High' },\n      { keyword: config.keywords[1] || 'marketing automation', volume: 3200, difficulty: 45, potential: 'Medium' }\n    ]\n  },\n  message: 'Keyword research completed',\n  note: 'TEMPORARY: Replace with real MCP server call to keyword-research-tool.js'\n};"
+      },
+      "id": "tool-keyword-research",
+      "name": "Tool: Keyword Research",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [980, -100]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// PARSE LUNA RESPONSE & EXTRACT COMMANDS\n// ============================================================================\n\nconst lunaOutput = $input.first().json;\nlet responseText = '';\n\nif (typeof lunaOutput.output === 'string') {\n  responseText = lunaOutput.output;\n} else if (lunaOutput.output && typeof lunaOutput.output === 'object') {\n  responseText = JSON.stringify(lunaOutput.output);\n} else {\n  responseText = lunaOutput.text || '';\n}\n\nconst commandPattern = /COMMAND:\\s*([A-Z_]+)[\\s\\S]*?REASON:\\s*([^\\n]+)[\\s\\S]*?PAYLOAD:\\s*(\\{[\\s\\S]*?\\})/g;\nconst commands = [];\n\nlet match;\nwhile ((match = commandPattern.exec(responseText)) !== null) {\n  const [_, command, reason, payloadStr] = match;\n  try {\n    const payload = JSON.parse(payloadStr);\n    commands.push({ command, reason, payload });\n  } catch (e) {\n    console.error('Failed to parse command payload:', e);\n  }\n}\n\nconst prepareContext = $('Prepare Luna Context').item.json;\n\nreturn [{\n  json: {\n    agent_response: {\n      message: responseText.split('COMMAND:')[0].trim(),\n      agent_used: 'luna',\n      commands,\n      raw_response: responseText\n    },\n    context: prepareContext.full_context\n  }\n}];"
+      },
+      "id": "parse-response",
+      "name": "Parse Response & Commands",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// EXECUTE WRITE-BACK COMMANDS TO SUPABASE (REAL)\n// ============================================================================\n\nconst { commands } = $input.item.json.agent_response;\nconst context = $input.item.json.context;\nconst projectId = context.project.id;\nconst taskId = context.task?.id;\n\nconst SUPABASE_URL = $env.SUPABASE_URL;\nconst SUPABASE_ANON_KEY = $env.SUPABASE_ANON_KEY;\n\nasync function supabaseRequest(endpoint, options = {}) {\n  const response = await fetch(`${SUPABASE_URL}/rest/v1/${endpoint}`, {\n    ...options,\n    headers: {\n      'apikey': SUPABASE_ANON_KEY,\n      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,\n      'Content-Type': 'application/json',\n      'Prefer': 'return=representation',\n      ...options.headers\n    }\n  });\n  \n  if (!response.ok) {\n    const errorText = await response.text();\n    throw new Error(`Supabase error (${response.status}): ${errorText}`);\n  }\n  \n  return await response.json();\n}\n\nconst executionResults = [];\n\nfor (const cmd of commands) {\n  try {\n    switch (cmd.command) {\n      case 'MEMORY_WRITE':\n        const memoryData = {\n          project_id: projectId,\n          task_id: taskId,\n          agent_id: 'luna',\n          action: cmd.payload.action || 'STRATEGY_VALIDATED',\n          summary: cmd.payload.summary,\n          key_findings: cmd.payload.key_findings || [],\n          deliverables: cmd.payload.deliverables || [],\n          recommendations: cmd.payload.recommendations || [],\n          context_snapshot: cmd.payload.context_snapshot || {},\n          session_id: context.session_id\n        };\n        \n        const memoryResult = await supabaseRequest('project_memory', {\n          method: 'POST',\n          body: JSON.stringify(memoryData)\n        });\n        \n        executionResults.push({\n          command: 'MEMORY_WRITE',\n          success: true,\n          result: memoryResult\n        });\n        break;\n      \n      case 'UPDATE_TASK_STATUS':\n        if (!taskId) {\n          executionResults.push({\n            command: 'UPDATE_TASK_STATUS',\n            success: false,\n            error: 'No task_id available'\n          });\n          break;\n        }\n        \n        const taskUpdate = {\n          status: cmd.payload.status,\n          deliverable_url: cmd.payload.deliverable_url || null,\n          deliverable_type: cmd.payload.deliverable_type || null\n        };\n        \n        if (cmd.payload.status === 'done') {\n          taskUpdate.completed_at = new Date().toISOString();\n        } else if (cmd.payload.status === 'in_progress') {\n          taskUpdate.started_at = new Date().toISOString();\n        }\n        \n        const taskResult = await supabaseRequest(`tasks?id=eq.${taskId}`, {\n          method: 'PATCH',\n          body: JSON.stringify(taskUpdate)\n        });\n        \n        executionResults.push({\n          command: 'UPDATE_TASK_STATUS',\n          success: true,\n          result: taskResult\n        });\n        break;\n      \n      case 'UI_COMPONENT':\n        executionResults.push({\n          command: 'UI_COMPONENT',\n          success: true,\n          ui_component: cmd.payload\n        });\n        break;\n      \n      default:\n        executionResults.push({\n          command: cmd.command,\n          success: false,\n          error: `Unknown command: ${cmd.command}`\n        });\n    }\n  } catch (error) {\n    executionResults.push({\n      command: cmd.command,\n      success: false,\n      error: error.message\n    });\n  }\n}\n\nconst uiComponents = executionResults\n  .filter(r => r.ui_component)\n  .map(r => r.ui_component);\n\nreturn [{\n  json: {\n    success: true,\n    commands_executed: executionResults.length,\n    execution_results: executionResults,\n    agent_response: $input.item.json.agent_response,\n    ui_components: uiComponents,\n    project_id: projectId,\n    task_id: taskId\n  }\n}];"
+      },
+      "id": "execute-writebacks",
+      "name": "Execute Write-Backs (Real)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1420, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "webhook-response",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1640, 400]
+    }
+  ],
+  "connections": {
+    "webhook-trigger": {
+      "main": [[{ "node": "load-context", "type": "main", "index": 0 }]]
+    },
+    "execute-workflow-trigger": {
+      "main": [[{ "node": "load-context", "type": "main", "index": 0 }]]
+    },
+    "load-context": {
+      "main": [[{ "node": "check-dependencies", "type": "main", "index": 0 }]]
+    },
+    "check-dependencies": {
+      "main": [[{ "node": "prepare-context", "type": "main", "index": 0 }]]
+    },
+    "prepare-context": {
+      "main": [[{ "node": "luna-brain", "type": "main", "index": 0 }]]
+    },
+    "luna-brain": {
+      "main": [[{ "node": "parse-response", "type": "main", "index": 0 }]]
+    },
+    "gemini-model": {
+      "ai_languageModel": [[{ "node": "luna-brain", "type": "ai_languageModel", "index": 0 }]]
+    },
+    "window-memory": {
+      "ai_memory": [[{ "node": "luna-brain", "type": "ai_memory", "index": 0 }]]
+    },
+    "tool-seo-audit": {
+      "ai_tool": [[{ "node": "luna-brain", "type": "ai_tool", "index": 0 }]]
+    },
+    "tool-keyword-research": {
+      "ai_tool": [[{ "node": "luna-brain", "type": "ai_tool", "index": 0 }]]
+    },
+    "parse-response": {
+      "main": [[{ "node": "execute-writebacks", "type": "main", "index": 0 }]]
+    },
+    "execute-writebacks": {
+      "main": [[{ "node": "webhook-response", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2026-02-19T00:00:00.000Z",
+  "versionId": "final-luna-v1"
+}

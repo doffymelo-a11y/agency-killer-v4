@@ -1,0 +1,169 @@
+{
+  "name": "Nano Banana Pro Tool - Gemini Image Generator",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "execute-trigger",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// NANO BANANA PRO - PROMPT ENHANCER (V2)\n// Enrichit le prompt pour Gemini Image Generation\n// ============================================================================\n\nconst input = $input.first().json;\n\n// Parametres d'entree\nconst userPrompt = input.positive_prompt || input.prompt || 'Modern minimalist marketing visual';\nconst aspectRatio = input.aspect_ratio || '1:1';\nconst style = input.style || 'minimalist, tech, premium';\nconst brandColors = input.brand_colors || '#000000, #FFFFFF, #FF00FF, #00FFFF';\n\n// Determiner la taille\nlet size = '1024x1024'; // Default: 1:1\nif (aspectRatio === '9:16' || aspectRatio === '9/16') {\n  size = '1024x1792'; // Portrait/Story\n} else if (aspectRatio === '16:9' || aspectRatio === '16/9') {\n  size = '1792x1024'; // Landscape\n}\n\n// Enrichir le prompt avec le style The Hive\nconst enhancedPrompt = `${userPrompt}\n\nSTYLE REQUIREMENTS:\n- Ultra high quality, 8K resolution\n- ${style}\n- Color palette: ${brandColors}\n- Dark background (black or deep slate)\n- Neon accents and glow effects\n- Clean composition with 30% negative space\n- Professional marketing aesthetic\n- NO text, NO watermarks, NO logos\n- Photorealistic lighting with dramatic shadows`;\n\nreturn [{\n  json: {\n    enhanced_prompt: enhancedPrompt,\n    original_prompt: userPrompt,\n    size: size,\n    aspect_ratio: aspectRatio,\n    style: style\n  }\n}];"
+      },
+      "id": "prompt-enhancer",
+      "name": "Enhance Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [320, 300]
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "generate",
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.0-flash-exp-image-generation",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.0-flash-exp-image-generation"
+        },
+        "prompt": "={{ $json.enhanced_prompt }}",
+        "options": {
+          "numberOfImages": 1
+        }
+      },
+      "id": "gemini-generate-image",
+      "name": "Generate Image",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.5,
+      "position": [540, 300],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "google-gemini-credentials",
+          "name": "Google Gemini (PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://file.io",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "upload-to-fileio",
+      "name": "Upload to file.io",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [760, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// NANO BANANA PRO - OUTPUT FORMATTER (V3 - GEMINI + FILE.IO)\n// Pour Gemini image generation avec upload file.io\n// ============================================================================\n\nconst fileioResponse = $input.first().json;\nlet enhancerData = {};\n\n// Recuperer les donnees du node Enhance Prompt\ntry {\n  enhancerData = $('Enhance Prompt').first().json;\n} catch (e) {\n  enhancerData = { enhanced_prompt: '', original_prompt: '', size: '1024x1024' };\n}\n\n// Extraire l'URL de file.io\n// file.io retourne: { success: true, key: \"abc123\", link: \"https://file.io/abc123\" }\nconst imageUrl = fileioResponse.link || fileioResponse.url || null;\n\nif (!imageUrl) {\n  return [{\n    json: {\n      success: false,\n      tool: 'nano_banana_pro',\n      error: 'Upload failed: ' + JSON.stringify(fileioResponse),\n      image: null,\n      image_url: null,\n      generated_at: new Date().toISOString()\n    }\n  }];\n}\n\n// Structure de sortie pour l'Agent Principal\nreturn [{\n  json: {\n    success: true,\n    tool: 'nano_banana_pro',\n    image: {\n      url: imageUrl,\n      prompt_used: enhancerData.enhanced_prompt || '',\n      original_prompt: enhancerData.original_prompt || '',\n      size: enhancerData.size || '1024x1024',\n      aspect_ratio: enhancerData.aspect_ratio || '1:1',\n      style: enhancerData.style || 'minimalist, tech, premium',\n      model: 'gemini-2.0-flash-exp-image-generation',\n      quality: 'hd',\n      expires: fileioResponse.expires || '14 days',\n      file_key: fileioResponse.key || null\n    },\n    // IMPORTANT: image_url au niveau racine pour faciliter l'extraction\n    image_url: imageUrl,\n    generated_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "format-output",
+      "name": "Format Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [980, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// ERROR HANDLER - Format error response\n// ============================================================================\n\nconst error = $input.first().json;\n\nreturn [{\n  json: {\n    success: false,\n    tool: 'nano_banana_pro',\n    error: {\n      message: error.message || 'Image generation failed',\n      details: JSON.stringify(error)\n    },\n    image: null,\n    image_url: null,\n    generated_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "error-handler",
+      "name": "Error Handler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [980, 500]
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Enhance Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enhance Prompt": {
+      "main": [
+        [
+          {
+            "node": "Generate Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Image": {
+      "main": [
+        [
+          {
+            "node": "Upload to file.io",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to file.io": {
+      "main": [
+        [
+          {
+            "node": "Format Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "creative-v6",
+      "id": "tag-creative-v6"
+    },
+    {
+      "name": "tool",
+      "id": "tag-tool"
+    },
+    {
+      "name": "image-generation",
+      "id": "tag-image"
+    },
+    {
+      "name": "gemini",
+      "id": "tag-gemini"
+    }
+  ],
+  "pinData": {},
+  "versionId": "2.0.0",
+  "meta": {
+    "instanceId": "agency-killer-vps",
+    "templateCredsSetupCompleted": true
+  }
+}

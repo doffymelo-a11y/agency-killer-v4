@@ -1,0 +1,117 @@
+{
+  "name": "Ghost Buster Agent V7.1 - HYBRID Content Classifier",
+  "description": "V7.1: Détection CODE prioritaire + AI pour cas ambigus. NE FAIT PLUS CONFIANCE À L'IA SEULE.",
+  "version": "7.1.0",
+  "lastUpdated": "2026-01-26",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "Tu es un classificateur de requêtes créatives. Ta mission est d'analyser la demande et déterminer le type de contenu.\n\n## FORMAT DE RÉPONSE:\nRéponds UNIQUEMENT avec ce JSON:\n```json\n{\n  \"content_type\": \"image|video|copy\",\n  \"recommended_tool\": \"nano_banana_pro|runway_gen3|copywriting_pro\",\n  \"platform\": \"meta_feed|meta_reel|blog\",\n  \"confidence\": 0.95,\n  \"reasoning\": \"Explication courte\"\n}\n```"
+        },
+        "promptType": "define",
+        "text": "Analyse cette demande utilisateur et classifie-la:\n\n{{ $json.user_message }}\n\nContexte additionnel:\n- Session: {{ $json.session_id }}\n- A une image jointe: {{ $json.has_image }}"
+      },
+      "id": "ghost-buster-ai-classifier",
+      "name": "AI Content Classifier",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [600, 300],
+      "notesInFlow": true,
+      "notes": "V7.1: AI pour cas ambigus SEULEMENT"
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "options": {
+          "temperature": 0.1,
+          "maxTokens": 200
+        }
+      },
+      "id": "classifier-model",
+      "name": "GPT-4o-mini (Fast)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [400, 500],
+      "credentials": {
+        "openAiApi": {
+          "id": "your-openai-credentials-id",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// GHOST BUSTER V7.1 - PRE-PROCESSOR (HYBRID)\n// Détection CODE en premier, AI pour les cas ambigus\n// ============================================================================\n\n// 1. RECUPERATION SECURISEE DES MEMOIRES\nlet brandMemory = {};\ntry { brandMemory = $('Load Brand Memory').first().json; } catch(e) {}\n\nconst brandEssentials = {\n  brand_name: brandMemory.brand_name || 'The Hive',\n  tone: brandMemory.tone || {},\n  style: brandMemory.style || '',\n  colors: {\n    primary: brandMemory.colors?.primary || '#000000',\n    accent1: brandMemory.colors?.accent1 || '#FF00FF',\n    accent2: brandMemory.colors?.accent2 || '#00FFFF'\n  },\n  main_prompt: brandMemory.prompt_assets0 || '',\n  tagline: brandMemory.tagline || ''\n};\n\n// 2. RECUPERATION HYBRIDE DE L'INPUT\nlet userInput = {};\ntry {\n  userInput = $('When Executed by Another Workflow').first().json;\n} catch (error) {\n  try {\n    userInput = $('Webhook Trigger').first().json;\n  } catch (e) {\n    try {\n      userInput = $('When chat message received').first().json;\n    } catch (e2) {\n      userInput = $input.first().json;\n    }\n  }\n}\n\nconst inputBody = userInput.body || userInput;\n\n// 3. GHOST BUSTER: Clean image_base64\nlet rawImage = inputBody.image_base64 || inputBody.image || null;\nlet cleanedImage = null;\nlet hasValidImage = false;\n\nif (rawImage && typeof rawImage === 'string') {\n  const imageStr = rawImage.trim().toLowerCase();\n  const isGhost = (\n    imageStr === 'null' ||\n    imageStr === 'undefined' ||\n    imageStr === '' ||\n    imageStr === 'none' ||\n    imageStr.length < 100\n  );\n\n  if (!isGhost) {\n    cleanedImage = rawImage;\n    hasValidImage = true;\n  }\n}\n\n// 4. Prepare message for AI\nconst message = inputBody.chatInput || inputBody.message || inputBody.query || '';\nconst messageLower = message.toLowerCase();\n\n// ============================================================================\n// 5. DETECTION PAR MOTS-CLES (PRIORITAIRE - NE FAIT PAS CONFIANCE A L'IA)\n// ============================================================================\nlet forced_content_type = null;\nlet forced_tool = null;\nlet detection_reason = null;\n\n// VIDEO KEYWORDS - PRIORITE ABSOLUE\nconst videoKeywords = ['video', 'vidéo', 'clip', 'reel', 'film', 'animation', 'motion', 'cinematic', 'footage'];\nconst hasVideoKeyword = videoKeywords.some(kw => messageLower.includes(kw));\n\nif (hasVideoKeyword) {\n  forced_content_type = 'video';\n  forced_tool = 'runway_gen3';\n  detection_reason = 'FORCED_VIDEO: Mot-cle video detecte dans: ' + message.substring(0, 100);\n}\n\n// COPY KEYWORDS (seulement si pas VIDEO)\nif (!forced_content_type) {\n  const copyKeywords = ['article', 'blog', 'blogue', 'redige', 'ecris', 'texte seo', 'copywriting'];\n  const hasCopyKeyword = copyKeywords.some(kw => messageLower.includes(kw));\n  \n  if (hasCopyKeyword) {\n    forced_content_type = 'copy';\n    forced_tool = 'copywriting_pro';\n    detection_reason = 'FORCED_COPY: Mot-cle copywriting detecte';\n  }\n}\n\nreturn [{\n  json: {\n    user_message: message,\n    session_id: inputBody.session_id || 'session_' + Date.now(),\n    has_image: hasValidImage,\n    brand: brandEssentials,\n    raw_image: cleanedImage,\n    original_input: inputBody,\n    forced_content_type: forced_content_type,\n    forced_tool: forced_tool,\n    detection_reason: detection_reason\n  }\n}];"
+      },
+      "id": "pre-processor",
+      "name": "Pre-Processor",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [300, 300],
+      "notesInFlow": true,
+      "notes": "V7.1: Detection CODE prioritaire"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// GHOST BUSTER V7.1 - POST-PROCESSOR (HYBRID)\n// Respecte la detection CODE, utilise AI seulement si pas de forced_type\n// ============================================================================\n\nconst aiResponse = $input.first().json;\nconst preProcessorData = $('Pre-Processor').first().json;\n\n// ============================================================================\n// 1. PRIORITE ABSOLUE: Detection forcee par mots-cles (du Pre-Processor)\n// ============================================================================\nconst forcedType = preProcessorData.forced_content_type;\nconst forcedTool = preProcessorData.forced_tool;\nconst forcedReason = preProcessorData.detection_reason;\n\nlet classification = {\n  content_type: 'image',\n  recommended_tool: 'nano_banana_pro',\n  platform: 'meta_feed',\n  confidence: 0.5,\n  reasoning: 'Default fallback'\n};\n\n// SI DETECTION FORCEE -> On ignore completement l'AI\nif (forcedType && forcedTool) {\n  classification = {\n    content_type: forcedType,\n    recommended_tool: forcedTool,\n    platform: forcedType === 'video' ? 'meta_reel' : 'meta_feed',\n    confidence: 1.0,\n    reasoning: forcedReason\n  };\n} else {\n  // 2. Sinon, parser la reponse AI pour les cas ambigus\n  try {\n    const outputText = aiResponse.output || aiResponse.text || JSON.stringify(aiResponse);\n    const jsonMatch = outputText.match(/\\{[\\s\\S]*?\\}/);\n    if (jsonMatch) {\n      const parsed = JSON.parse(jsonMatch[0]);\n      classification = {\n        content_type: parsed.content_type || 'image',\n        recommended_tool: parsed.recommended_tool || 'nano_banana_pro',\n        platform: parsed.platform || 'meta_feed',\n        confidence: parsed.confidence || 0.9,\n        reasoning: 'AI: ' + (parsed.reasoning || 'AI classification')\n      };\n    }\n  } catch (e) {\n    classification.reasoning = 'Parsing failed, using defaults: ' + e.message;\n  }\n}\n\n// Map tool to content type (safety check)\nconst toolMap = {\n  'nano_banana_pro': 'image',\n  'runway_gen3': 'video',\n  'copywriting_pro': 'copy'\n};\n\nconst contentTypeMap = {\n  'image': 'nano_banana_pro',\n  'video': 'runway_gen3',\n  'copy': 'copywriting_pro'\n};\n\n// Ensure consistency (seulement si PAS force)\nif (!forcedType) {\n  if (classification.recommended_tool && toolMap[classification.recommended_tool]) {\n    classification.content_type = toolMap[classification.recommended_tool];\n  } else if (classification.content_type && contentTypeMap[classification.content_type]) {\n    classification.recommended_tool = contentTypeMap[classification.content_type];\n  }\n}\n\n// Determine vision mode\nlet visionMode = 'disabled';\nif (preProcessorData.has_image) {\n  if (classification.content_type === 'video') visionMode = 'image_to_video';\n  else if (classification.content_type === 'copy') visionMode = 'image_to_text';\n  else visionMode = 'image_analysis';\n}\n\n// Prepare binary data if image exists\nlet binaryData = undefined;\nif (preProcessorData.has_image && preProcessorData.raw_image) {\n  const cleanedImage = preProcessorData.raw_image;\n  const matches = cleanedImage.match(/^data:(.+);base64,(.+)$/);\n  if (matches) {\n    binaryData = { image: { data: matches[2], mimeType: matches[1], fileName: 'context.png' } };\n  } else {\n    binaryData = { image: { data: cleanedImage, mimeType: 'image/png', fileName: 'context.png' } };\n  }\n}\n\n// Detected mode\nlet detectedMode = 'production';\nconst message = preProcessorData.user_message.toLowerCase();\nconst brainstormKeywords = ['idee', 'idees', 'concept', 'brainstorm', 'propose', 'suggere'];\nif (brainstormKeywords.some(kw => message.includes(kw))) {\n  detectedMode = 'brainstorming';\n}\n\n// ─────────────────────────────────────────────────────────────────────────\n// OUTPUT V7.1 - Same structure as Ghost Buster V6.9 for compatibility\n// ─────────────────────────────────────────────────────────────────────────\nreturn [{\n  json: {\n    user_request: {\n      message: preProcessorData.user_message,\n      original_query: preProcessorData.user_message,\n      session_id: preProcessorData.session_id,\n      timestamp: new Date().toISOString()\n    },\n\n    image_input: {\n      has_valid_image: preProcessorData.has_image,\n      status: preProcessorData.has_image ? 'VALID' : 'NO_IMAGE',\n      cleaned_value: preProcessorData.has_image ? '[IMAGE_BINARY_ATTACHED]' : null\n    },\n\n    detected_mode: detectedMode,\n    content_type: classification.content_type,\n    vision_mode: visionMode,\n    platform: classification.platform,\n\n    recommended_tool: classification.recommended_tool,\n    tool_selection_reason: classification.reasoning,\n\n    brand: preProcessorData.brand,\n\n    system_instruction_add: preProcessorData.has_image\n      ? '[VISION: ' + visionMode.toUpperCase() + '] Image fournie.'\n      : '',\n\n    tools_available: ['copywriting_pro', 'nano_banana_pro', 'runway_gen3'],\n    \n    ai_classification: classification,\n    \n    // V7.1: Debug info\n    forced_detection: {\n      was_forced: !!(forcedType && forcedTool),\n      forced_type: forcedType,\n      forced_tool: forcedTool,\n      reason: forcedReason\n    }\n  },\n  binary: binaryData\n}];"
+      },
+      "id": "post-processor",
+      "name": "Post-Processor",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300],
+      "notesInFlow": true,
+      "notes": "V7.1: Respecte detection forcee"
+    }
+  ],
+  "connections": {
+    "Pre-Processor": {
+      "main": [
+        [
+          {
+            "node": "AI Content Classifier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GPT-4o-mini (Fast)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Content Classifier",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Content Classifier": {
+      "main": [
+        [
+          {
+            "node": "Post-Processor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    { "name": "creative-v7", "id": "tag-creative-v7" },
+    { "name": "ghost-buster", "id": "tag-ghost-buster" },
+    { "name": "hybrid-classifier", "id": "tag-hybrid" }
+  ],
+  "meta": {
+    "instanceId": "agency-killer-vps",
+    "templateCredsSetupCompleted": false
+  }
+}

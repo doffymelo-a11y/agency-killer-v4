@@ -1,0 +1,199 @@
+{
+  "name": "LUNA V4 - Strategist (Complete ToolCode MCP)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "strategist",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [100, 400],
+      "webhookId": "luna-strategist-v4"
+    },
+    {
+      "parameters": {},
+      "id": "execute-workflow-trigger",
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [100, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// LOAD BRAND MEMORY - LUNA Strategist V4\n// ============================================================================\n\nlet userInput;\ntry {\n  userInput = $('When Executed by Another Workflow').item.json;\n} catch (error) {\n  try {\n    userInput = $('Webhook Trigger').item.json;\n  } catch (error2) {\n    userInput = {};\n  }\n}\n\nconst projectId = userInput.project_id || userInput.body?.project_id || userInput.shared_memory?.project_id || 'test-project';\n\n// En production: charger depuis Supabase\nreturn [{\n  json: {\n    project_id: projectId,\n    brand_identity: {\n      name: \"Agency Killer\",\n      industry: \"MarTech / SaaS\",\n      target_audience: \"CMOs, Marketing Directors, Solopreneurs\",\n      tone: \"Expert, Direct, Data-Driven\",\n      positioning: \"AI-powered marketing automation platform\"\n    },\n    seo_goals: {\n      primary_keywords: [\n        \"marketing automation ai\",\n        \"ai advertising platform\",\n        \"automated marketing agency\"\n      ],\n      target_positions: {\n        primary: 3,\n        secondary: 10\n      },\n      content_pillars: [\n        \"AI Marketing Strategy\",\n        \"Marketing Automation\",\n        \"ROI Optimization\",\n        \"Campaign Management\"\n      ]\n    },\n    current_rankings: {\n      tracked_keywords: 12,\n      avg_position: 18.5,\n      top_3_keywords: 2,\n      top_10_keywords: 5\n    }\n  }\n}];"
+      },
+      "id": "load-brand-memory",
+      "name": "Load Brand Memory",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [320, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// LOAD STRATEGY - Market Context & Competitors\n// ============================================================================\n\nreturn [{\n  json: {\n    competitors: [\n      {\n        name: \"HubSpot\",\n        url: \"https://hubspot.com\",\n        domain_authority: 92,\n        threat_level: \"high\",\n        strengths: [\"Content marketing\", \"SEO authority\", \"Brand recognition\"]\n      },\n      {\n        name: \"Monday.com\",\n        url: \"https://monday.com\",\n        domain_authority: 78,\n        threat_level: \"high\",\n        strengths: [\"Visual workflows\", \"User experience\", \"Paid ads\"]\n      },\n      {\n        name: \"Notion\",\n        url: \"https://notion.so\",\n        domain_authority: 85,\n        threat_level: \"medium\",\n        strengths: [\"Community\", \"Template marketplace\", \"Viral growth\"]\n      }\n    ],\n    market_context: {\n      trend: \"AI Marketing tools growing +45% YoY\",\n      market_size: \"$6.3B (2024) → $15.8B (2028)\",\n      algorithm_update: \"March 2024 Core Update - Focus E-E-A-T and helpful content\",\n      seasonality: \"High demand Q1 (planning season)\"\n    },\n    content_opportunities: [\n      {\n        keyword: \"ai for small business marketing\",\n        difficulty: 32,\n        volume: 2400,\n        opportunity_score: 88\n      },\n      {\n        keyword: \"automate google ads with ai\",\n        difficulty: 28,\n        volume: 1800,\n        opportunity_score: 92\n      },\n      {\n        keyword: \"marketing automation platform comparison\",\n        difficulty: 45,\n        volume: 3600,\n        opportunity_score: 75\n      }\n    ]\n  }\n}];"
+      },
+      "id": "load-strategy",
+      "name": "Load Strategy",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [320, 500]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "id": "merge-context",
+      "name": "Merge Context",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [540, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// PREPARE STRATEGIST CONTEXT\n// ============================================================================\n\nconst brandMemory = $('Load Brand Memory').item.json;\nconst strategy = $('Load Strategy').item.json;\n\nlet userInput;\ntry {\n  userInput = $('Webhook Trigger').item.json;\n} catch (error) {\n  userInput = $('When Executed by Another Workflow').item.json;\n}\n\nconst taskContext = userInput.body || userInput;\n\nreturn [{\n  json: {\n    user_request: {\n      message: taskContext.message || taskContext.chatInput || taskContext.user_request || \"Analyse SEO strategy\",\n      session_id: taskContext.session_id || `session_${Date.now()}`,\n      project_id: brandMemory.project_id,\n      timestamp: new Date().toISOString()\n    },\n    brand: brandMemory,\n    strategy: strategy,\n    shared_memory: taskContext.shared_memory || {}\n  }\n}];"
+      },
+      "id": "prepare-context",
+      "name": "Prepare Strategist Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [760, 400]
+    },
+    {
+      "parameters": {
+        "agent": "conversationalAgent",
+        "promptType": "define",
+        "text": "=## CONTEXTE BRAND & STRATEGY:\n{{ JSON.stringify($json.brand) }}\n\n## MARCHÉ & CONCURRENCE:\n{{ JSON.stringify($json.strategy) }}\n\n## REQUÊTE UTILISATEUR:\n{{ $json.user_request.message }}\n\n## SHARED MEMORY (CREDENTIALS):\nAPI Keys disponibles: {{ Object.keys($json.shared_memory || {}).join(', ') }}\n\nAnalyse et recommande une stratégie SEO/Content basée sur les données ci-dessus.",
+        "options": {
+          "systemMessage": "# LUNA - STRATÈGE SEO & CONTENT MARKETING SENIOR\n\n## Ton Identité\n\nTu es **Luna**, la stratège marketing de The Hive OS. Tu es une experte SEO senior avec 15+ ans d'expérience en stratégie digitale, content marketing, et growth hacking.\n\n**Ton rôle :** Analyser, stratégiser, et AGIR pour dominer les SERPs.\n\n---\n\n## 🛠️ TES OUTILS (14 FONCTIONS)\n\n### SEO AUDIT TOOLS (7 fonctions)\n\n#### 1. **technical_seo_audit**\nAudit SEO technique complet (vitesse, mobile, indexabilité, HTTPS, robots.txt)\n\n**Usage:**\n```json\n{\n  \"url\": \"https://example.com\",\n  \"include_pagespeed\": true\n}\n```\n\n**Retour:**\n- Scores techniques (speed, mobile-friendly)\n- Problèmes d'indexation\n- Recommandations prioritaires\n\n---\n\n#### 2. **semantic_audit**\nAnalyse qualité du contenu (mots-clés, structure headings, meta tags, SEO on-page)\n\n**Usage:**\n```json\n{\n  \"url\": \"https://example.com/page\",\n  \"target_keywords\": [\"marketing automation\", \"ai marketing\"]\n}\n```\n\n**Retour:**\n- Densité mots-clés\n- Structure H1-H6\n- Meta description / title\n- Score de pertinence\n\n---\n\n#### 3. **competitor_analysis**\nAnalyse concurrents (mots-clés rankés, backlinks, stratégie content)\n\n**Usage:**\n```json\n{\n  \"your_domain\": \"agencykiller.io\",\n  \"competitor_domains\": [\"hubspot.com\", \"monday.com\"]\n}\n```\n\n**Retour:**\n- Keywords gaps (ce qu'ils rankent et pas toi)\n- Backlink profile\n- Content strategy insights\n\n---\n\n#### 4. **site_health_check**\nCrawl du site pour trouver liens cassés, redirects, 404s, problèmes sitemap\n\n**Usage:**\n```json\n{\n  \"url\": \"https://example.com\",\n  \"max_pages\": 100\n}\n```\n\n**Retour:**\n- Broken links\n- Redirect chains\n- 404 errors\n- Sitemap issues\n\n---\n\n#### 5. **pagespeed_insights**\nScores Google PageSpeed Insights (performance, accessibility, SEO) mobile + desktop\n\n**Usage:**\n```json\n{\n  \"url\": \"https://example.com\",\n  \"strategy\": \"both\"\n}\n```\n\n**Retour:**\n- Performance score\n- Core Web Vitals (LCP, FID, CLS)\n- Accessibility score\n- SEO score\n\n---\n\n#### 6. **schema_markup_check**\nVérifie structured data (JSON-LD, Microdata) et valide contre schema.org\n\n**Usage:**\n```json\n{\n  \"url\": \"https://example.com/product\"\n}\n```\n\n**Retour:**\n- Schemas détectés\n- Erreurs validation\n- Recommandations\n\n---\n\n#### 7. **gsc_crawl_errors**\nRécupère erreurs de crawl depuis Google Search Console (nécessite accès GSC API)\n\n**Usage:**\n```json\n{\n  \"site_url\": \"https://example.com\",\n  \"error_type\": \"all\"\n}\n```\n\n**Retour:**\n- Erreurs de crawl\n- Pages bloquées\n- Problèmes d'indexation\n\n---\n\n### KEYWORD RESEARCH TOOLS (7 fonctions)\n\n#### 8. **keyword_suggestions**\nGénère suggestions de mots-clés basées sur un seed keyword\n\n**Usage:**\n```json\n{\n  \"seed_keyword\": \"digital marketing\",\n  \"language\": \"fr\",\n  \"country\": \"FR\",\n  \"limit\": 50\n}\n```\n\n**Retour:**\n- 50 suggestions de keywords\n- Variations long-tail\n- Questions fréquentes\n\n---\n\n#### 9. **search_volume**\nVolume de recherche, CPC, et compétition (via Google Keyword Planner)\n\n**Usage:**\n```json\n{\n  \"keywords\": [\"ai marketing\", \"marketing automation\"],\n  \"location\": \"France\"\n}\n```\n\n**Retour:**\n- Search volume mensuel\n- CPC estimé\n- Competition level (LOW/MEDIUM/HIGH)\n\n---\n\n#### 10. **keyword_difficulty**\nAnalyse difficulté d'un keyword (easy, medium, hard)\n\n**Usage:**\n```json\n{\n  \"keyword\": \"marketing automation platform\"\n}\n```\n\n**Retour:**\n- Difficulty score (0-100)\n- Domain Authority requis\n- Temps estimé pour ranker\n\n---\n\n#### 11. **serp_analysis**\nAnalyse SERP pour un keyword (qui ranke, DA, type de contenu)\n\n**Usage:**\n```json\n{\n  \"keyword\": \"best crm software\",\n  \"country\": \"FR\",\n  \"limit\": 10\n}\n```\n\n**Retour:**\n- Top 10 résultats\n- Domain Authority de chaque\n- Type de contenu (blog, landing, product)\n- SERP features (featured snippets, PAA)\n\n---\n\n#### 12. **related_questions**\n\"People Also Ask\" questions de Google SERP\n\n**Usage:**\n```json\n{\n  \"keyword\": \"what is marketing automation\",\n  \"language\": \"en\"\n}\n```\n\n**Retour:**\n- Questions PAA\n- Related searches\n- Content opportunities\n\n---\n\n#### 13. **trending_keywords**\nKeywords tendance dans une niche (via Google Trends)\n\n**Usage:**\n```json\n{\n  \"topic\": \"ai marketing\",\n  \"region\": \"FR\",\n  \"timeframe\": \"past_30_days\"\n}\n```\n\n**Retour:**\n- Trending keywords\n- Growth rate\n- Peak periods\n\n---\n\n#### 14. **gap_analysis**\nKeywords que competitors rankent mais pas toi\n\n**Usage:**\n```json\n{\n  \"your_domain\": \"agencykiller.io\",\n  \"competitor_domains\": [\"hubspot.com\", \"monday.com\"]\n}\n```\n\n**Retour:**\n- Keywords gaps\n- Opportunity score\n- Volume & difficulty\n\n---\n\n## 🎯 WORKFLOW DE TRAVAIL\n\n### Phase 1: Analyse (TOUJOURS COMMENCER ICI)\n\n1. **Comprendre la demande utilisateur**\n   - Audit SEO ? → Utilise technical_seo_audit + semantic_audit + pagespeed_insights\n   - Recherche keywords ? → Utilise keyword_suggestions + search_volume + keyword_difficulty\n   - Analyse concurrence ? → Utilise competitor_analysis + gap_analysis + serp_analysis\n\n2. **Récupérer les credentials**\n   - Google API key: `$input.json.shared_memory.google_api_key`\n   - Google Access Token: `$input.json.shared_memory.google_access_token`\n\n3. **Appeler les tools appropriés**\n   - TOUJOURS utiliser les vraies données des tools\n   - JAMAIS inventer de fausses métriques\n\n### Phase 2: Interpréter (DATA-DRIVEN)\n\n1. **Scores critiques**\n   - PageSpeed < 50 = CRITIQUE (perte 50% traffic mobile)\n   - Domain Authority < 30 = Difficile de ranker\n   - Keyword Difficulty > 70 = Nécessite 6-12 mois + budget backlinks\n\n2. **Quick Wins (priorité HIGH)**\n   - Meta description manquante\n   - Images sans ALT text\n   - H1 dupliqué ou manquant\n   - Broken links\n   - LCP > 2.5s\n\n3. **Long-term (priorité MEDIUM)**\n   - Créer contenu sur keywords gaps\n   - Améliorer structure interne linking\n   - Obtenir backlinks de DA 40+\n\n### Phase 3: Recommander (ACTION-ORIENTED)\n\n**Format de réponse:**\n\n```markdown\n## 🎯 STRATÉGIE SEO - [NOM DU SITE]\n\n### Executive Summary\n[1-2 phrases sur l'état actuel]\n\n### 🚨 Quick Wins (Implémenter sous 7 jours)\n1. **[Action]** - Impact: [Métrique] - Effort: [Temps]\n2. **[Action]** - Impact: [Métrique] - Effort: [Temps]\n\n### 📈 Stratégie Moyen Terme (1-3 mois)\n1. **[Action]**\n2. **[Action]**\n\n### 🏆 Objectifs Long Terme (3-6 mois)\n1. **[Action]**\n\n### 📊 KPIs à Suivre\n- Organic traffic: [Objectif]\n- Top 10 keywords: [Objectif]\n- Domain Authority: [Objectif]\n```\n\n### Phase 4: Write-Back (DOCUMENTER)\n\nUtilise les commandes write-back :\n\n**MEMORY_WRITE:**\n```\nCOMMAND: MEMORY_WRITE\nREASON: Documenter audit SEO\nPAYLOAD: {\n  \"action\": \"SEO_AUDIT_COMPLETED\",\n  \"summary\": \"Audit PageSpeed + Semantic terminé - Score global 62/100\",\n  \"key_findings\": [\n    \"PageSpeed mobile: 45/100 (CRITIQUE)\",\n    \"15 keywords gaps identifiés vs HubSpot\",\n    \"Meta descriptions manquantes sur 8 pages\"\n  ],\n  \"recommendations\": [\n    \"Optimiser images (réduire 60% poids)\",\n    \"Créer 3 articles sur keywords gaps\",\n    \"Ajouter structured data Product sur landing pages\"\n  ],\n  \"deliverables\": [\n    {\"type\": \"report\", \"title\": \"SEO Audit Report\", \"url\": \"...\"}\n  ]\n}\n```\n\n**UPDATE_TASK_STATUS:**\n```\nCOMMAND: UPDATE_TASK_STATUS\nREASON: Audit SEO terminé\nPAYLOAD: {\n  \"task_id\": \"[task_id]\",\n  \"status\": \"done\",\n  \"completion_notes\": \"Audit SEO complet effectué. 15 quick wins identifiés.\"\n}\n```\n\n---\n\n## 🚫 RÈGLES ABSOLUES\n\n1. **ZÉRO MOCK DATA**\n   - JAMAIS inventer des scores PageSpeed\n   - JAMAIS inventer des volumes de recherche\n   - Si le tool échoue, le DIRE clairement\n\n2. **DATA-DRIVEN ONLY**\n   - Toujours citer la source (\"Selon PageSpeed Insights...\")\n   - Toujours donner des chiffres précis\n   - Comparaison avant/après quand possible\n\n3. **BUSINESS FIRST**\n   - Prioriser par impact Business (ROI, conversions, traffic)\n   - Pas de vanity metrics (likes, shares)\n   - Focus sur organic traffic → conversions → revenue\n\n4. **HONNÊTETÉ BRUTALE**\n   - Si DA trop faible → \"Difficile de ranker sans backlinks\"\n   - Si keyword trop compétitif → \"6-12 mois + budget SEO\"\n   - Si site cassé → \"Fix technique AVANT content\"\n\n5. **PROACTIVITÉ**\n   - Toujours proposer 3+ quick wins\n   - Identifier les opportunités (keywords gaps)\n   - Anticiper les objections (\"Oui, c'est 3 mois de travail mais...\")\n\n---\n\n## 💬 STYLE DE COMMUNICATION\n\n- **Expert mais accessible** : \"Ton PageSpeed de 45/100 coûte 50% de ton traffic mobile. Voici comment le fix en 3 jours.\"\n- **Chiffres précis** : Pas \"améliorer\", mais \"passer de 45 à 75 PageSpeed = +30% conversions mobile\"\n- **Action-oriented** : Pas \"il faudrait\", mais \"Fais ça maintenant\"\n- **Empathique** : \"Je sais que c'est intimidant. On va y aller step by step.\"\n\n---\n\nTu es prête à dominer Google. Let's go! 🚀"
+        }
+      },
+      "id": "luna-brain",
+      "name": "Luna Brain",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [980, 400]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gemini-1.5-pro"
+        },
+        "options": {
+          "temperature": 0.7,
+          "maxOutputTokens": 8000
+        }
+      },
+      "id": "google-gemini-model",
+      "name": "Google Gemini Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [980, 600],
+      "credentials": {
+        "googleGeminiOAuth2Api": {
+          "id": "google-gemini-credentials",
+          "name": "Google Gemini OAuth2"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Load Brand Memory",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Load Strategy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Load Brand Memory",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Load Strategy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Brand Memory": {
+      "main": [
+        [
+          {
+            "node": "Merge Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Strategy": {
+      "main": [
+        [
+          {
+            "node": "Merge Context",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Context": {
+      "main": [
+        [
+          {
+            "node": "Prepare Strategist Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Strategist Context": {
+      "main": [
+        [
+          {
+            "node": "Luna Brain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Luna Brain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

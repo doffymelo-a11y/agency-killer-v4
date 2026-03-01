@@ -1,0 +1,504 @@
+{
+  "name": "Veo-3 Video Generator Tool V4 (Add Next Scene)",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "trigger-001",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// ============================================================================\n// BUILD REQUEST V7 - Préparation pour Add Next Scene\n// Divise le prompt en scènes séquentielles pour chaînage vidéo\n// ============================================================================\n\nconst input = $input.first().json;\n\nconst promptText = input.prompt_text || input.prompt || input.query || input.some_input || '';\nconst originalQuery = input.original_query || input.some_input || promptText;\nconst searchText = (originalQuery + ' ' + promptText).toLowerCase();\n\nlet cleanPrompt = promptText\n  .replace(/[\\n\\r]+/g, ' ')\n  .replace(/\\s+/g, ' ')\n  .trim();\n\n// ═══════════════════════════════════════════════════════════════════════════\n// EXTRACTION DURÉE\n// ═══════════════════════════════════════════════════════════════════════════\nlet extractedDuration = null;\nlet durationSource = 'default';\nconst foundDurations = [];\n\nconst hyphenRegex = /(\\d+)[-–](?:second|seconde)s?/gi;\nlet match;\nwhile ((match = hyphenRegex.exec(searchText)) !== null) {\n  const val = parseInt(match[1]);\n  if (val >= 5) foundDurations.push({ value: val, source: 'hyphen_format' });\n}\n\nconst minRegex = /(\\d+)\\s*(?:minutes?|min)/gi;\nwhile ((match = minRegex.exec(searchText)) !== null) {\n  const val = parseInt(match[1]) * 60;\n  if (val >= 10) foundDurations.push({ value: val, source: 'minutes' });\n}\n\nconst secRegex = /(\\d+)\\s*(?:secondes?|seconds?)/gi;\nwhile ((match = secRegex.exec(searchText)) !== null) {\n  const val = parseInt(match[1]);\n  if (val >= 5) foundDurations.push({ value: val, source: 'secondes' });\n}\n\nconst sRegex = /(\\d+)\\s*s(?:[\\s,.\\):]|$)/gi;\nwhile ((match = sRegex.exec(searchText)) !== null) {\n  const val = parseInt(match[1]);\n  if (val >= 10) foundDurations.push({ value: val, source: 'Xs_format' });\n}\n\nconst videoDeRegex = /vid[eé]o\\s*(?:de\\s*)?(\\d+)/gi;\nwhile ((match = videoDeRegex.exec(searchText)) !== null) {\n  const val = parseInt(match[1]);\n  if (val >= 5 && val <= 300) foundDurations.push({ value: val, source: 'video_de_X' });\n}\n\nif (foundDurations.length > 0) {\n  foundDurations.sort((a, b) => b.value - a.value);\n  const best = foundDurations.find(d => d.value > 8) || foundDurations[0];\n  extractedDuration = best.value;\n  durationSource = best.source;\n}\n\n// ═══════════════════════════════════════════════════════════════════════════\n// CALCUL SCENES\n// ═══════════════════════════════════════════════════════════════════════════\nconst requestedDuration = extractedDuration || input.duration || 7;\nconst sceneDuration = 7; // Veo-3 génère des clips de 7 secondes\nconst scenesNeeded = Math.ceil(requestedDuration / sceneDuration);\nconst needsMultipleScenes = scenesNeeded > 1;\n\n// Nettoyer le prompt (retirer la durée)\ncleanPrompt = cleanPrompt\n  .replace(/^\\d+[-\\s]*(?:second|seconde)s?\\s*/i, '')\n  .replace(/^\\d+s\\s+/i, '')\n  .replace(/vid[eé]o\\s*de\\s*\\d+\\s*(?:second|seconde)s?\\s*/gi, '')\n  .replace(/\\s+/g, ' ')\n  .trim();\n\nconst hasImage = !!(input.image_base64 || input.image_url || input.promptImage);\n\nreturn [{\n  json: {\n    clean_prompt: cleanPrompt,\n    promptText: cleanPrompt,\n    duration: sceneDuration,\n    promptImage: input.promptImage || input.image_base64 || input.image_url || null,\n    has_image: hasImage,\n    requested_duration: requestedDuration,\n    scenes_needed: scenesNeeded,\n    needs_multiple_scenes: needsMultipleScenes,\n    original_query: originalQuery,\n    duration_source: durationSource,\n    session_id: input.session_id || 'session_' + Date.now(),\n    debug_v7: {\n      version: 'V7_AddNextScene',\n      search_preview: searchText.substring(0, 80),\n      all_found: foundDurations,\n      extracted: extractedDuration,\n      requested: requestedDuration,\n      scenes: scenesNeeded,\n      multi: needsMultipleScenes\n    }\n  }\n}];"
+      },
+      "id": "build-request-v7",
+      "name": "Build Request V7",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-multiscene",
+              "leftValue": "={{ $json.needs_multiple_scenes }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-multiscene",
+      "name": "IF Multi-Scene Needed",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "model": "gemini-2.0-flash-preview-image-generation",
+        "options": {
+          "temperature": 1
+        }
+      },
+      "id": "generate-single",
+      "name": "Generate Single Video",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [700, 520],
+      "credentials": {
+        "googleGeminiApi": {
+          "id": "YOUR_GEMINI_CREDENTIALS_ID",
+          "name": "Google Gemini API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Vidéo demandée: {{ $json.requested_duration }} secondes ({{ $json.scenes_needed }} scènes de 7s chacune)\n\nPrompt original: \"{{ $json.clean_prompt }}\"\n\nDivise ce prompt en {{ $json.scenes_needed }} scènes SÉQUENTIELLES qui racontent une histoire PROGRESSIVE et CONTINUE.\n\nRéponds UNIQUEMENT avec un JSON valide (pas de texte avant/après):\n{\"scenes\":[{\"index\":0,\"prompt\":\"Description détaillée scène 1...\",\"duration\":7},{\"index\":1,\"prompt\":\"Suite de la scène 1...\",\"duration\":7}]}",
+        "options": {
+          "systemMessage": "Tu es un expert en découpage de scénarios vidéo pour Veo-3. Tu divises les demandes de vidéo en scènes séquentielles de 7 secondes. Chaque scène doit être une CONTINUATION de la précédente, pas une répétition. Réponds TOUJOURS en JSON valide uniquement."
+        }
+      },
+      "id": "ai-agent-split",
+      "name": "AI Agent (Split Scenes)",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [660, 160]
+    },
+    {
+      "parameters": {
+        "model": "gemini-2.0-flash",
+        "options": {
+          "temperature": 0.7
+        }
+      },
+      "id": "split-prompt-ai",
+      "name": "Split Prompt Into Scenes (AI)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [660, 320],
+      "credentials": {
+        "googleGeminiApi": {
+          "id": "YOUR_GEMINI_CREDENTIALS_ID",
+          "name": "Google Gemini API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// ============================================================================\n// PARSE AI SCENES V3 - Extrait les scènes de l'output de l'AI Agent\n// Structure attendue: input.output.scenes = [{index, prompt}, ...]\n// ============================================================================\n\nconst input = $input.first().json;\nconst buildData = $('Build Request V7').first().json;\n\nlet scenes = [];\nlet parseError = null;\nlet debugInfo = { inputKeys: Object.keys(input) };\n\ntry {\n  // PRIORITÉ 1: input.output.scenes (structure AI Agent)\n  if (input.output && typeof input.output === 'object' && input.output.scenes) {\n    scenes = input.output.scenes;\n    debugInfo.source = 'input.output.scenes';\n  }\n  // PRIORITÉ 2: input.output est une string JSON\n  else if (input.output && typeof input.output === 'string') {\n    const jsonMatch = input.output.match(/\\{[\\s\\S]*\\}/);\n    if (jsonMatch) {\n      const parsed = JSON.parse(jsonMatch[0]);\n      scenes = parsed.scenes || [];\n      debugInfo.source = 'input.output (parsed string)';\n    }\n  }\n  // PRIORITÉ 3: input.scenes directement\n  else if (input.scenes && Array.isArray(input.scenes)) {\n    scenes = input.scenes;\n    debugInfo.source = 'input.scenes';\n  }\n  // PRIORITÉ 4: input.text/content/message\n  else if (input.text || input.content || input.message) {\n    const textContent = input.text || input.content || input.message;\n    if (typeof textContent === 'string') {\n      const jsonMatch = textContent.match(/\\{[\\s\\S]*\\}/);\n      if (jsonMatch) {\n        const parsed = JSON.parse(jsonMatch[0]);\n        scenes = parsed.scenes || [];\n        debugInfo.source = 'text/content/message (parsed)';\n      }\n    }\n  }\n} catch (e) {\n  parseError = e.message;\n  debugInfo.error = e.message;\n}\n\n// Fallback: créer des scènes basiques si vide\nif (!scenes || scenes.length === 0) {\n  const count = buildData.scenes_needed || 2;\n  const basePrompt = buildData.clean_prompt || 'Generate a cinematic video scene';\n  \n  const progressions = [\n    'Opening shot:',\n    'The action continues:',\n    'Building momentum:',\n    'Climax:',\n    'Resolution:'\n  ];\n  \n  for (let i = 0; i < count; i++) {\n    scenes.push({\n      index: i,\n      prompt: `${progressions[Math.min(i, progressions.length-1)]} ${basePrompt}`,\n      duration: 7\n    });\n  }\n  debugInfo.source = 'fallback';\n}\n\n// Valider et normaliser chaque scène\nscenes = scenes.map((scene, idx) => ({\n  index: scene.index ?? idx,\n  prompt: scene.prompt || `Scene ${idx + 1}: ${buildData.clean_prompt}`,\n  duration: scene.duration || 7\n}));\n\n// Retourner chaque scène comme un item séparé\nreturn scenes.map((scene, idx) => ({\n  json: {\n    scene_index: scene.index,\n    scene_prompt: scene.prompt,\n    duration: scene.duration,\n    total_scenes: scenes.length,\n    is_first: idx === 0,\n    is_last: idx === scenes.length - 1,\n    session_id: buildData.session_id || 'session_' + Date.now(),\n    original_prompt: buildData.clean_prompt,\n    previous_video_binary: null,\n    needs_continuation: idx > 0,\n    debug: debugInfo\n  }\n}));"
+      },
+      "id": "parse-ai-scenes",
+      "name": "Parse AI Scenes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [920, 160]
+    },
+    {
+      "parameters": {
+        "options": {
+          "reset": false
+        },
+        "batchSize": 1
+      },
+      "id": "loop-scenes",
+      "name": "Loop Over Scenes",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [1140, 160]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-first-scene",
+              "leftValue": "={{ $json.is_first }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-first-scene",
+      "name": "IF First Scene",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1360, 160]
+    },
+    {
+      "parameters": {
+        "resource": "video",
+        "operation": "generate",
+        "modelId": {
+          "__rl": true,
+          "value": "models/veo-3.1-generate-preview",
+          "mode": "list",
+          "cachedResultName": "models/veo-3.1-generate-preview"
+        },
+        "prompt": "={{ $json.scene_prompt }}",
+        "options": {
+          "returnAs": "video"
+        }
+      },
+      "id": "generate-first-scene",
+      "name": "Generate First Scene",
+      "type": "@n8n/n8n-nodes-google.googleGemini",
+      "typeVersion": 1,
+      "position": [1580, 80],
+      "credentials": {
+        "googleGeminiApi": {
+          "id": "YOUR_GEMINI_CREDENTIALS_ID",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "video",
+        "operation": "generate",
+        "modelId": {
+          "__rl": true,
+          "value": "models/veo-3.1-generate-preview",
+          "mode": "list",
+          "cachedResultName": "models/veo-3.1-generate-preview"
+        },
+        "prompt": "=Continue the video seamlessly: {{ $json.scene_prompt }}",
+        "options": {
+          "returnAs": "video"
+        }
+      },
+      "id": "generate-next-scene",
+      "name": "Generate Next Scene (Add)",
+      "type": "@n8n/n8n-nodes-google.googleGemini",
+      "typeVersion": 1,
+      "position": [1580, 260],
+      "credentials": {
+        "googleGeminiApi": {
+          "id": "YOUR_GEMINI_CREDENTIALS_ID",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "merge-scene-generation",
+      "name": "Merge Scene Generation",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [1800, 160]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// ============================================================================\n// PROCESS SCENE RESULT - Extrait la vidéo et prépare le chaînage\n// ============================================================================\n\nconst items = $input.all();\nconst firstItem = items[0];\nconst input = firstItem.json;\n\n// Récupérer les données de la scène depuis le loop\nlet sceneData = {};\ntry {\n  sceneData = $('Loop Over Scenes').first().json || {};\n} catch (e) {\n  sceneData = { scene_index: 0, scene_prompt: '', total_scenes: 1 };\n}\n\n// Vérifier si on a des données binaires (vidéo générée)\nconst hasBinary = !!(firstItem.binary && Object.keys(firstItem.binary).length > 0);\nlet binaryKey = null;\nlet binaryInfo = null;\n\nif (hasBinary && firstItem.binary) {\n  binaryKey = Object.keys(firstItem.binary)[0];\n  if (binaryKey) {\n    binaryInfo = firstItem.binary[binaryKey];\n  }\n}\n\nlet videoUrl = null;\nif (input.video_url) videoUrl = input.video_url;\nelse if (input.url) videoUrl = input.url;\nelse if (input.candidates?.[0]?.content?.parts) {\n  for (const part of input.candidates[0].content.parts) {\n    if (part.fileData?.fileUri) {\n      videoUrl = part.fileData.fileUri;\n      break;\n    }\n  }\n}\n\nconst success = !!(videoUrl || hasBinary);\n\nconst result = {\n  json: {\n    scene_index: sceneData.scene_index || 0,\n    scene_prompt: sceneData.scene_prompt || '',\n    video_url: videoUrl,\n    has_binary: hasBinary,\n    binary_key: binaryKey,\n    binary_info: binaryInfo ? {\n      fileName: binaryInfo.fileName,\n      fileSize: binaryInfo.fileSize,\n      mimeType: binaryInfo.mimeType\n    } : null,\n    duration: sceneData.duration || 7,\n    total_scenes: sceneData.total_scenes || 1,\n    is_first: sceneData.is_first || false,\n    is_last: sceneData.is_last || false,\n    success: success,\n    source: hasBinary ? 'binary' : (videoUrl ? 'url' : 'none')\n  }\n};\n\n// IMPORTANT: Préserver le binaire pour le prochain clip (Add Next Scene)\nif (hasBinary && firstItem.binary) {\n  result.binary = firstItem.binary;\n}\n\nreturn [result];"
+      },
+      "id": "process-scene",
+      "name": "Process Scene Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2020, 160]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// ============================================================================\n// STORE VIDEO FOR NEXT SCENE - Sauvegarde le binaire pour chaînage\n// ============================================================================\n\nconst items = $input.all();\nconst currentItem = items[0];\nconst sceneData = currentItem.json;\n\n// Stocker la vidéo actuelle pour la prochaine itération\n// Utilise $execution.customData pour persister entre les itérations\nif (sceneData.has_binary && currentItem.binary) {\n  // Marquer que nous avons une vidéo précédente pour le prochain tour\n  $execution.customData.set('previous_video', JSON.stringify({\n    has_video: true,\n    scene_index: sceneData.scene_index\n  }));\n}\n\n// Retourner les données pour la suite\nconst result = {\n  json: {\n    ...sceneData,\n    stored_for_chaining: true\n  }\n};\n\nif (currentItem.binary) {\n  result.binary = currentItem.binary;\n}\n\nreturn [result];"
+      },
+      "id": "store-video",
+      "name": "Store Video for Next",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2240, 160]
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "id": "aggregate-scenes",
+      "name": "Aggregate All Scenes",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [2460, 160]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// ============================================================================\n// PREPARE FINAL OUTPUT - Combine toutes les scènes\n// ============================================================================\n\nconst inputItems = $input.all();\nconst allScenes = inputItems[0]?.json?.data || inputItems.map(i => i.json);\nconst buildData = $('Build Request V7').first().json;\n\nconst videoScenes = (Array.isArray(allScenes) ? allScenes : [allScenes])\n  .filter(s => s && (s.video_url || s.has_binary || s.success))\n  .sort((a, b) => (a.scene_index || 0) - (b.scene_index || 0));\n\nconst totalDuration = videoScenes.reduce((sum, s) => sum + (s.duration || 7), 0);\n\n// Récupérer le dernier binaire (vidéo finale assemblée par Veo-3)\nlet hasBinaryData = false;\nlet binaryKey = null;\nlet finalBinary = null;\n\nfor (const item of inputItems) {\n  if (item.binary && Object.keys(item.binary).length > 0) {\n    hasBinaryData = true;\n    binaryKey = Object.keys(item.binary)[0];\n    finalBinary = item.binary;\n  }\n}\n\nconst result = {\n  json: {\n    video_urls: videoScenes.filter(s => s.video_url).map(s => s.video_url),\n    primary_video_url: videoScenes[videoScenes.length - 1]?.video_url || null,\n    scenes_generated: videoScenes.length,\n    total_duration: totalDuration,\n    scenes_details: videoScenes.map(s => ({\n      index: s.scene_index,\n      prompt: s.scene_prompt,\n      duration: s.duration,\n      success: s.success\n    })),\n    is_multi_scene: videoScenes.length > 1,\n    has_binary: hasBinaryData,\n    binary_key: binaryKey,\n    requested_duration: buildData.requested_duration,\n    assembly_method: 'veo3_add_next_scene',\n    message: videoScenes.length > 0 \n      ? `Vidéo ${totalDuration}s générée (${videoScenes.length} scène${videoScenes.length > 1 ? 's' : ''} chaînée${videoScenes.length > 1 ? 's' : ''}).`\n      : 'Échec de génération.'\n  }\n};\n\nif (finalBinary) {\n  result.binary = finalBinary;\n}\n\nreturn [result];"
+      },
+      "id": "prepare-final-output",
+      "name": "Prepare Final Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2680, 160]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// PROCESS SINGLE VIDEO V2\n// ============================================================================\n\nconst items = $input.all();\nconst firstItem = items[0];\nconst input = firstItem.json;\n\nconst hasBinary = !!(firstItem.binary && Object.keys(firstItem.binary).length > 0);\nlet binaryKey = null;\nlet binaryInfo = null;\n\nif (hasBinary && firstItem.binary) {\n  binaryKey = Object.keys(firstItem.binary)[0];\n  if (binaryKey) binaryInfo = firstItem.binary[binaryKey];\n}\n\nlet videoUrl = null;\nif (input.video_url) videoUrl = input.video_url;\nelse if (input.url) videoUrl = input.url;\nelse if (input.candidates?.[0]?.content?.parts) {\n  for (const part of input.candidates[0].content.parts) {\n    if (part.fileData?.fileUri) { videoUrl = part.fileData.fileUri; break; }\n  }\n}\n\nconst success = !!(videoUrl || hasBinary);\n\nconst result = {\n  json: {\n    video_urls: videoUrl ? [videoUrl] : [],\n    primary_video_url: videoUrl,\n    scenes_generated: success ? 1 : 0,\n    total_duration: 7,\n    is_multi_scene: false,\n    has_binary: hasBinary,\n    binary_key: binaryKey,\n    assembly_method: 'single_generation',\n    message: success ? 'Vidéo 7s générée.' : 'Échec.'\n  }\n};\n\nif (hasBinary && firstItem.binary) result.binary = firstItem.binary;\nreturn [result];"
+      },
+      "id": "process-single",
+      "name": "Process Single Video",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [920, 520]
+    },
+    {
+      "parameters": {},
+      "id": "merge-paths",
+      "name": "Merge Paths",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [2900, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "condition-has-video-url",
+              "leftValue": "={{ $json.primary_video_url }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            },
+            {
+              "id": "condition-has-binary",
+              "leftValue": "={{ $json.has_binary }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "if-has-video",
+      "name": "IF Has Video or Binary",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [3100, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.cloudinary.com/v1_1/dbl0wyccp/video/upload",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "contentType": "form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            },
+            {
+              "parameterType": "formData",
+              "name": "upload_preset",
+              "value": "agency_killer_videos"
+            },
+            {
+              "parameterType": "formData",
+              "name": "resource_type",
+              "value": "video"
+            },
+            {
+              "parameterType": "formData",
+              "name": "folder",
+              "value": "agency-killer/videos"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "id": "upload-cloudinary",
+      "name": "Upload Video to Cloudinary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3320, 240],
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "YOUR_CLOUDINARY_CREDENTIALS_ID",
+          "name": "Cloudinary API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// EXTRACT VIDEO URL FROM CLOUDINARY\n// ============================================================================\n\nconst input = $input.first().json;\nlet mergeData = {};\ntry { mergeData = $('Merge Paths').first().json || {}; } catch (e) { mergeData = {}; }\n\nconst cloudinaryUrl = input.secure_url || input.url || null;\nconst finalUrl = cloudinaryUrl || mergeData.primary_video_url || null;\n\nreturn [{\n  json: {\n    video_url: finalUrl,\n    cloudinary_url: cloudinaryUrl,\n    scenes_generated: mergeData.scenes_generated || 1,\n    total_duration: mergeData.total_duration || 7,\n    is_multi_scene: mergeData.is_multi_scene || false,\n    upload_success: !!cloudinaryUrl,\n    public_id: input.public_id || null,\n    assembly_method: mergeData.assembly_method || 'unknown'\n  }\n}];"
+      },
+      "id": "extract-url",
+      "name": "Extract Video URL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3540, 240]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Skip Upload\nconst input = $input.first().json;\nreturn [{ json: { video_url: null, cloudinary_url: null, scenes_generated: input.scenes_generated || 0, total_duration: input.total_duration || 0, is_multi_scene: input.is_multi_scene || false, upload_success: false, skip_reason: 'No video available' } }];"
+      },
+      "id": "skip-upload",
+      "name": "Skip Upload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3320, 400]
+    },
+    {
+      "parameters": {},
+      "id": "merge-final",
+      "name": "Merge Final",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [3720, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// SUCCESS OUTPUT\n// ============================================================================\n\nconst input = $input.first().json;\nlet buildRequest = {};\ntry { buildRequest = $('Build Request V7').first().json || {}; } catch (e) { buildRequest = {}; }\n\nreturn [{\n  json: {\n    creative_response: {\n      success: !!input.video_url,\n      video_url: input.video_url,\n      cloudinary_url: input.cloudinary_url,\n      scenes_generated: input.scenes_generated,\n      total_duration: input.total_duration,\n      is_multi_scene: input.is_multi_scene,\n      requested_duration: buildRequest.requested_duration,\n      assembly_method: input.assembly_method,\n      prompt_used: buildRequest.clean_prompt,\n      debug: buildRequest.debug_v7,\n      message: input.video_url\n        ? (input.is_multi_scene\n          ? `Vidéo ${input.total_duration}s générée avec ${input.scenes_generated} scènes chaînées (Add Next Scene).`\n          : `Vidéo ${input.total_duration}s générée.`)\n        : 'Échec de génération vidéo.'\n    }\n  }\n}];"
+      },
+      "id": "success-output",
+      "name": "Success Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3920, 300]
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [[{ "node": "Build Request V7", "type": "main", "index": 0 }]]
+    },
+    "Build Request V7": {
+      "main": [[{ "node": "IF Multi-Scene Needed", "type": "main", "index": 0 }]]
+    },
+    "IF Multi-Scene Needed": {
+      "main": [
+        [{ "node": "AI Agent (Split Scenes)", "type": "main", "index": 0 }],
+        [{ "node": "Generate Single Video", "type": "main", "index": 0 }]
+      ]
+    },
+    "AI Agent (Split Scenes)": {
+      "main": [[{ "node": "Parse AI Scenes", "type": "main", "index": 0 }]]
+    },
+    "Split Prompt Into Scenes (AI)": {
+      "ai_languageModel": [[{ "node": "AI Agent (Split Scenes)", "type": "ai_languageModel", "index": 0 }]]
+    },
+    "Parse AI Scenes": {
+      "main": [[{ "node": "Loop Over Scenes", "type": "main", "index": 0 }]]
+    },
+    "Loop Over Scenes": {
+      "main": [
+        [{ "node": "IF First Scene", "type": "main", "index": 0 }],
+        [{ "node": "Aggregate All Scenes", "type": "main", "index": 0 }]
+      ]
+    },
+    "IF First Scene": {
+      "main": [
+        [{ "node": "Generate First Scene", "type": "main", "index": 0 }],
+        [{ "node": "Generate Next Scene (Add)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Generate First Scene": {
+      "main": [[{ "node": "Merge Scene Generation", "type": "main", "index": 0 }]]
+    },
+    "Generate Next Scene (Add)": {
+      "main": [[{ "node": "Merge Scene Generation", "type": "main", "index": 1 }]]
+    },
+    "Merge Scene Generation": {
+      "main": [[{ "node": "Process Scene Result", "type": "main", "index": 0 }]]
+    },
+    "Process Scene Result": {
+      "main": [[{ "node": "Store Video for Next", "type": "main", "index": 0 }]]
+    },
+    "Store Video for Next": {
+      "main": [[{ "node": "Loop Over Scenes", "type": "main", "index": 0 }]]
+    },
+    "Aggregate All Scenes": {
+      "main": [[{ "node": "Prepare Final Output", "type": "main", "index": 0 }]]
+    },
+    "Prepare Final Output": {
+      "main": [[{ "node": "Merge Paths", "type": "main", "index": 0 }]]
+    },
+    "Generate Single Video": {
+      "main": [[{ "node": "Process Single Video", "type": "main", "index": 0 }]]
+    },
+    "Process Single Video": {
+      "main": [[{ "node": "Merge Paths", "type": "main", "index": 1 }]]
+    },
+    "Merge Paths": {
+      "main": [[{ "node": "IF Has Video or Binary", "type": "main", "index": 0 }]]
+    },
+    "IF Has Video or Binary": {
+      "main": [
+        [{ "node": "Upload Video to Cloudinary", "type": "main", "index": 0 }],
+        [{ "node": "Skip Upload", "type": "main", "index": 0 }]
+      ]
+    },
+    "Upload Video to Cloudinary": {
+      "main": [[{ "node": "Extract Video URL", "type": "main", "index": 0 }]]
+    },
+    "Extract Video URL": {
+      "main": [[{ "node": "Merge Final", "type": "main", "index": 0 }]]
+    },
+    "Skip Upload": {
+      "main": [[{ "node": "Merge Final", "type": "main", "index": 1 }]]
+    },
+    "Merge Final": {
+      "main": [[{ "node": "Success Output", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    { "name": "video-generation" },
+    { "name": "creative-v7" },
+    { "name": "add-next-scene" },
+    { "name": "veo3" }
+  ],
+  "triggerCount": 0,
+  "updatedAt": "2026-02-01T23:00:00.000Z",
+  "versionId": "v8-add-next-scene"
+}

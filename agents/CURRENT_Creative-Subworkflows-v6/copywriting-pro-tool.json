@@ -1,0 +1,110 @@
+{
+  "name": "Copywriting Pro Tool - GPT-4o",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "execute-trigger",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "complete",
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "=Tu es un expert mondial en copywriting et marketing persuasif avec 20 ans d'experience.\n\n## TON ROLE\nTu crees du contenu marketing ultra-performant qui convertit.\n\n## TON DE VOIX\n{{ $json.tone || 'Bold, Direct, Urgent' }}\n\n## PLATEFORME CIBLE\n{{ $json.platform || 'meta_feed' }}\n\n## REGLES D'OR\n1. JAMAIS de cliches marketing (\"revolutionnaire\", \"unique\", \"leader\")\n2. TOUJOURS des chiffres concrets quand possible\n3. QUESTIONS directes pour engager\n4. Power words: Instant, Garanti, Exclusif, Limite, Maintenant\n5. Phrases COURTES. Impact MAXIMUM.\n\n## CONTRAINTES PLATEFORME\n- Meta Feed: Max 125 caracteres pour le titre, 2000 pour le corps\n- Meta Story: Ultra court, 3-5 mots d'impact\n- LinkedIn: Ton plus professionnel, storytelling B2B\n\n## FORMAT DE SORTIE (JSON STRICT)\n```json\n{\n  \"headline\": \"Titre accrocheur court\",\n  \"subheadline\": \"Sous-titre de support\",\n  \"body\": \"Corps du texte persuasif\",\n  \"cta\": \"Call-to-action puissant\",\n  \"hooks_alternatifs\": [\"Hook 1\", \"Hook 2\", \"Hook 3\"]\n}\n```"
+            },
+            {
+              "role": "user",
+              "content": "={{ $json.query || $json.brief || 'Cree une pub performante' }}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.8,
+          "maxTokens": 1500,
+          "topP": 0.95
+        }
+      },
+      "id": "openai-chat",
+      "name": "OpenAI GPT-4o",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [320, 300],
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-credentials",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// COPYWRITING PRO - OUTPUT PARSER\n// Parse la reponse OpenAI et structure le resultat\n// ============================================================================\n\nconst aiResponse = $input.first().json;\nlet parsedContent;\n\n// Extraire le contenu de la reponse\nconst rawContent = aiResponse.message?.content || aiResponse.text || aiResponse.output || '';\n\ntry {\n  // Essayer de parser le JSON de la reponse\n  const jsonMatch = rawContent.match(/```json\\s*([\\s\\S]*?)\\s*```/) || rawContent.match(/(\\{[\\s\\S]*\\})/);\n  \n  if (jsonMatch) {\n    parsedContent = JSON.parse(jsonMatch[1] || jsonMatch[0]);\n  } else {\n    // Fallback: extraire le texte brut\n    parsedContent = {\n      headline: rawContent.split('\\n')[0] || 'Headline genere',\n      body: rawContent,\n      cta: 'En savoir plus'\n    };\n  }\n} catch (e) {\n  parsedContent = {\n    headline: 'Contenu genere',\n    body: rawContent,\n    cta: 'Decouvrir',\n    error: e.message\n  };\n}\n\n// Structure de sortie pour l'Agent Principal\nreturn [{\n  json: {\n    success: true,\n    tool: 'copywriting_pro',\n    copy: {\n      headline: parsedContent.headline || '',\n      subheadline: parsedContent.subheadline || '',\n      body: parsedContent.body || '',\n      cta: parsedContent.cta || 'En savoir plus',\n      hooks_alternatifs: parsedContent.hooks_alternatifs || []\n    },\n    raw_response: rawContent,\n    generated_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "output-parser",
+      "name": "Parse Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [540, 300]
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "OpenAI GPT-4o",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI GPT-4o": {
+      "main": [
+        [
+          {
+            "node": "Parse Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "creative-v6",
+      "id": "tag-creative-v6"
+    },
+    {
+      "name": "tool",
+      "id": "tag-tool"
+    },
+    {
+      "name": "copywriting",
+      "id": "tag-copywriting"
+    }
+  ],
+  "pinData": {},
+  "versionId": "1.0.0",
+  "meta": {
+    "instanceId": "agency-killer-vps",
+    "templateCredsSetupCompleted": true
+  }
+}

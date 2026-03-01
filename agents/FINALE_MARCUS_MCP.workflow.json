@@ -1,0 +1,257 @@
+{
+  "name": "FINALE MARCUS MCP - THE HIVE OS V4",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "marcus-v4-finale",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-entry",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [100, 400],
+      "webhookId": "marcus-v4-finale-entry"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ═══════════════════════════════════════════════════════════════════════════\n// LOAD CONTEXT FROM SUPABASE - THE HIVE OS V4\n// Charge: project, task, agents, project_memory, task_dependencies\n// ═══════════════════════════════════════════════════════════════════════════\n\nconst axios = require('axios');\n\nconst SUPABASE_URL = 'https://vngkmmrglfajyccpbukh.supabase.co';\nconst SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZuZ2ttbXJnbGZhanlj Y3BidWtoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQwMDc4NTMsImV4cCI6MjA0OTU4Mzg1M30.8RqLVy3H3zKqmPJX3g9xME8F8v_OxZoN7GvJ9z8q6oE';\n\nconst webhookData = $input.item.json.body || $input.item.json;\nconst projectId = webhookData.project_id;\nconst taskId = webhookData.task_id;\nconst userQuery = webhookData.query || webhookData.message || '';\n\nif (!projectId || !taskId) {\n  throw new Error('Missing required fields: project_id and task_id');\n}\n\n// ─────────────────────────────────────────────────────────────────────────\n// 1. Load Project\n// ─────────────────────────────────────────────────────────────────────────\nconst projectResponse = await axios.get(\n  `${SUPABASE_URL}/rest/v1/projects?id=eq.${projectId}&select=*`,\n  { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } }\n);\nconst project = projectResponse.data[0];\n\n// ─────────────────────────────────────────────────────────────────────────\n// 2. Load Task\n// ─────────────────────────────────────────────────────────────────────────\nconst taskResponse = await axios.get(\n  `${SUPABASE_URL}/rest/v1/tasks?id=eq.${taskId}&select=*`,\n  { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } }\n);\nconst task = taskResponse.data[0];\n\n// ─────────────────────────────────────────────────────────────────────────\n// 3. Load Project Memory\n// ─────────────────────────────────────────────────────────────────────────\nconst memoryContext = project.project_memory || {};\n\nreturn [{\n  json: {\n    project,\n    task,\n    memory_context: memoryContext,\n    user_query: userQuery,\n    agent: 'MARCUS',\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "load-context",
+      "name": "Load Context from Supabase",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [340, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ═══════════════════════════════════════════════════════════════════════════\n// CHECK TASK DEPENDENCIES - THE HIVE OS V4\n// Vérifie que toutes les dépendances de la tâche sont complètes\n// ═══════════════════════════════════════════════════════════════════════════\n\nconst axios = require('axios');\n\nconst SUPABASE_URL = 'https://vngkmmrglfajyccpbukh.supabase.co';\nconst SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZuZ2ttbXJnbGZhanlj Y3BidWtoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQwMDc4NTMsImV4cCI6MjA0OTU4Mzg1M30.8RqLVy3H3zKqmPJX3g9xME8F8v_OxZoN7GvJ9z8q6oE';\n\nconst context = $input.item.json;\nconst taskId = context.task.id;\n\n// Vérifier les dépendances via SQL function\nconst checkResponse = await axios.post(\n  `${SUPABASE_URL}/rest/v1/rpc/can_start_task`,\n  { p_task_id: taskId },\n  { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json' } }\n);\n\nconst canStart = Array.isArray(checkResponse.data) ? checkResponse.data[0] : checkResponse.data;\n\nif (!canStart.ready) {\n  // Récupérer les tâches bloquantes pour UI\n  const blockingResponse = await axios.post(\n    `${SUPABASE_URL}/rest/v1/rpc/get_blocking_tasks`,\n    { p_task_id: taskId },\n    { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json' } }\n  );\n\n  return [{\n    json: {\n      ...context,\n      dependencies_blocked: true,\n      error_message: canStart.error_message,\n      blocking_tasks: blockingResponse.data || [],\n      ui_component: {\n        type: 'DEPENDENCIES_BLOCKED',\n        data: {\n          error: canStart.error_message,\n          blocking_tasks: blockingResponse.data || [],\n          resolution: 'Complete the blocking tasks before starting this one.'\n        }\n      }\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    ...context,\n    dependencies_ok: true\n  }\n}];"
+      },
+      "id": "check-dependencies",
+      "name": "Check Task Dependencies",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [580, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ═══════════════════════════════════════════════════════════════════════════\n// CHECK STATE FLAGS - THE HIVE OS V4\n// Valide les state flags requis avant d'exécuter des actions\n// ═══════════════════════════════════════════════════════════════════════════\n\nconst context = $input.item.json;\n\n// Si dépendances bloquées, passer directement\nif (context.dependencies_blocked) {\n  return [{ json: context }];\n}\n\nconst stateFlags = context.project.state_flags || {};\n\n// Vérifier les flags requis pour MARCUS (Trader)\nconst requiredFlags = {\n  'meta_pixel_configured': 'Meta Pixel must be configured before launching campaigns',\n  'google_ads_conversion_tracking': 'Google Ads conversion tracking must be set up'\n};\n\nconst missingFlags = [];\nfor (const [flag, message] of Object.entries(requiredFlags)) {\n  if (!stateFlags[flag]) {\n    missingFlags.push({ flag, message });\n  }\n}\n\nif (missingFlags.length > 0) {\n  return [{\n    json: {\n      ...context,\n      state_flags_missing: true,\n      missing_flags: missingFlags,\n      ui_component: {\n        type: 'STATE_FLAGS_MISSING',\n        data: {\n          error: 'Required setup steps not completed',\n          missing_flags: missingFlags,\n          resolution: 'Complete the required setup before launching campaigns.'\n        }\n      }\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    ...context,\n    state_flags_ok: true\n  }\n}];"
+      },
+      "id": "check-state-flags",
+      "name": "Check State Flags",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [820, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ═══════════════════════════════════════════════════════════════════════════\n// PREPARE MARCUS CONTEXT + SYSTEM PROMPT\n// ═══════════════════════════════════════════════════════════════════════════\n\nconst context = $input.item.json;\n\n// Si erreurs précédentes, passer directement\nif (context.dependencies_blocked || context.state_flags_missing) {\n  return [{ json: context }];\n}\n\nconst MARCUS_SYSTEM_PROMPT = `Tu es MARCUS, le Trader de THE HIVE OS V4.\n\n## RÔLE\n\nTu es responsable de:\n- Lancer des campagnes Meta Ads et Google Ads\n- Optimiser les budgets publicitaires\n- Scaler les campagnes gagnantes\n- Couper les campagnes perdantes\n- Gérer le Learning Phase\n\n## RÈGLES ABSOLUES\n\n### 1. APPROBATION OBLIGATOIRE\n\nPour TOUTE campagne avec budget journalier > 50€:\n1. TOUJOURS demander approbation AVANT de lancer\n2. Afficher aperçu complet: nom, budget, ciblage, créatifs\n3. Calculer dépense mensuelle estimée (daily_budget × 30)\n4. Utiliser la fonction `create_approval_request` si budget > 500€/jour\n5. NE JAMAIS lancer sans confirmation explicite \"GO\"\n\n### 2. LEARNING PHASE PROTECTION\n\nPour Meta Ads:\n- NE JAMAIS augmenter budget de plus de 20% en une fois\n- Attendre 50 conversions avant d'optimiser\n- Utiliser `learning_phase_protection` avant tout changement\n\n### 3. RÈGLES DE TRADING\n\n- **CUT** si ROAS < 1.5 → Hémorragie financière\n- **SCALE** si ROAS > 5.0 → Machine à cash (+20% budget)\n- **OPTIMIZE** si 1.5 ≤ ROAS ≤ 5.0 → Ajuster créatifs\n\n## TOOLS DISPONIBLES (21 FONCTIONS)\n\n### 📱 Meta Campaign Launcher (7 fonctions)\n\n1. **create_meta_campaign**\n   - Crée une campagne Meta Ads (Sales, Leads, Traffic, Engagement)\n   - Params: ad_account_id, name, objective, daily_budget, status\n   - ⚠️ REQUIERT APPROBATION si budget > 500€/jour\n\n2. **create_meta_ad_set**\n   - Crée un ad set avec targeting détaillé\n   - Params: campaign_id, name, targeting, daily_budget, optimization_goal\n\n3. **create_meta_ad**\n   - Crée une annonce (image, vidéo, carousel)\n   - Params: ad_set_id, name, creative_spec\n\n4. **update_meta_campaign_status**\n   - Active, pause ou archive une campagne\n   - Params: campaign_id, status (ACTIVE, PAUSED, ARCHIVED)\n\n5. **update_meta_ad_set_budget**\n   - Met à jour le budget d'un ad set\n   - Params: ad_set_id, daily_budget\n   - ⚠️ Vérifier Learning Phase avant\n\n6. **scale_meta_ad_set**\n   - Augmente le budget intelligemment (+20% max)\n   - Params: ad_set_id, scale_percentage, max_budget\n   - Protège automatiquement le Learning Phase\n\n7. **kill_underperforming_meta_ad**\n   - Pause une annonce sous-performante\n   - Params: object_id, object_type, reason\n\n### 🔍 Google Ads Launcher (7 fonctions)\n\n8. **create_google_search_campaign**\n   - Crée une campagne Google Search\n   - Params: customer_id, name, daily_budget_micros, bidding_strategy, target_roas\n   - Bidding: TARGET_CPA, TARGET_ROAS, MAX_CONVERSIONS, MANUAL_CPC\n\n9. **create_google_ad_group**\n   - Crée un ad group\n   - Params: customer_id, campaign_id, name, cpc_bid_micros\n\n10. **add_google_keywords**\n    - Ajoute des keywords (EXACT, PHRASE, BROAD)\n    - Params: customer_id, ad_group_id, keywords[]\n\n11. **create_google_rsa**\n    - Crée un Responsive Search Ad\n    - Params: customer_id, ad_group_id, headlines[], descriptions[], final_urls[]\n\n12. **add_google_negative_keywords**\n    - Ajoute des mots clés négatifs\n    - Params: customer_id, campaign_id, negative_keywords[]\n\n13. **update_google_campaign_budget**\n    - Met à jour le budget d'une campagne\n    - Params: customer_id, campaign_id, daily_budget_micros\n\n14. **update_google_campaign_status**\n    - Active, pause ou supprime une campagne\n    - Params: customer_id, campaign_id, status (ENABLED, PAUSED, REMOVED)\n\n### 💰 Budget Optimizer (7 fonctions)\n\n15. **analyze_campaign_performance**\n    - Analyse et score la performance des campagnes\n    - Params: campaigns[], optimization_goal, target_roas\n    - Returns: scores (0-100), grades (A-D), status (WINNING/TESTING/LOSING)\n\n16. **recommend_budget_reallocation**\n    - Calcule la distribution optimale des budgets\n    - Params: campaigns[], total_budget, protect_learning_phase\n    - Returns: budget recommendations, actions (INCREASE/DECREASE/KEEP)\n\n17. **identify_winners_losers**\n    - Classifie les campagnes (Winners, Losers, Testing)\n    - Params: items[], target_roas, target_cpa, min_spend_threshold\n    - Returns: classification, confidence, action (SCALE/MONITOR/PAUSE)\n\n18. **calculate_optimal_distribution**\n    - Distribution mathématique optimale\n    - Params: campaigns[], total_budget, algorithm (proportional/winner_takes_all/balanced)\n\n19. **learning_phase_protection**\n    - Vérifie si changement budget impacte Learning Phase\n    - Params: campaign_id, current_budget, proposed_budget, learning_phase_status\n    - Returns: risk_level, will_reset, safe_to_proceed\n\n20. **multi_platform_balancing**\n    - Balance budgets entre Meta, Google Ads, TikTok, LinkedIn\n    - Params: platforms[], total_budget, target_roas\n\n21. **confidence_interval_check**\n    - Vérifie la significativité statistique\n    - Params: campaign_id, conversions, spend, days_active\n    - Returns: confidence, statistical_significance, required_sample_size\n\n## WRITE-BACK COMMANDS\n\nAprès chaque action, retourne des commandes pour mettre à jour le système:\n\n### MEMORY_WRITE\nContribue à la mémoire collective:\n```json\n{\n  \"type\": \"MEMORY_WRITE\",\n  \"memory_contribution\": {\n    \"action\": \"CAMPAIGN_LAUNCHED\",\n    \"summary\": \"Campagne Meta lancée: Summer Sale\",\n    \"key_findings\": [\"Budget 100€/jour\", \"Ciblage: FR 25-45\"],\n    \"deliverables\": [{\"type\": \"campaign\", \"id\": \"camp_123\"}],\n    \"recommendations\": [{\"for_agent\": \"sora\", \"message\": \"Surveiller ROAS dès demain\"}]\n  }\n}\n```\n\n### UPDATE_TASK_STATUS\nMet à jour le statut de la tâche:\n```json\n{\n  \"type\": \"UPDATE_TASK_STATUS\",\n  \"task_id\": \"{{ task.id }}\",\n  \"status\": \"in_progress\",\n  \"progress_percentage\": 50\n}\n```\n\n### UI_COMPONENT\nAffiche des composants UI dans le cockpit:\n```json\n{\n  \"type\": \"UI_COMPONENT\",\n  \"component\": \"CAMPAIGN_TABLE\",\n  \"data\": {\n    \"campaigns\": [...],\n    \"decisions\": [...]\n  }\n}\n```\n\n## CONTEXT DISPONIBLE\n\n- **Project:** {{ project }}\n- **Task:** {{ task }}\n- **Memory:** {{ memory_context }}\n- **User Query:** {{ user_query }}\n\n## FORMAT DE RÉPONSE\n\nTu DOIS toujours répondre avec:\n1. Une explication de ce que tu vas faire\n2. Les write-back commands (MEMORY_WRITE, UPDATE_TASK_STATUS, UI_COMPONENT)\n3. Un résumé des actions effectuées\n\n## EXEMPLE\n\nUser: \"Lance une campagne Meta pour promouvoir notre nouveau produit\"\n\nTu réponds:\n\"Je vais créer une campagne Meta Ads avec les paramètres suivants:\n- Budget: 50€/jour (1500€/mois estimé)\n- Ciblage: France, 25-45 ans\n- Objectif: OUTCOME_SALES\n\n⚠️ Cette action dépense de l'argent réel.\n\n🚨 Réponds 'GO' pour lancer\n🛑 Réponds 'CANCEL' pour annuler\"\n\nSi user dit \"GO\":\n1. Utilise `create_meta_campaign` avec user_approval='GO'\n2. Retourne MEMORY_WRITE + UPDATE_TASK_STATUS + UI_COMPONENT\n\nVa, et fais ton travail avec excellence.`;\n\nreturn [{\n  json: {\n    ...context,\n    system_prompt: MARCUS_SYSTEM_PROMPT,\n    prepared: true\n  }\n}];"
+      },
+      "id": "prepare-context",
+      "name": "Prepare MARCUS Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1060, 400]
+    },
+    {
+      "parameters": {
+        "name": "meta_campaign_toolkit",
+        "description": "Meta Campaign Launcher - 7 functions to create and manage Meta Ads campaigns. Includes create_meta_campaign, create_meta_ad_set, create_meta_ad, update_meta_campaign_status, update_meta_ad_set_budget, scale_meta_ad_set, kill_underperforming_meta_ad. REQUIRES APPROVAL for budgets > 500€/day.",
+        "workflowCode": "// This is a placeholder MCP toolkit for Meta Campaign Launcher\n// In production, this would be replaced by the actual MCP server implementation\n// from /agents/CURRENT_trader-mcp/mcp_marcus_tools/meta-campaign-launcher.js\n\nconst toolName = $input.json.tool_name;\nconst params = $input.json.params || {};\n\nreturn {\n  success: true,\n  tool: toolName,\n  message: `[META TOOLKIT] ${toolName} called with params: ${JSON.stringify(params)}`,\n  note: \"Replace this with actual MCP server implementation in production\"\n};"
+      },
+      "id": "tool-meta-campaign-launcher",
+      "name": "Tool: Meta Campaign Launcher",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [1300, 100]
+    },
+    {
+      "parameters": {
+        "name": "google_ads_toolkit",
+        "description": "Google Ads Launcher - 7 functions to create and manage Google Ads campaigns. Includes create_google_search_campaign, create_google_ad_group, add_google_keywords, create_google_rsa, add_google_negative_keywords, update_google_campaign_budget, update_google_campaign_status.",
+        "workflowCode": "// This is a placeholder MCP toolkit for Google Ads Launcher\n// In production, this would be replaced by the actual MCP server implementation\n// from /agents/CURRENT_trader-mcp/mcp_marcus_tools/google-ads-launcher.js\n\nconst toolName = $input.json.tool_name;\nconst params = $input.json.params || {};\n\nreturn {\n  success: true,\n  tool: toolName,\n  message: `[GOOGLE ADS TOOLKIT] ${toolName} called with params: ${JSON.stringify(params)}`,\n  note: \"Replace this with actual MCP server implementation in production\"\n};"
+      },
+      "id": "tool-google-ads-launcher",
+      "name": "Tool: Google Ads Launcher",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [1300, 220]
+    },
+    {
+      "parameters": {
+        "name": "budget_optimizer_toolkit",
+        "description": "Budget Optimizer - 7 functions for intelligent budget optimization. Includes analyze_campaign_performance, recommend_budget_reallocation, identify_winners_losers, calculate_optimal_distribution, learning_phase_protection, multi_platform_balancing, confidence_interval_check.",
+        "workflowCode": "// This is a placeholder MCP toolkit for Budget Optimizer\n// In production, this would be replaced by the actual MCP server implementation\n// from /agents/CURRENT_trader-mcp/mcp_marcus_tools/budget-optimizer.js\n\nconst toolName = $input.json.tool_name;\nconst params = $input.json.params || {};\n\nreturn {\n  success: true,\n  tool: toolName,\n  message: `[BUDGET OPTIMIZER TOOLKIT] ${toolName} called with params: ${JSON.stringify(params)}`,\n  note: \"Replace this with actual MCP server implementation in production\"\n};"
+      },
+      "id": "tool-budget-optimizer",
+      "name": "Tool: Budget Optimizer",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [1300, 340]
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "={{ $json.system_prompt }}"
+        }
+      },
+      "id": "ai-agent-marcus",
+      "name": "MARCUS AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [1300, 500]
+    },
+    {
+      "parameters": {
+        "model": "gemini-2.0-flash-exp",
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "id": "gemini-model",
+      "name": "Google Gemini 2.0 Flash",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [1300, 700],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "google-ai-credentials",
+          "name": "Google AI (Gemini)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ═══════════════════════════════════════════════════════════════════════════\n// PARSE AI RESPONSE + EXECUTE WRITE-BACKS\n// ═══════════════════════════════════════════════════════════════════════════\n\nconst axios = require('axios');\n\nconst SUPABASE_URL = 'https://vngkmmrglfajyccpbukh.supabase.co';\nconst SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZuZ2ttbXJnbGZhanlj Y3BidWtoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQwMDc4NTMsImV4cCI6MjA0OTU4Mzg1M30.8RqLVy3H3zKqmPJX3g9xME8F8v_OxZoN7GvJ9z8q6oE';\n\nconst context = $('Prepare MARCUS Context').item.json;\nconst aiResponse = $input.first().json;\n\n// Si erreurs précédentes, retourner directement le composant UI\nif (context.dependencies_blocked || context.state_flags_missing) {\n  return [{\n    json: {\n      agent: 'MARCUS',\n      timestamp: new Date().toISOString(),\n      ui_component: context.ui_component,\n      error: context.error_message || 'Prerequisites not met'\n    }\n  }];\n}\n\nconst responseText = aiResponse.output || aiResponse.text || JSON.stringify(aiResponse);\n\n// ─────────────────────────────────────────────────────────────────────────\n// 1. Extraire les write-back commands du texte\n// ─────────────────────────────────────────────────────────────────────────\nconst commands = [];\n\n// Regex pour extraire les blocs JSON des commandes\nconst jsonBlockRegex = /```json\\s*({[\\s\\S]*?})\\s*```/g;\nlet match;\nwhile ((match = jsonBlockRegex.exec(responseText)) !== null) {\n  try {\n    const command = JSON.parse(match[1]);\n    commands.push(command);\n  } catch (e) {\n    // Ignorer les blocs JSON invalides\n  }\n}\n\n// ─────────────────────────────────────────────────────────────────────────\n// 2. Exécuter les write-backs\n// ─────────────────────────────────────────────────────────────────────────\nconst executedCommands = [];\n\nfor (const cmd of commands) {\n  try {\n    if (cmd.type === 'MEMORY_WRITE' && cmd.memory_contribution) {\n      // Mettre à jour project_memory\n      const currentMemory = context.project.project_memory || {};\n      const updatedMemory = {\n        ...currentMemory,\n        last_updated: new Date().toISOString(),\n        last_updated_by: 'MARCUS',\n        contributions: [\n          ...(currentMemory.contributions || []),\n          {\n            timestamp: new Date().toISOString(),\n            agent: 'MARCUS',\n            ...cmd.memory_contribution\n          }\n        ].slice(-50) // Garder les 50 dernières contributions\n      };\n\n      await axios.patch(\n        `${SUPABASE_URL}/rest/v1/projects?id=eq.${context.project.id}`,\n        { project_memory: updatedMemory },\n        { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' } }\n      );\n\n      executedCommands.push({ type: 'MEMORY_WRITE', status: 'success' });\n    }\n\n    if (cmd.type === 'UPDATE_TASK_STATUS') {\n      const updateData = {};\n      if (cmd.status) updateData.status = cmd.status;\n      if (cmd.progress_percentage !== undefined) updateData.progress_percentage = cmd.progress_percentage;\n\n      await axios.patch(\n        `${SUPABASE_URL}/rest/v1/tasks?id=eq.${cmd.task_id || context.task.id}`,\n        updateData,\n        { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' } }\n      );\n\n      executedCommands.push({ type: 'UPDATE_TASK_STATUS', status: 'success' });\n    }\n  } catch (error) {\n    executedCommands.push({ type: cmd.type, status: 'error', error: error.message });\n  }\n}\n\n// ─────────────────────────────────────────────────────────────────────────\n// 3. Extraire UI component si présent\n// ─────────────────────────────────────────────────────────────────────────\nconst uiComponent = commands.find(cmd => cmd.type === 'UI_COMPONENT');\n\n// ─────────────────────────────────────────────────────────────────────────\n// 4. Retourner la réponse finale\n// ─────────────────────────────────────────────────────────────────────────\nreturn [{\n  json: {\n    agent: 'MARCUS',\n    timestamp: new Date().toISOString(),\n    response: responseText,\n    ui_component: uiComponent || null,\n    write_backs_executed: executedCommands,\n    project_id: context.project.id,\n    task_id: context.task.id\n  }\n}];"
+      },
+      "id": "parse-response",
+      "name": "Parse Response & Execute Write-Backs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1540, 500]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "X-Agent",
+                "value": "MARCUS-V4-FINALE"
+              },
+              {
+                "name": "X-Hive-Version",
+                "value": "4.4"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1780, 500]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          { "node": "Load Context from Supabase", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Load Context from Supabase": {
+      "main": [
+        [
+          { "node": "Check Task Dependencies", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Check Task Dependencies": {
+      "main": [
+        [
+          { "node": "Check State Flags", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Check State Flags": {
+      "main": [
+        [
+          { "node": "Prepare MARCUS Context", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Prepare MARCUS Context": {
+      "main": [
+        [
+          { "node": "MARCUS AI Agent", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Tool: Meta Campaign Launcher": {
+      "ai_tool": [
+        [
+          { "node": "MARCUS AI Agent", "type": "ai_tool", "index": 0 }
+        ]
+      ]
+    },
+    "Tool: Google Ads Launcher": {
+      "ai_tool": [
+        [
+          { "node": "MARCUS AI Agent", "type": "ai_tool", "index": 0 }
+        ]
+      ]
+    },
+    "Tool: Budget Optimizer": {
+      "ai_tool": [
+        [
+          { "node": "MARCUS AI Agent", "type": "ai_tool", "index": 0 }
+        ]
+      ]
+    },
+    "Google Gemini 2.0 Flash": {
+      "ai_languageModel": [
+        [
+          { "node": "MARCUS AI Agent", "type": "ai_languageModel", "index": 0 }
+        ]
+      ]
+    },
+    "MARCUS AI Agent": {
+      "main": [
+        [
+          { "node": "Parse Response & Execute Write-Backs", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Parse Response & Execute Write-Backs": {
+      "main": [
+        [
+          { "node": "Respond to Webhook", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    { "name": "the-hive-v4" },
+    { "name": "marcus" },
+    { "name": "trader" },
+    { "name": "mcp" },
+    { "name": "finale" }
+  ],
+  "triggerCount": 1,
+  "pinData": {}
+}

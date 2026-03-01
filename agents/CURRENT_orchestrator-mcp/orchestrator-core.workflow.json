@@ -1,0 +1,421 @@
+{
+  "name": "Orchestrator V5 - Agency Killer Core",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [100, 400],
+      "webhookId": "orchestrator-v5-entry"
+    },
+    {
+      "parameters": {},
+      "id": "chat-trigger",
+      "name": "When chat message received",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1,
+      "position": [100, 600],
+      "webhookId": "orchestrator-v5-chat"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// LOAD GLOBAL CONTEXT - Agency Killer V4 (Cloud Native)\n// ============================================================================\n// Ce node charge le contexte global SANS dependance fichier.\n// Toute la configuration est HARDCODED pour portabilite VPS.\n// ============================================================================\n\nconst globalContext = {\n  // ─────────────────────────────────────────────────────────────────────────\n  // BRAND MEMORY (Hardcoded - Cloud Native)\n  // ─────────────────────────────────────────────────────────────────────────\n  brand_memory: {\n    identity: {\n      name: \"Agency Killer\",\n      tone: \"Expert, Direct, Data-Driven\",\n      mission: \"Remplacer les agences marketing par une IA autonome\",\n      tagline: \"The Hive - Your AI Marketing Department\"\n    },\n    personas: [\n      {\n        id: \"p1\",\n        name: \"Solopreneur Tech\",\n        pain_points: [\n          \"Manque de temps pour le marketing\",\n          \"Budget limite pour une agence\",\n          \"Expertise marketing insuffisante\",\n          \"Besoin de resultats rapides\"\n        ],\n        goals: [\n          \"Automatiser le marketing\",\n          \"Avoir une vision claire des KPIs\",\n          \"Scaler sans recruter\"\n        ],\n        triggers: [\"urgency\", \"social_proof\", \"roi_proof\"]\n      },\n      {\n        id: \"p2\",\n        name: \"PME en Croissance\",\n        pain_points: [\n          \"Equipe marketing reduite\",\n          \"Manque de coherence cross-canal\",\n          \"Difficulte a mesurer le ROI\"\n        ],\n        goals: [\n          \"Centraliser les operations\",\n          \"Optimiser chaque euro investi\",\n          \"Gagner en visibilite marche\"\n        ],\n        triggers: [\"case_study\", \"authority\", \"free_trial\"]\n      }\n    ],\n    voice: {\n      formality: \"vous\",\n      emoji_usage: \"minimal\",\n      banned_words: [\"gratuit\", \"miracle\", \"garanti 100%\", \"meilleur\"],\n      preferred_expressions: [\"data-driven\", \"ROI mesurable\", \"optimisation continue\"]\n    },\n    objectives: {\n      primary_kpi: \"ROAS\",\n      targets: {\n        roas: 3.0,\n        cpa: 25,\n        conversion_rate: 2.5\n      }\n    }\n  },\n\n  // ─────────────────────────────────────────────────────────────────────────\n  // SYSTEM STATUS\n  // ─────────────────────────────────────────────────────────────────────────\n  system_status: {\n    env: \"production_vps\",\n    version: \"v4.1_wired\",\n    deployment: \"cloud_native\",\n    last_boot: new Date().toISOString()\n  },\n\n  // ─────────────────────────────────────────────────────────────────────────\n  // AVAILABLE SPECIALISTS (Routing Table)\n  // ─────────────────────────────────────────────────────────────────────────\n  specialists: {\n    analyst: {\n      id: \"analyst-mcp\",\n      workflow_name: \"Analyst MCP - Agency Killer V4\",\n      name: \"The Analyst\",\n      capabilities: [\"metrics\", \"reporting\", \"kpi_tracking\", \"anomaly_detection\"],\n      trigger_keywords: [\"performance\", \"metrics\", \"ROAS\", \"CPA\", \"analytics\", \"rapport\", \"donnees\", \"chiffres\", \"trafic\", \"ventes\", \"bilan\"]\n    },\n    strategist: {\n      id: \"strategist-mcp\",\n      workflow_name: \"Strategist MCP - Agency Killer V4\",\n      name: \"The Strategist\",\n      capabilities: [\"seo\", \"competitor_intel\", \"market_research\", \"trend_analysis\", \"google_updates\"],\n      trigger_keywords: [\"concurrent\", \"SEO\", \"marche\", \"tendance\", \"recherche\", \"veille\", \"strategie\", \"Google\", \"update\", \"algorithm\"]\n    },\n    creative: {\n      id: \"creative-mcp\",\n      workflow_name: \"Creative MCP - Agency Killer V4\",\n      name: \"The Creative\",\n      capabilities: [\"ad_copy\", \"visuals\", \"ab_testing\", \"brand_voice\", \"nano_banana_pro\", \"gemini_3\"],\n      trigger_keywords: [\"publicite\", \"ad\", \"creative\", \"texte\", \"visuel\", \"campagne\", \"copy\", \"headline\", \"banniere\", \"image\", \"video\"]\n    },\n    trader: {\n      id: \"trader-mcp\",\n      workflow_name: \"Trader MCP - Agency Killer V4\",\n      name: \"The Trader\",\n      capabilities: [\"budget_allocation\", \"bid_management\", \"campaign_ops\", \"kill_switch\", \"scale_rule\"],\n      trigger_keywords: [\"budget\", \"encheres\", \"lancer\", \"deployer\", \"couper\", \"scaler\", \"ROAS\", \"Meta\", \"Google Ads\", \"campagne\"]\n    }\n  },\n\n  // ─────────────────────────────────────────────────────────────────────────\n  // UI COMPONENTS REGISTRY\n  // ─────────────────────────────────────────────────────────────────────────\n  ui_components: {\n    KPI_CARD: \"KPI_CARD\",\n    CHART_WIDGET: \"CHART_WIDGET\",\n    AD_PREVIEW: \"AD_PREVIEW\",\n    BATTLE_CARD: \"BATTLE_CARD\",\n    WEB_SEARCH_RESULT: \"WEB_SEARCH_RESULT\",\n    COMPETITOR_INTEL: \"COMPETITOR_INTEL\",\n    CAMPAIGN_TABLE: \"CAMPAIGN_TABLE\",\n    ACTION_BUTTONS: \"ACTION_BUTTONS\",\n    LOADING: \"LOADING\",\n    ERROR: \"ERROR\",\n    APPROVAL_REQUEST: \"APPROVAL_REQUEST\"\n  }\n};\n\n// Ajouter le message utilisateur entrant\nglobalContext.user_input = {\n  message: $input.first().json.body?.message || $input.first().json.message || \"\",\n  session_id: $input.first().json.body?.session_id || `session_${Date.now()}`,\n  timestamp: new Date().toISOString()\n};\n\nreturn [{ json: globalContext }];"
+      },
+      "id": "load-global-context",
+      "name": "Load Global Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [320, 400],
+      "notesInFlow": true,
+      "notes": "Cloud Native - Hardcoded Config"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// INJECT ORCHESTRATOR SYSTEM PROMPT (HARDCODED)\n// ============================================================================\n\nconst context = $input.first().json;\n\nconst ORCHESTRATOR_SYSTEM_PROMPT = `Tu es le DIRECTEUR DE STRATEGIE de \"The Hive\" - Agency Killer V4.\n\n## DELEGATION PROTOCOL - REGLE ABSOLUE\n\nTu es le chef d'orchestre. NE REPONDS PAS toi-meme aux questions techniques.\nTa valeur ajoutee est de CHOISIR LE BON EXPERT, pas de faire le travail.\n\n### REGLES DE DELEGATION IMMEDIATE\n\n1. **AUDIT / CHIFFRES / PERFORMANCE** → Delegue a call_analyst\n   - Questions sur: trafic, ventes, ROAS, CPA, metriques, bilan, rapport\n   - JAMAIS tu ne calcules toi-meme les KPIs\n\n2. **CONCURRENCE / SEO / TENDANCES** → Delegue a call_strategist  \n   - Questions sur: concurrents, Google Updates, marche, veille, strategie\n   - JAMAIS tu ne fais de recherche toi-meme\n\n3. **VISUELS / PUBLICITES / CREATIONS** → Delegue a call_creative\n   - Demandes de: banniere, image, video, ad copy, headline\n   - JAMAIS tu ne rediges de copy toi-meme\n   - Note: Utilise Nano Banana Pro pour la generation\n\n4. **BUDGET / CAMPAGNES / SCALING** → Delegue a call_trader\n   - Questions sur: couper campagne, scaler, budget, ROAS campagne\n   - JAMAIS tu ne prends de decision budgetaire toi-meme\n\n### OUTILS DISPONIBLES\n\nTu disposes de 4 outils que tu DOIS utiliser:\n- call_analyst: Pour toute question sur les donnees et performances\n- call_strategist: Pour toute question sur la concurrence et le SEO\n- call_creative: Pour toute demande de creation visuelle ou textuelle\n- call_trader: Pour toute decision de budget ou gestion de campagne\n\n### FORMAT DE REPONSE\n\nQuand tu delegues, explique BRIEVEMENT pourquoi tu mobilises cet expert.\nExemple: \"Je mobilise The Analyst pour diagnostiquer votre baisse de ROAS.\"\n\nSi la demande est vague ou de type \"bonjour\", presente le menu des services.\n\n### CE QUE TU FAIS TOI-MEME\n\n- Accueillir et orienter l'utilisateur\n- Presenter le menu des services\n- Synthetiser les resultats des experts\n- Recommander des combinaisons d'experts (multi-agent)\n- Challenger les mauvaises decisions\n\n## CONTEXTE MARQUE\n- Brand: ${context.brand_memory.identity.name}\n- Tone: ${context.brand_memory.identity.tone}\n- Primary KPI: ${context.brand_memory.objectives.primary_kpi}\n- Target ROAS: ${context.brand_memory.objectives.targets.roas}x\n- Max CPA: ${context.brand_memory.objectives.targets.cpa}EUR`;\n\nreturn [{\n  json: {\n    ...context,\n    system_prompt: ORCHESTRATOR_SYSTEM_PROMPT\n  }\n}];"
+      },
+      "id": "inject-system-prompt",
+      "name": "Inject System Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [540, 400],
+      "notesInFlow": true,
+      "notes": "Delegation Protocol Hardcoded"
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "={{ $json.system_prompt }}"
+        }
+      },
+      "id": "ai-agent-router",
+      "name": "AI Agent Router",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [800, 400],
+      "notesInFlow": true,
+      "notes": "GPT-4o + 4 Tools"
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o",
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "id": "openai-model",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [600, 620]
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.user_input?.session_id || $json.body?.session_id || 'default_session' }}"
+      },
+      "id": "simple-memory",
+      "name": "Simple Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.2,
+      "position": [750, 620]
+    },
+    {
+      "parameters": {
+        "name": "call_analyst",
+        "description": "Appelle l'Agent Analyste pour les questions sur les CHIFFRES, le TRAFIC, les VENTES, le BILAN, le ROAS, le CPA, et toutes les METRIQUES de performance. Utilise cet outil des que l'utilisateur demande un audit, un rapport, ou des donnees.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Analyst MCP - Agency Killer V4"
+        },
+        "responsePropertyName": "analyst_response",
+        "fields": {
+          "values": [
+            {
+              "name": "query",
+              "description": "La question ou demande de l'utilisateur concernant les metriques",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "session_id",
+              "description": "L'identifiant de session",
+              "type": "string",
+              "required": false
+            }
+          ]
+        }
+      },
+      "id": "tool-call-analyst",
+      "name": "Tool: Call Analyst",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.2,
+      "position": [600, 800],
+      "notesInFlow": true,
+      "notes": "→ Analyst MCP"
+    },
+    {
+      "parameters": {
+        "name": "call_strategist",
+        "description": "Appelle l'Agent Strategiste pour les questions sur la CONCURRENCE, le SEO, les TENDANCES, les GOOGLE UPDATES, et la VEILLE de marche. Utilise cet outil des que l'utilisateur demande une analyse concurrentielle ou strategique.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Strategist MCP - Agency Killer V4"
+        },
+        "responsePropertyName": "strategist_response",
+        "fields": {
+          "values": [
+            {
+              "name": "query",
+              "description": "La question ou demande de l'utilisateur concernant la strategie",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "session_id",
+              "description": "L'identifiant de session",
+              "type": "string",
+              "required": false
+            }
+          ]
+        }
+      },
+      "id": "tool-call-strategist",
+      "name": "Tool: Call Strategist",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.2,
+      "position": [800, 800],
+      "notesInFlow": true,
+      "notes": "→ Strategist MCP"
+    },
+    {
+      "parameters": {
+        "name": "call_creative",
+        "description": "Appelle l'Agent Creatif pour les demandes de VISUELS, PUBLICITES, BANNIERES, AD COPY, et HEADLINES. Utilise Nano Banana Pro / Gemini 3 pour la generation. Utilise cet outil des que l'utilisateur demande une creation visuelle ou textuelle publicitaire.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Creative MCP - Agency Killer V4"
+        },
+        "responsePropertyName": "creative_response",
+        "fields": {
+          "values": [
+            {
+              "name": "query",
+              "description": "La demande creative de l'utilisateur",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "format",
+              "description": "Le format demande (banner, video, copy, etc.)",
+              "type": "string",
+              "required": false
+            },
+            {
+              "name": "session_id",
+              "description": "L'identifiant de session",
+              "type": "string",
+              "required": false
+            }
+          ]
+        }
+      },
+      "id": "tool-call-creative",
+      "name": "Tool: Call Creative",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.2,
+      "position": [1000, 800],
+      "notesInFlow": true,
+      "notes": "→ Creative MCP (Nano Banana Pro)"
+    },
+    {
+      "parameters": {
+        "name": "call_trader",
+        "description": "Appelle l'Agent Trader pour la GESTION DE BUDGET, COUPER une campagne, SCALER, et optimiser le ROAS des campagnes. Utilise cet outil des que l'utilisateur parle de budget, de performance de campagne, ou de decisions d'investissement publicitaire.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Trader MCP - Agency Killer V4"
+        },
+        "responsePropertyName": "trader_response",
+        "fields": {
+          "values": [
+            {
+              "name": "query",
+              "description": "La demande de l'utilisateur concernant le budget ou les campagnes",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "action",
+              "description": "L'action demandee (cut, scale, analyze, etc.)",
+              "type": "string",
+              "required": false
+            },
+            {
+              "name": "session_id",
+              "description": "L'identifiant de session",
+              "type": "string",
+              "required": false
+            }
+          ]
+        }
+      },
+      "id": "tool-call-trader",
+      "name": "Tool: Call Trader",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.2,
+      "position": [1200, 800],
+      "notesInFlow": true,
+      "notes": "→ Trader MCP (Kill/Scale)"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// FORMAT UI RESPONSE - Agency Killer V4 (Cloud Native)\n// ============================================================================\n// Formate la reponse de l'AI Agent pour respecter le UI Schema.\n// Integre les reponses des agents specialistes.\n// ============================================================================\n\nconst context = $('Inject System Prompt').item.json;\nconst agentOutput = $input.first().json;\n\n// ─────────────────────────────────────────────────────────────────────────\n// HELPER: Detecter quel agent a ete appele\n// ─────────────────────────────────────────────────────────────────────────\nfunction detectCalledAgent(output) {\n  if (output.analyst_response) return { id: 'analyst', name: 'The Analyst', response: output.analyst_response };\n  if (output.strategist_response) return { id: 'strategist', name: 'The Strategist', response: output.strategist_response };\n  if (output.creative_response) return { id: 'creative', name: 'The Creative', response: output.creative_response };\n  if (output.trader_response) return { id: 'trader', name: 'The Trader', response: output.trader_response };\n  return null;\n}\n\n// ─────────────────────────────────────────────────────────────────────────\n// HELPER: Construire les composants UI\n// ─────────────────────────────────────────────────────────────────────────\nfunction buildUIComponents(calledAgent, rawOutput) {\n  const components = [];\n  \n  // Si un agent a ete appele, utiliser sa reponse\n  if (calledAgent && calledAgent.response) {\n    try {\n      const agentResponse = typeof calledAgent.response === 'string' \n        ? JSON.parse(calledAgent.response) \n        : calledAgent.response;\n      \n      // Transmettre les composants UI de l'agent\n      if (agentResponse.ui_components) {\n        return agentResponse.ui_components;\n      }\n      if (agentResponse.ui_component) {\n        return [{\n          type: agentResponse.ui_component,\n          data: agentResponse,\n          layout: { width: 'full', order: 1 }\n        }];\n      }\n    } catch (e) {\n      // Fallback si parsing echoue\n    }\n  }\n  \n  // Menu par defaut si aucun agent appele\n  components.push({\n    type: 'ACTION_BUTTONS',\n    data: {\n      layout: 'grid',\n      actions: [\n        {\n          id: 'menu_analyst',\n          label: 'Analyser mes performances',\n          icon: 'chart-line',\n          action_type: 'message',\n          variant: 'secondary',\n          payload: { message: 'Montre-moi mon bilan de performance' }\n        },\n        {\n          id: 'menu_strategist',\n          label: 'Veille concurrentielle',\n          icon: 'search',\n          action_type: 'message',\n          variant: 'secondary',\n          payload: { message: 'Analyse mes concurrents' }\n        },\n        {\n          id: 'menu_creative',\n          label: 'Creer une publicite',\n          icon: 'palette',\n          action_type: 'message',\n          variant: 'secondary',\n          payload: { message: 'Cree une banniere publicitaire' }\n        },\n        {\n          id: 'menu_trader',\n          label: 'Gerer mes campagnes',\n          icon: 'currency-euro',\n          action_type: 'message',\n          variant: 'secondary',\n          payload: { message: 'Optimise mes campagnes actives' }\n        }\n      ]\n    },\n    layout: { width: 'full', order: 1 }\n  });\n  \n  return components;\n}\n\n// ─────────────────────────────────────────────────────────────────────────\n// MAIN: Construire la reponse UI\n// ─────────────────────────────────────────────────────────────────────────\nconst calledAgent = detectCalledAgent(agentOutput);\nconst chatContent = agentOutput.output || agentOutput.text || '';\n\nconst uiResponse = {\n  // THOUGHT PROCESS\n  thought_process: {\n    step: calledAgent ? 'Specialist Delegation' : 'Intent Classification',\n    reasoning: calledAgent \n      ? `Demande deleguee a ${calledAgent.name} pour traitement specialise.`\n      : 'Presentation du menu principal ou reponse directe.',\n    tools_used: calledAgent ? [`call_${calledAgent.id}`] : ['menu_display'],\n    data_sources: ['brand_memory', 'specialists_registry'],\n    confidence: calledAgent ? 0.92 : 0.75,\n    agent_called: calledAgent?.id || null\n  },\n  \n  // CHAT MESSAGE\n  chat_message: {\n    content: chatContent || '**Bienvenue dans The Hive.**\\n\\nJe suis votre Directeur de Strategie. Comment puis-je vous aider ?',\n    tone: calledAgent ? 'suggestion' : 'neutral',\n    follow_up_questions: calledAgent \n      ? [\n          'Voir plus de details ?',\n          'Lancer une autre analyse ?',\n          'Exporter les resultats ?'\n        ]\n      : [\n          'Quel est mon ROAS actuel ?',\n          'Analyse mes concurrents',\n          'Cree une pub Meta'\n        ],\n    delegated_to: calledAgent?.name || null\n  },\n  \n  // UI COMPONENTS\n  ui_components: buildUIComponents(calledAgent, agentOutput),\n  \n  // METADATA\n  meta: {\n    agent_id: 'orchestrator',\n    version: 'v4.1_wired',\n    timestamp: new Date().toISOString(),\n    request_id: `req_${Date.now()}`,\n    session_id: context.user_input.session_id,\n    brand_id: context.brand_memory.identity.name,\n    specialist_called: calledAgent?.id || null,\n    processing_time_ms: Date.now() - new Date(context.user_input.timestamp).getTime()\n  }\n};\n\nreturn [{ json: uiResponse }];"
+      },
+      "id": "format-ui-response",
+      "name": "Format UI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1060, 400],
+      "notesInFlow": true,
+      "notes": "Merge Agent Responses → UI Schema"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "name": "X-Agency-Killer-Version",
+                "value": "v4.1-wired"
+              }
+            ]
+          }
+        }
+      },
+      "id": "webhook-response",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1280, 400]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Load Global Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Global Context": {
+      "main": [
+        [
+          {
+            "node": "Inject System Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Inject System Prompt": {
+      "main": [
+        [
+          {
+            "node": "AI Agent Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent Router": {
+      "main": [
+        [
+          {
+            "node": "Format UI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent Router",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent Router",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: Call Analyst": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent Router",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: Call Strategist": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent Router",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: Call Creative": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent Router",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: Call Trader": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent Router",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format UI Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "agency-killer-v5"
+    },
+    {
+      "name": "orchestrator"
+    },
+    {
+      "name": "wired"
+    },
+    {
+      "name": "memory-enabled"
+    }
+  ],
+  "pinData": {},
+  "versionId": "5.0.0-wired",
+  "meta": {
+    "instanceId": "agency-killer-vps",
+    "templateCredsSetupCompleted": true
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "name": "looker-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP Server for Looker Studio - Allows Sora to create dashboards and reports",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "looker-server": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js"
+  },
+  "keywords": ["mcp", "looker-studio", "data-studio", "dashboards", "sora", "agency-killer"],
+  "author": "The Hive OS",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.5.0",
+    "googleapis": "^134.0.0",
+    "google-auth-library": "^9.6.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.19",
+    "typescript": "^5.3.3"
+  }
+}

@@ -1,0 +1,481 @@
+{
+  "name": "Creative MCP V6 - MILO Production Studio",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "creative",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [100, 400],
+      "webhookId": "creative-v6-entry"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// LOAD BRAND MEMORY - Creative MCP V6\n// ============================================================================\n\nreturn [{\n  json: {\n    brand_id: \"ak_v6_demo\",\n    brand_name: \"The Hive\",\n    \n    visual_identity: {\n      style: \"Minimalist, Tech, Neon Accents\",\n      mood: \"Bold, Futuristic, Premium\",\n      hex_colors: {\n        primary: \"#000000\",\n        secondary: \"#FFFFFF\",\n        accent_1: \"#FF00FF\",\n        accent_2: \"#00FFFF\",\n        accent_3: \"#FFD700\",\n        danger: \"#EF4444\",\n        success: \"#10B981\"\n      },\n      fonts: {\n        headings: \"Inter\",\n        body: \"Inter\",\n        display: \"Space Grotesk\"\n      },\n      design_rules: [\n        \"Fond sombre obligatoire (noir ou gradient)\",\n        \"Texte blanc ou neon sur fond sombre\",\n        \"Accent magenta pour les CTA\",\n        \"Max 3 elements visuels par image\",\n        \"Espace negatif min 30%\"\n      ]\n    },\n    \n    tone_of_voice: {\n      personality: \"Bold, Direct, Urgent\",\n      formality: \"vous\",\n      writing_style: {\n        sentence_length: \"court\",\n        power_words: true,\n        questions: true,\n        numbers: true\n      },\n      power_words: [\"Instant\", \"Garanti\", \"Exclusif\", \"Limite\", \"Maintenant\", \"Gratuit\", \"Prouve\", \"Secret\", \"Nouveau\", \"Decouvrez\", \"Enfin\", \"Stop\"],\n      banned_words: [\"pas cher\", \"discount\", \"promo\", \"soldes\", \"meilleur\", \"numero 1\", \"leader\", \"revolutionnaire\", \"magique\", \"miracle\"]\n    },\n    \n    platform_specs: {\n      meta_feed: { aspect_ratio: \"1:1\", dimensions: \"1080x1080\", max_text_ratio: 0.20 },\n      meta_story: { aspect_ratio: \"9:16\", dimensions: \"1080x1920\", max_text_ratio: 0.20 },\n      meta_reel: { aspect_ratio: \"9:16\", dimensions: \"1080x1920\", max_text_ratio: 0.15 },\n      linkedin_feed: { aspect_ratio: \"1.91:1\", dimensions: \"1200x628\", max_text_ratio: 0.25 },\n      youtube_thumbnail: { aspect_ratio: \"16:9\", dimensions: \"1280x720\", max_text_ratio: 0.30 }\n    },\n    \n    products: [\n      { id: \"hive_pro\", name: \"The Hive Pro\", price: \"99EUR/mois\", tagline: \"4 agents IA pour le prix d'un outil\" },\n      { id: \"hive_enterprise\", name: \"The Hive Enterprise\", price: \"Sur devis\", tagline: \"Solution sur-mesure pour grandes equipes\" }\n    ],\n    \n    creative_learnings: [\n      { insight: \"Visages humains +35% CTR\", confidence: 0.85 },\n      { insight: \"Chiffres dans titre +28% engagement\", confidence: 0.82 },\n      { insight: \"Questions directes +22% click\", confidence: 0.78 }\n    ]\n  }\n}];"
+      },
+      "id": "load-brand-memory",
+      "name": "Load Brand Memory",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [320, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// GHOST BUSTER - Anti-Hallucination Image Sanitizer\n// Creative MCP V6 - CRITICAL SECURITY NODE\n// ============================================================================\n\nconst brandMemory = $('Load Brand Memory').item.json;\nconst userInput = $('Webhook Trigger').item.json;\n\n// ─────────────────────────────────────────────────────────────────────────\n// GHOST BUSTER: Clean image_base64 to prevent AI hallucination\n// If image is \"null\", \"undefined\", empty, or < 100 chars -> force to null\n// ─────────────────────────────────────────────────────────────────────────\nlet rawImage = userInput.body?.image_base64 || userInput.image_base64 || null;\nlet cleanedImage = null;\nlet hasValidImage = false;\n\n// Ghost Buster Logic\nif (rawImage !== null && rawImage !== undefined) {\n  const imageStr = String(rawImage).trim().toLowerCase();\n  \n  // Check for ghost values\n  const isGhost = (\n    imageStr === 'null' ||\n    imageStr === 'undefined' ||\n    imageStr === '' ||\n    imageStr === 'none' ||\n    imageStr.length < 100  // Base64 image must be > 100 chars\n  );\n  \n  if (!isGhost) {\n    cleanedImage = rawImage;\n    hasValidImage = true;\n  }\n}\n\n// ─────────────────────────────────────────────────────────────────────────\n// DETECT MODE & PLATFORM\n// ─────────────────────────────────────────────────────────────────────────\nconst message = (userInput.body?.message || userInput.message || \"\").toLowerCase();\n\nlet detectedMode = 'production';\nconst brainstormKeywords = ['idee', 'idees', 'concept', 'brainstorm', 'propose', 'suggere', 'inspiration', 'angle', 'hook'];\nconst videoKeywords = ['video', 'vidéo', 'reel', 'anime', 'animation', 'motion', 'runway'];\nconst imageKeywords = ['image', 'visuel', 'photo', 'graphique', 'illustration', 'poster', 'banner'];\nconst copyKeywords = ['texte', 'copy', 'article', 'blog', 'script', 'redige', 'ecris'];\n\nif (brainstormKeywords.some(kw => message.includes(kw))) {\n  detectedMode = 'brainstorming';\n} else if (message.length < 15) {\n  detectedMode = 'needs_clarification';\n}\n\n// Detect content type requested\nlet contentType = 'mixed';\nif (videoKeywords.some(kw => message.includes(kw))) {\n  contentType = 'video';\n} else if (imageKeywords.some(kw => message.includes(kw))) {\n  contentType = 'image';\n} else if (copyKeywords.some(kw => message.includes(kw))) {\n  contentType = 'copy';\n}\n\n// Detect platform\nlet platform = 'meta_feed';\nif (message.includes('story') || message.includes('stories')) platform = 'meta_story';\nelse if (message.includes('reel')) platform = 'meta_reel';\nelse if (message.includes('linkedin')) platform = 'linkedin_feed';\nelse if (message.includes('youtube') || message.includes('thumbnail')) platform = 'youtube_thumbnail';\n\n// ─────────────────────────────────────────────────────────────────────────\n// VISION MODE: If valid image, enable vision analysis\n// ─────────────────────────────────────────────────────────────────────────\nlet visionMode = 'disabled';\nif (hasValidImage) {\n  // Determine vision use case\n  if (contentType === 'video') {\n    visionMode = 'image_to_video';  // User wants to animate the image\n  } else if (contentType === 'copy') {\n    visionMode = 'image_to_text';   // User wants copy based on image\n  } else {\n    visionMode = 'image_analysis';  // General analysis\n  }\n}\n\nreturn [{\n  json: {\n    user_request: {\n      message: userInput.body?.message || userInput.message || \"Cree une pub\",\n      session_id: userInput.body?.session_id || `session_${Date.now()}`,\n      timestamp: new Date().toISOString()\n    },\n    \n    // Ghost Buster Results\n    image_input: {\n      raw_received: rawImage ? 'present' : 'absent',\n      cleaned_value: cleanedImage,\n      has_valid_image: hasValidImage,\n      ghost_buster_status: hasValidImage ? 'VALID_IMAGE' : 'GHOST_ELIMINATED'\n    },\n    \n    detected_mode: detectedMode,\n    content_type: contentType,\n    vision_mode: visionMode,\n    \n    creative_params: {\n      platform: platform,\n      platform_specs: brandMemory.platform_specs[platform]\n    },\n    \n    brand: brandMemory,\n    available_products: brandMemory.products,\n    \n    // Tool availability flags\n    tools_available: {\n      copywriting_pro: true,\n      nano_banana_pro: true,\n      runway_gen3: true\n    }\n  }\n}];"
+      },
+      "id": "ghost-buster",
+      "name": "Ghost Buster (Prepare Context)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [540, 400]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "strict" },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.image_input.has_valid_image }}",
+                    "rightValue": true,
+                    "operator": { "type": "boolean", "operation": "equals" }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "has_image"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "strict" },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.image_input.has_valid_image }}",
+                    "rightValue": false,
+                    "operator": { "type": "boolean", "operation": "equals" }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "no_image"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "vision-router",
+      "name": "Vision Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [760, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// VISION ANALYSIS - GPT-4o Image Description\n// Converts image to detailed text description for downstream tools\n// ============================================================================\n\nconst context = $input.first().json;\nconst imageBase64 = context.image_input.cleaned_value;\n\n// For now, return a structured placeholder\n// In production, this would call GPT-4o Vision API\nconst visionDescription = {\n  scene_description: \"Image received for analysis\",\n  dominant_colors: [\"#000000\", \"#FFFFFF\"],\n  detected_objects: [],\n  mood: \"professional\",\n  text_detected: null,\n  recommended_action: context.vision_mode === 'image_to_video' ? 'animate' : 'analyze'\n};\n\nreturn [{\n  json: {\n    ...context,\n    vision_analysis: visionDescription,\n    image_ready_for_tools: true\n  }\n}];"
+      },
+      "id": "vision-analysis",
+      "name": "Vision Analysis (GPT-4o)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [980, 300]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "id": "merge-context",
+      "name": "Merge Context",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [1200, 400]
+    },
+    {
+      "parameters": {
+        "agent": "toolsAgent",
+        "promptType": "define",
+        "text": "=## CONTEXTE COMPLET:\n{{ JSON.stringify($json, null, 2) }}\n\n## DEMANDE UTILISATEUR:\n{{ $json.user_request.message }}\n\n## IMAGE FOURNIE:\n{{ $json.image_input.has_valid_image ? 'OUI - Analyse disponible: ' + JSON.stringify($json.vision_analysis || 'En attente') : 'NON - Pas d\\'image' }}\n\n## MODE DETECTE:\n{{ $json.detected_mode }} ({{ $json.content_type }})\n\n## EXECUTE TA MISSION DE DIRECTEUR CREATIF.\nUtilise les outils disponibles pour produire le contenu demande.",
+        "options": {
+          "systemMessage": "# ROLE: MILO - DIRECTEUR ARTISTIQUE & CHEF D'ORCHESTRE CREATIF\n\nTu es MILO, le Directeur Creatif de The Hive avec 15 ans d'experience. Tu es un CHEF D'ORCHESTRE: tu ne produis pas toi-meme, tu DIRIGES et APPELLES LES OUTILS.\n\n## TES OUTILS DE PRODUCTION\n\nTu disposes de 3 outils specialises:\n\n### TOOL A: COPYWRITING_PRO\n- Moteur: GPT-5.2 (production-ready)\n- Usage: Articles, Ad Copy, Scripts video\n- Appelle-le pour tout texte marketing de qualite\n\n### TOOL B: NANO_BANANA_PRO  \n- Moteur: Flux/Midjourney\n- Usage: Visuels statiques ultra-realistes\n- Appelle-le pour generer des images\n\n### TOOL C: RUNWAY_GEN3\n- Moteur: RunwayML Gen-3 Alpha\n- Capacites: Text-to-Video ET Image-to-Video\n- Appelle-le pour animer une image ou creer une video\n\n## LOGIQUE DE DECISION\n\n### CAS A: DEMANDE DE TEXTE (copy, article, script)\n1. Appelle COPYWRITING_PRO avec le brief\n2. Retourne le texte genere\n\n### CAS B: DEMANDE D'IMAGE (visuel, poster, ad)\n1. Prepare un prompt detaille\n2. Appelle NANO_BANANA_PRO\n3. Retourne l'URL de l'image\n\n### CAS C: DEMANDE DE VIDEO\n1. Si image fournie -> Appelle RUNWAY_GEN3 en mode Image-to-Video\n2. Si pas d'image -> Appelle RUNWAY_GEN3 en mode Text-to-Video\n3. Retourne l'URL de la video\n\n### CAS D: DEMANDE COMPLETE (pub avec tout)\n1. Appelle COPYWRITING_PRO pour le texte\n2. Appelle NANO_BANANA_PRO pour l'image\n3. Optionnel: RUNWAY_GEN3 pour la video\n4. Assemble le tout\n\n## IDENTITE VISUELLE THE HIVE\n- Fond SOMBRE (noir #000000)\n- Texte BLANC (#FFFFFF) ou NEON (#FF00FF, #00FFFF)\n- CTA en OR (#FFD700)\n- Style: Minimalist, Tech, Premium\n- Police: Space Grotesk\n\n## FORMAT DE SORTIE (JSON STRICT)\n\n```json\n{\n  \"creative_result\": {\n    \"mode\": \"production\" | \"brainstorming\",\n    \"content_produced\": {\n      \"copy\": {\n        \"headline\": \"...\",\n        \"body\": \"...\",\n        \"cta\": \"...\"\n      },\n      \"image\": {\n        \"url\": \"https://...\",\n        \"prompt_used\": \"...\"\n      },\n      \"video\": {\n        \"url\": \"https://...\",\n        \"duration\": 4,\n        \"type\": \"text_to_video\" | \"image_to_video\"\n      }\n    },\n    \"tools_used\": [\"copywriting_pro\", \"nano_banana_pro\", \"runway_gen3\"],\n    \"platform\": \"meta_feed\"\n  },\n  \"chat_message\": {\n    \"content\": \"Message pour l'utilisateur\",\n    \"follow_up_questions\": []\n  }\n}\n```\n\n## REGLES ABSOLUES\n- JAMAIS produire sans appeler un outil\n- TOUJOURS respecter l'identite visuelle\n- JAMAIS inventer de prix/produits\n- TOUJOURS retourner du JSON valide"
+        }
+      },
+      "id": "milo-brain",
+      "name": "MILO Brain (AI Agent)",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [1420, 400]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o"
+        },
+        "options": {
+          "temperature": 0.7
+        }
+      },
+      "id": "openai-gpt4o",
+      "name": "GPT-4o (MILO)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [1420, 620],
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-credentials",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "name": "copywriting_pro",
+        "description": "Professional copywriter powered by GPT. Use for: ad copy, headlines, articles, scripts, marketing text. Input: brief with context, tone, target audience. Output: polished marketing copy.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "copywriting-pro-tool"
+        },
+        "specifyInputSchema": true,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "brief": {
+              "type": "string",
+              "description": "The copywriting brief with all context"
+            },
+            "content_type": {
+              "type": "string",
+              "enum": ["headline", "body_copy", "full_ad", "article", "script"],
+              "description": "Type of content to produce"
+            },
+            "tone": {
+              "type": "string",
+              "description": "Tone of voice: bold, professional, friendly, urgent"
+            },
+            "max_length": {
+              "type": "number",
+              "description": "Maximum character count"
+            }
+          },
+          "required": ["brief", "content_type"]
+        }
+      },
+      "id": "tool-copywriting",
+      "name": "Tool: Copywriting Pro",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.2,
+      "position": [1280, 620]
+    },
+    {
+      "parameters": {
+        "name": "nano_banana_pro",
+        "description": "AI image generator for marketing visuals. Use for: social ads, banners, product shots. Input: detailed visual prompt. Output: image URL. Always include: style, colors, composition, mood.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "nano-banana-tool"
+        },
+        "specifyInputSchema": true,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "prompt": {
+              "type": "string",
+              "description": "Detailed image generation prompt"
+            },
+            "style": {
+              "type": "string",
+              "description": "Visual style: minimalist, tech, cinematic, etc."
+            },
+            "aspect_ratio": {
+              "type": "string",
+              "enum": ["1:1", "9:16", "16:9", "4:5"],
+              "description": "Output aspect ratio"
+            },
+            "brand_colors": {
+              "type": "string",
+              "description": "Hex colors to use"
+            }
+          },
+          "required": ["prompt", "style"]
+        }
+      },
+      "id": "tool-nano-banana",
+      "name": "Tool: Nano Banana Pro",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.2,
+      "position": [1420, 780]
+    },
+    {
+      "parameters": {
+        "name": "runway_gen3",
+        "description": "Video generator using RunwayML Gen-3 Alpha. Modes: text_to_video (from prompt) or image_to_video (animate an image). Output: video URL (MP4). Max duration: 4 seconds.",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "runway-gen3-tool"
+        },
+        "specifyInputSchema": true,
+        "schema": {
+          "type": "object",
+          "properties": {
+            "mode": {
+              "type": "string",
+              "enum": ["text_to_video", "image_to_video"],
+              "description": "Generation mode"
+            },
+            "prompt": {
+              "type": "string",
+              "description": "Motion/scene description for the video"
+            },
+            "image_base64": {
+              "type": "string",
+              "description": "Base64 image to animate (required for image_to_video mode)"
+            },
+            "duration": {
+              "type": "number",
+              "default": 4,
+              "description": "Video duration in seconds (max 4)"
+            }
+          },
+          "required": ["mode", "prompt"]
+        }
+      },
+      "id": "tool-runway",
+      "name": "Tool: Runway Gen-3",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.2,
+      "position": [1560, 620]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// FORMAT UI RESPONSE - Creative MCP V6 (V12 Protocol Compliant)\n// Silent Mode: No buttons unless explicit content generated\n// ============================================================================\n\nconst aiOutput = $input.first().json;\nlet creativeData;\n\n// ─────────────────────────────────────────────────────────────────────────\n// PARSE AI OUTPUT\n// ─────────────────────────────────────────────────────────────────────────\ntry {\n  if (typeof aiOutput.output === 'string') {\n    let cleanOutput = aiOutput.output\n      .replace(/```json\\n?/g, '')\n      .replace(/```\\n?/g, '')\n      .trim();\n    creativeData = JSON.parse(cleanOutput);\n  } else if (aiOutput.output && typeof aiOutput.output === 'object') {\n    creativeData = aiOutput.output;\n  } else if (aiOutput.creative_result) {\n    creativeData = aiOutput;\n  } else {\n    throw new Error('Format non reconnu');\n  }\n} catch (e) {\n  // Fallback: Simple chat response\n  creativeData = {\n    creative_result: { mode: 'chat', content_produced: null },\n    chat_message: { content: aiOutput.output || 'Reponse generee.', follow_up_questions: [] }\n  };\n}\n\nconst result = creativeData.creative_result || {};\nconst chatMsg = creativeData.chat_message || {};\nconst content = result.content_produced || {};\n\n// ─────────────────────────────────────────────────────────────────────────\n// V12 PROTOCOL: Build UI Components based on ACTUAL content produced\n// ─────────────────────────────────────────────────────────────────────────\n\nconst uiComponents = [];\nlet uiComponentType = 'EMPTY_STATE';  // Default: no UI\n\n// CASE 1: Video was generated -> VIDEO_PLAYER\nif (content.video && content.video.url) {\n  uiComponentType = 'VIDEO_PLAYER';\n  uiComponents.push({\n    type: 'VIDEO_PLAYER',\n    data: {\n      video_url: content.video.url,\n      duration: content.video.duration || 4,\n      type: content.video.type || 'text_to_video',\n      thumbnail: content.image?.url || null,\n      title: 'Video generee par Runway Gen-3',\n      downloadable: true\n    }\n  });\n}\n\n// CASE 2: Image was generated -> AD_PREVIEW\nif (content.image && content.image.url) {\n  uiComponentType = uiComponentType === 'EMPTY_STATE' ? 'AD_PREVIEW' : uiComponentType;\n  uiComponents.push({\n    type: 'AD_PREVIEW',\n    data: {\n      platform: result.platform || 'meta_feed',\n      format: 'feed',\n      image_url: content.image.url,\n      headline: content.copy?.headline || '',\n      primary_text: content.copy?.body || '',\n      cta: content.copy?.cta || 'En savoir plus',\n      visual_description: content.image.prompt_used,\n      creative_rationale: 'Genere par Nano Banana Pro'\n    }\n  });\n}\n\n// CASE 3: Only copy was generated -> COPY_BLOCK\nif (content.copy && !content.image && !content.video) {\n  uiComponentType = 'COPY_BLOCK';\n  uiComponents.push({\n    type: 'COPY_BLOCK',\n    data: {\n      headline: content.copy.headline || '',\n      body: content.copy.body || '',\n      cta: content.copy.cta || '',\n      format: 'marketing_copy',\n      copyable: true\n    }\n  });\n}\n\n// CASE 4: Brainstorming mode -> BATTLE_CARD (concepts)\nif (result.mode === 'brainstorming' && result.recommendations?.length > 0) {\n  uiComponentType = 'BATTLE_CARD';\n  uiComponents.push({\n    type: 'BATTLE_CARD',\n    data: {\n      title: 'Concepts Creatifs',\n      test_hypothesis: 'Choisissez un angle a developper',\n      variants: result.recommendations.map((rec, idx) => ({\n        id: rec.id || `concept_${idx}`,\n        name: rec.angle || 'Concept',\n        badge: idx === 0 ? 'recommended' : 'alternative',\n        preview: {\n          headline: rec.hook,\n          primary_text: rec.why_it_works\n        }\n      })),\n      selection_prompt: 'Quel concept souhaitez-vous developper?'\n    }\n  });\n}\n\n// ─────────────────────────────────────────────────────────────────────────\n// V12 PROTOCOL: If no content -> EMPTY_STATE (no buttons!)\n// ─────────────────────────────────────────────────────────────────────────\n\nconst uiResponse = {\n  thought_process: {\n    step: 'Creative Production V6',\n    reasoning: `Mode: ${result.mode}. Tools: ${(result.tools_used || []).join(', ') || 'none'}`,\n    tools_used: result.tools_used || [],\n    confidence: 0.9,\n    persona_context: 'milo_v6'\n  },\n  \n  chat_message: {\n    content: chatMsg.content || 'Voici ma production creative.',\n    tone: 'positive',\n    follow_up_questions: chatMsg.follow_up_questions || []\n  },\n  \n  // V12: Explicit UI control\n  ui_component: uiComponentType,\n  ui_components: uiComponents,\n  \n  meta: {\n    agent_id: 'creative',\n    timestamp: new Date().toISOString(),\n    request_id: `req_milo_${Date.now()}`,\n    version: 'v6',\n    tools_used: result.tools_used || []\n  }\n};\n\nreturn [{ json: uiResponse }];"
+      },
+      "id": "format-ui-response",
+      "name": "Format UI Response (V12)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1640, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "webhook-response",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1860, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// COPYWRITING PRO - Sub-workflow Tool\n// Powered by GPT for production-quality marketing copy\n// ============================================================================\n\nconst input = $input.first().json;\n\n// Simulated GPT response - In production, this calls OpenAI\nconst generatedCopy = {\n  headline: \"Stop aux fees d'agence.\",\n  subheadline: \"Votre marketing. 100% automatise.\",\n  body: \"Vous payez 5000EUR/mois pour des resultats moyens? The Hive automatise votre marketing avec l'IA. 4 experts virtuels. Resultats en 24h.\",\n  cta: \"Essai Gratuit\",\n  tone_applied: input.tone || 'bold',\n  content_type: input.content_type\n};\n\nreturn [{ json: { success: true, copy: generatedCopy } }];"
+      },
+      "id": "copywriting-pro-workflow",
+      "name": "Copywriting Pro Workflow",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1280, 800]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// NANO BANANA PRO - Sub-workflow Tool\n// AI Image Generation (Flux/Midjourney simulation)\n// ============================================================================\n\nconst input = $input.first().json;\n\n// Simulated image generation - In production, calls Flux/Midjourney API\nconst generatedImage = {\n  url: `https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1080&h=1080&fit=crop&t=${Date.now()}`,\n  prompt_used: input.prompt,\n  style_applied: input.style || 'minimalist',\n  aspect_ratio: input.aspect_ratio || '1:1',\n  generation_time_ms: 3500\n};\n\nreturn [{ json: { success: true, image: generatedImage } }];"
+      },
+      "id": "nano-banana-workflow",
+      "name": "Nano Banana Pro Workflow",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1420, 960]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// RUNWAY GEN-3 ALPHA - Sub-workflow Tool\n// Video Generation: Text-to-Video & Image-to-Video\n// ============================================================================\n\nconst input = $input.first().json;\n\n// Simulated Runway response - In production, calls RunwayML API\nconst generatedVideo = {\n  url: `https://storage.runway.com/generated/${Date.now()}.mp4`,\n  mode: input.mode || 'text_to_video',\n  prompt_used: input.prompt,\n  duration: input.duration || 4,\n  resolution: '1080x1080',\n  generation_time_ms: 45000,\n  credits_used: 10\n};\n\nreturn [{ json: { success: true, video: generatedVideo } }];"
+      },
+      "id": "runway-gen3-workflow",
+      "name": "Runway Gen-3 Workflow",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 800]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Load Brand Memory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Brand Memory": {
+      "main": [
+        [
+          {
+            "node": "Ghost Buster (Prepare Context)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ghost Buster (Prepare Context)": {
+      "main": [
+        [
+          {
+            "node": "Vision Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vision Router": {
+      "main": [
+        [
+          {
+            "node": "Vision Analysis (GPT-4o)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge Context",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Vision Analysis (GPT-4o)": {
+      "main": [
+        [
+          {
+            "node": "Merge Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Context": {
+      "main": [
+        [
+          {
+            "node": "MILO Brain (AI Agent)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MILO Brain (AI Agent)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "GPT-4o (MILO)",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ],
+      "ai_tool": [
+        [
+          {
+            "node": "Tool: Copywriting Pro",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Tool: Nano Banana Pro",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Tool: Runway Gen-3",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ],
+      "main": [
+        [
+          {
+            "node": "Format UI Response (V12)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format UI Response (V12)": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "agency-killer",
+      "id": "tag-ak-v6"
+    },
+    {
+      "name": "creative",
+      "id": "tag-creative"
+    },
+    {
+      "name": "v6-milo-studio",
+      "id": "tag-v6"
+    },
+    {
+      "name": "production",
+      "id": "tag-production"
+    }
+  ],
+  "pinData": {},
+  "versionId": "6.0.0",
+  "meta": {
+    "instanceId": "agency-killer-vps",
+    "templateCredsSetupCompleted": true
+  }
+}

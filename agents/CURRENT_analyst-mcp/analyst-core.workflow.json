@@ -1,0 +1,446 @@
+{
+  "name": "Analyst MCP V5 - Bio-Brain Data Expert",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "analyst",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [100, 400],
+      "webhookId": "analyst-v5-entry"
+    },
+    {
+      "parameters": {},
+      "id": "execute-workflow-trigger",
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [100, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// LOAD BRAND MEMORY - Analyst MCP V5 (Cloud Native)\n// ============================================================================\n\nreturn [{\n  json: {\n    brand_id: \"ak_v5_demo\",\n    \n    objectives: {\n      primary_kpi: \"ROAS\",\n      target_values: {\n        roas: 4.0,\n        cpa: 25.0,\n        conversion_rate: 2.5,\n        aov: 120,\n        ltv: 350,\n        cac_ltv_ratio: 0.15\n      },\n      alert_thresholds: {\n        roas_critical: 2.0,\n        roas_warning: 3.0,\n        cpa_critical: 40,\n        cpa_warning: 30,\n        cvr_critical: 1.0,\n        cvr_warning: 1.8,\n        anomaly_threshold_pct: 20\n      }\n    },\n    \n    priorities: {\n      tier_1: [\"ROAS\", \"Margin\", \"Net Revenue\"],\n      tier_2: [\"CPA\", \"CAC\", \"Conversion Rate\"],\n      tier_3: [\"Traffic\", \"Impressions\", \"CTR\"]\n    },\n    \n    comparison_periods: {\n      default: \"WoW\",\n      available: [\"DoD\", \"WoW\", \"MoM\", \"YoY\", \"vs_target\"]\n    }\n  }\n}];"
+      },
+      "id": "load-brand-memory",
+      "name": "Load Brand Memory",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [320, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// LOAD STRATEGY - Analyst MCP V5 (Cloud Native)\n// ============================================================================\n\nreturn [{\n  json: {\n    active_campaigns: [\n      { id: \"camp_search_generic\", name: \"Search_Generic\", platform: \"google\", type: \"search\", status: \"active\", daily_budget: 150, priority: \"high\" },\n      { id: \"camp_display_retargeting\", name: \"Display_Retargeting\", platform: \"google\", type: \"display\", status: \"active\", daily_budget: 80, priority: \"medium\" },\n      { id: \"camp_meta_prospecting\", name: \"Meta_Prospecting\", platform: \"meta\", type: \"conversions\", status: \"active\", daily_budget: 200, priority: \"high\" },\n      { id: \"camp_meta_retargeting\", name: \"Meta_Retargeting\", platform: \"meta\", type: \"conversions\", status: \"active\", daily_budget: 100, priority: \"high\" }\n    ],\n    \n    market_context: {\n      seasonality: \"High\",\n      seasonality_factor: 1.3,\n      competitor_move: \"Aggressive\",\n      market_trend: \"Growing\",\n      active_events: [\n        { name: \"Soldes Hiver\", impact: \"high\", end_date: \"2025-02-15\" },\n        { name: \"Concurrent promo -30%\", impact: \"medium\", detected: \"2025-01-28\" }\n      ],\n      industry_benchmarks: { roas: 3.5, cpa: 28, cvr: 2.2, ctr: 1.8 }\n    },\n    \n    historical_baselines: {\n      last_7d_avg: { roas: 3.8, cpa: 26.5, cvr: 2.3, daily_spend: 520, daily_revenue: 1976 },\n      last_30d_avg: { roas: 3.6, cpa: 27.8, cvr: 2.2, daily_spend: 480, daily_revenue: 1728 }\n    }\n  }\n}];"
+      },
+      "id": "load-strategy",
+      "name": "Load Strategy",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [320, 500]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "id": "merge-context",
+      "name": "Merge Context",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [540, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// PREPARE ANALYST CONTEXT - Merge all inputs\n// ============================================================================\n\nconst brandMemory = $('Load Brand Memory').item.json;\nconst strategy = $('Load Strategy').item.json;\nconst userInput = $('Webhook Trigger').item.json;\n\n// Detect if image is attached\nconst hasImage = !!(userInput.body?.image || userInput.body?.imageBase64 || userInput.image || userInput.imageBase64);\nconst imageData = userInput.body?.image || userInput.body?.imageBase64 || userInput.image || userInput.imageBase64 || null;\n\n// Get project_id from input\nconst projectId = userInput.body?.project_id || userInput.project_id || userInput.body?.shared_memory?.project_id || null;\n\nreturn [{\n  json: {\n    user_request: {\n      message: userInput.body?.message || userInput.message || userInput.body?.chatInput || userInput.chatInput || \"Analyse mes performances\",\n      session_id: userInput.body?.session_id || `session_${Date.now()}`,\n      requested_metrics: userInput.body?.metrics || null,\n      date_range: userInput.body?.date_range || \"last_7d\",\n      timestamp: new Date().toISOString(),\n      project_id: projectId\n    },\n    brand: brandMemory,\n    strategy: strategy,\n    has_image: hasImage,\n    image_data: imageData,\n    analysis_config: {\n      comparison_period: \"WoW\",\n      include_anomaly_detection: true,\n      anomaly_threshold: brandMemory.objectives.alert_thresholds.anomaly_threshold_pct,\n      priority_metrics: brandMemory.priorities.tier_1\n    }\n  }\n}];"
+      },
+      "id": "prepare-analyst-context",
+      "name": "Prepare Analyst Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [760, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// DATA FETCHER: GA4 + GSC (Production: remplacer par vrais appels API)\n// ============================================================================\n// Cette version DETECTE si les donnees sont vides/absentes\n// ============================================================================\n\nconst context = $input.first().json;\nconst userInput = $('Webhook Trigger').item.json;\n\n// ─────────────────────────────────────────────────────────────────────────\n// DETECTION: L'utilisateur a-t-il connecte ses comptes?\n// En production: verifier si les credentials GA4/GSC existent\n// ─────────────────────────────────────────────────────────────────────────\nconst hasGA4Connected = userInput.body?.ga4_connected === true || userInput.ga4_connected === true;\nconst hasGSCConnected = userInput.body?.gsc_connected === true || userInput.gsc_connected === true;\n\n// Si pas de connexion, retourner des donnees vides avec flag\nif (!hasGA4Connected && !hasGSCConnected) {\n  return [{\n    json: {\n      data_status: \"NO_DATA_AVAILABLE\",\n      ga4: null,\n      gsc: null,\n      context: context,\n      message_for_ai: \"AUCUNE DONNEE DISPONIBLE. L'utilisateur n'a pas connecte GA4 ni GSC. Tu dois lui demander de connecter ses comptes ou de te fournir ses chiffres manuellement.\"\n    }\n  }];\n}\n\n// ─────────────────────────────────────────────────────────────────────────\n// SI DONNEES DISPONIBLES: Simuler les metriques (en prod: vrais appels API)\n// ─────────────────────────────────────────────────────────────────────────\n\nfunction generateRealisticMetrics(baseline, variance = 0.15) {\n  const factor = 1 + (Math.random() - 0.5) * 2 * variance;\n  return Math.round(baseline * factor * 100) / 100;\n}\n\nconst currentPeriod = {\n  sessions: generateRealisticMetrics(12500, 0.1),\n  users: generateRealisticMetrics(9800, 0.1),\n  new_users: generateRealisticMetrics(6200, 0.12),\n  pageviews: generateRealisticMetrics(38000, 0.08),\n  avg_session_duration: generateRealisticMetrics(185, 0.15),\n  bounce_rate: generateRealisticMetrics(42, 0.1),\n  transactions: generateRealisticMetrics(285, 0.12),\n  revenue: generateRealisticMetrics(34200, 0.15),\n  conversion_rate: generateRealisticMetrics(2.28, 0.1),\n  avg_order_value: generateRealisticMetrics(120, 0.08),\n  ad_spend: generateRealisticMetrics(3640, 0.05),\n  ad_clicks: generateRealisticMetrics(4850, 0.1),\n  ad_impressions: generateRealisticMetrics(285000, 0.1),\n  ctr: generateRealisticMetrics(1.7, 0.1),\n  cpc: generateRealisticMetrics(0.75, 0.08)\n};\n\nconst previousPeriod = {\n  sessions: 11800, users: 9200, new_users: 5800, pageviews: 35500,\n  avg_session_duration: 178, bounce_rate: 44, transactions: 265,\n  revenue: 31500, conversion_rate: 2.24, avg_order_value: 118.9,\n  ad_spend: 3500, ad_clicks: 4600, ad_impressions: 270000, ctr: 1.7, cpc: 0.76\n};\n\nconst calculated = {\n  roas: Math.round((currentPeriod.revenue / currentPeriod.ad_spend) * 100) / 100,\n  roas_previous: Math.round((previousPeriod.revenue / previousPeriod.ad_spend) * 100) / 100,\n  cpa: Math.round((currentPeriod.ad_spend / currentPeriod.transactions) * 100) / 100,\n  cpa_previous: Math.round((previousPeriod.ad_spend / previousPeriod.transactions) * 100) / 100,\n  gross_margin: Math.round(currentPeriod.revenue * 0.40),\n  net_profit: Math.round(currentPeriod.revenue * 0.40 - currentPeriod.ad_spend),\n  profit_margin_pct: Math.round(((currentPeriod.revenue * 0.40 - currentPeriod.ad_spend) / currentPeriod.revenue) * 10000) / 100\n};\n\nconst gscData = {\n  summary: { total_clicks: 8450, total_impressions: 245000, average_ctr: 3.45, average_position: 12.8, clicks_change_pct: 5.2, impressions_change_pct: 8.1, position_change: -0.8 },\n  top_queries: [\n    { query: \"agence marketing ia\", clicks: 420, impressions: 8500, ctr: 4.94, position: 3.2 },\n    { query: \"automatisation marketing\", clicks: 380, impressions: 12000, ctr: 3.17, position: 5.8 }\n  ]\n};\n\nconst sparklines = {\n  revenue: [4200, 4800, 5100, 4600, 5300, 4900, 5300],\n  roas: [3.6, 3.8, 4.1, 3.9, 4.2, 4.0, 4.3],\n  sessions: [1650, 1780, 1820, 1700, 1890, 1750, 1910],\n  transactions: [38, 42, 45, 40, 46, 43, 47]\n};\n\nreturn [{\n  json: {\n    data_status: \"DATA_AVAILABLE\",\n    ga4: {\n      source: \"ga4_mock\",\n      current_period: currentPeriod,\n      previous_period: previousPeriod,\n      calculated_kpis: calculated,\n      sparklines: sparklines\n    },\n    gsc: gscData,\n    context: context,\n    message_for_ai: \"DONNEES DISPONIBLES. Analyse les metriques GA4 et GSC fournies. Applique les regles Senior: scepticisme si variation >20%, contexte WoW obligatoire, Business First (ROAS/Marge avant Traffic).\"\n  }\n}];"
+      },
+      "id": "data-fetcher",
+      "name": "Data Fetcher (GA4 + GSC)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [980, 400]
+    },
+    {
+      "parameters": {
+        "name": "check_integrations",
+        "description": "Vérifie quelles intégrations (GA4, GSC, CMS) sont connectées pour le projet actuel. Retourne le statut de chaque intégration.",
+        "workflowCode": "// ============================================================\n// TOOL: CHECK INTEGRATIONS\n// Vérifie les connexions GA4, GSC, CMS pour le projet\n// ============================================================\n\nconst { project_id } = $input.json;\n\nif (!project_id) {\n  return {\n    success: false,\n    error: \"project_id manquant\"\n  };\n}\n\n// TODO: En production, faire un vrai appel à Supabase\n// const { data, error } = await supabase\n//   .from('user_integrations')\n//   .select('integration_type, status')\n//   .eq('project_id', project_id)\n//   .eq('status', 'connected');\n\n// Pour l'instant, simuler\nconst mockIntegrations = [\n  // Décommenter pour tester :\n  // { integration_type: 'google_analytics_4', status: 'connected' },\n  // { integration_type: 'google_search_console', status: 'connected' },\n];\n\nconst result = {\n  project_id,\n  integrations: {\n    ga4: mockIntegrations.some(i => i.integration_type === 'google_analytics_4'),\n    gsc: mockIntegrations.some(i => i.integration_type === 'google_search_console'),\n    cms: mockIntegrations.some(i => ['wordpress', 'shopify', 'woocommerce', 'webflow'].includes(i.integration_type))\n  },\n  has_analytics: mockIntegrations.some(i => ['google_analytics_4', 'google_search_console'].includes(i.integration_type)),\n  message: mockIntegrations.length === 0 \n    ? \"Aucune intégration connectée. L'utilisateur doit aller dans Intégrations pour connecter GA4 ou GSC.\"\n    : `${mockIntegrations.length} intégration(s) connectée(s).`\n};\n\nreturn result;",
+        "specifyInputSchema": true,
+        "jsonSchemaExample": "{\n  \"project_id\": \"uuid-project-123\"\n}"
+      },
+      "id": "tool-check-integrations",
+      "name": "Tool: Check Integrations",
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.1,
+      "position": [1450, 100],
+      "notesInFlow": true,
+      "notes": "Vérifie si GA4/GSC sont connectés"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-image-check",
+              "leftValue": "={{ $json.context.has_image }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "has-image",
+      "name": "Has Image?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1100, 200]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Tu es un expert en analyse de données marketing. Analyse cette image (screenshot de dashboard, graphique Analytics, pub, etc.) et extrait les informations clés:\n\n- Si c'est un dashboard: identifie les KPIs visibles (ROAS, Revenue, CPA, etc.)\n- Si c'est un graphique: décris les tendances\n- Si c'est une pub: analyse les éléments créatifs\n\nRetourne un JSON avec:\n{\n  \"image_type\": \"dashboard\" | \"chart\" | \"ad\" | \"other\",\n  \"extracted_data\": { ... données extraites ... },\n  \"insights\": [\"insight 1\", \"insight 2\"],\n  \"confidence\": 0.0-1.0\n}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "id": "vision-ai",
+      "name": "Vision_AI",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [1100, 100],
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-credentials",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "options": {}
+      },
+      "id": "merge-image-data",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [1250, 150]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// CRAFTING - Prepare final data for Analyst Brain\n// ============================================================================\n\nconst items = $input.all();\nlet finalData = items[0]?.json || {};\nlet imageAnalysis = null;\n\n// Check if we have image analysis data\nif (items.length > 1 && items[1]?.json) {\n  try {\n    const visionOutput = items[1].json;\n    if (typeof visionOutput === 'string') {\n      imageAnalysis = JSON.parse(visionOutput);\n    } else {\n      imageAnalysis = visionOutput;\n    }\n  } catch (e) {\n    imageAnalysis = { error: 'Failed to parse vision output', raw: items[1]?.json };\n  }\n}\n\nreturn [{\n  json: {\n    ...finalData,\n    image_analysis: imageAnalysis,\n    has_image_analysis: !!imageAnalysis\n  }\n}];"
+      },
+      "id": "crafting",
+      "name": "Crafting",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1350, 200]
+    },
+    {
+      "parameters": {
+        "agent": "conversationalAgent",
+        "promptType": "define",
+        "text": "=## DONNEES RECUES:\n{{ JSON.stringify($json) }}\n\n## REQUETE UTILISATEUR:\n{{ $json.context.user_request.message }}\n\n{{ $json.has_image_analysis ? '## ANALYSE IMAGE:\\n' + JSON.stringify($json.image_analysis) : '' }}\n\n## ANALYSE REQUISE:\nAnalyse les donnees ci-dessus selon ton role de Data Scientist Senior.",
+        "options": {
+          "systemMessage": "=# ROLE: DATA SCIENTIST SENIOR & AUDITEUR FINANCIER\n\nTu es SORA, analyste de donnees senior avec 15 ans d'experience. Tu ne toleres AUCUNE approximation. Tu ne JAMAIS inventes de chiffres.\n\n## REGLES D'OR (SENIOR RULES)\n\n1. **SCEPTICISME**: Toute variation > 20% est SUSPECTE. Un spike de 50% n'est PAS une victoire, c'est probablement un bug de tracking.\n2. **CONTEXTE OBLIGATOIRE**: Un chiffre seul est un mensonge. Toujours comparer WoW (Week over Week) ou MoM.\n3. **BUSINESS FIRST**: Priorite absolue = ROAS, Marge, Profit Net. Le trafic et les impressions sont des \"vanity metrics\".\n4. **HONNETETE BRUTALE**: Si tu n'as pas les donnees, tu le DIS. Tu ne brodes pas.\n5. **ANALYSE VISUELLE**: Si une image est fournie, tu l'analyses et tu en extrais les insights.\n\n## TOOLS DISPONIBLES\n\n### check_integrations\nVérifie si l'utilisateur a connecté GA4, GSC ou un CMS. TOUJOURS utiliser ce tool AVANT d'analyser des données.\n\n**Quand l'utiliser:**\n- Dès que l'utilisateur demande une analyse de données\n- Avant de dire \"je n'ai pas de données\"\n- Pour guider l'utilisateur vers les intégrations manquantes\n\n**Comment guider l'utilisateur:**\nSi check_integrations retourne has_analytics = false:\n→ \"Je n'ai pas accès à tes données GA4 ou Search Console. Pour que je puisse analyser tes performances :\n   1. Va dans **Intégrations** (menu de gauche)\n   2. Clique sur **Connecter** pour Google Analytics 4 ou Google Search Console\n   3. Suis le guide de configuration\n   4. Reviens me parler une fois connecté !\n   \n   Ou alors, tu peux me donner tes chiffres manuellement et je les analyserai.\"\n\n## LOGIQUE DE DECISION (CRITIQUE)\n\n### CAS A: PAS DE DONNEES (data_status = \"NO_DATA_AVAILABLE\")\nC'est le cas le plus frequent. L'utilisateur n'a pas connecte GA4/GSC.\n- Utilise check_integrations pour confirmer\n- Guide l'utilisateur vers la page Intégrations\n- global_status = \"waiting_for_data\"\n- kpi_evaluations = {} (objet vide)\n\n### CAS B: DONNEES PRESENTES (data_status = \"DATA_AVAILABLE\")\n- Analyse les KPIs Tier 1: ROAS, Revenue, Net Profit\n- Detecte les anomalies (variation > 20%)\n- Calcule les variations WoW\n- Alerte sur les baisses critiques\n- Contextualise avec les benchmarks industrie\n\n### CAS C: IMAGE FOURNIE (has_image_analysis = true)\n- Integre les insights de l'analyse d'image dans ta reponse\n- Commente les elements visuels (graphiques, KPIs visibles, tendances)\n- Combine avec les donnees GA4/GSC si disponibles\n\n### CAS D: QUESTION THEORIQUE\nSi l'utilisateur demande \"C'est quoi un bon ROAS?\" ou \"Comment calculer le CPA?\", reponds avec ton expertise theorique SANS chercher a lire des donnees.\n- global_status = \"theoretical_response\"\n- kpi_evaluations = {} (objet vide)\n\n## FORMAT DE SORTIE (JSON STRICT - AUCUN TEXTE EN DEHORS)\n\nTu DOIS retourner UNIQUEMENT ce JSON, sans aucun texte avant ou apres:\n\n```json\n{\n  \"analysis_result\": {\n    \"global_status\": \"healthy\" | \"critical\" | \"waiting_for_data\" | \"theoretical_response\",\n    \"global_tone\": \"positive\" | \"neutral\" | \"warning\",\n    \"insights\": [\n      {\n        \"type\": \"alert\" | \"warning\" | \"info\" | \"success\",\n        \"message\": \"Description de l'insight\",\n        \"action\": \"Action recommandee\"\n      }\n    ],\n    \"kpi_evaluations\": {\n      \"roas\": { \"value\": 0, \"target\": 0, \"status\": \"success|warning|critical\", \"change_pct\": 0 },\n      \"revenue\": { \"value\": 0, \"previous\": 0, \"status\": \"success|warning|critical\", \"change_pct\": 0 },\n      \"net_profit\": { \"value\": 0, \"margin_pct\": 0, \"status\": \"success|warning|critical\" },\n      \"cpa\": { \"value\": 0, \"target\": 0, \"status\": \"success|warning|critical\", \"change_pct\": 0 }\n    },\n    \"sparklines\": {\n      \"revenue\": [],\n      \"roas\": []\n    }\n  },\n  \"chat_message\": {\n    \"content\": \"Ton message structure pour l'utilisateur (markdown autorise). Si pas de données, GUIDE vers Intégrations.\",\n    \"follow_up_questions\": [\"Question 1?\", \"Question 2?\", \"Question 3?\"]\n  },\n  \"context\": {\n    \"data_status\": \"NO_DATA_AVAILABLE\" | \"DATA_AVAILABLE\",\n    \"analysis_type\": \"data_analysis\" | \"theoretical\" | \"waiting\" | \"image_analysis\"\n  }\n}\n```\n\n## INTERDICTIONS ABSOLUES\n- NE JAMAIS inventer de chiffres (pas de \"votre ROAS est de 3.5x\" si tu n'as pas les donnees)\n- NE JAMAIS afficher des KPIs a zero comme s'ils etaient reels\n- NE JAMAIS ignorer une anomalie > 20%\n- NE JAMAIS oublier le contexte WoW\n- NE JAMAIS sortir du format JSON"
+        }
+      },
+      "id": "analyst-brain",
+      "name": "Analyst Brain",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [1450, 400]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o"
+        },
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "id": "openai-model",
+      "name": "OpenAI Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [1450, 600],
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-credentials",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// FORMAT UI RESPONSE - Analyst MCP V5.1\n// ============================================================================\n// Parse la sortie de l'AI Agent et genere la reponse UI finale\n// ============================================================================\n\nconst aiOutput = $input.first().json;\nlet analysisData;\n\n// ─────────────────────────────────────────────────────────────────────────\n// PARSE AI OUTPUT (peut etre string ou object)\n// ─────────────────────────────────────────────────────────────────────────\ntry {\n  if (typeof aiOutput.output === 'string') {\n    // Nettoyer le JSON (enlever ```json si present)\n    let cleanOutput = aiOutput.output\n      .replace(/```json\\n?/g, '')\n      .replace(/```\\n?/g, '')\n      .trim();\n    analysisData = JSON.parse(cleanOutput);\n  } else if (aiOutput.output && typeof aiOutput.output === 'object') {\n    analysisData = aiOutput.output;\n  } else if (aiOutput.analysis_result) {\n    analysisData = aiOutput;\n  } else {\n    throw new Error('Format de sortie non reconnu');\n  }\n} catch (e) {\n  // Fallback si parsing echoue\n  analysisData = {\n    analysis_result: {\n      global_status: 'waiting_for_data',\n      global_tone: 'neutral',\n      insights: [{ type: 'warning', message: 'Erreur de parsing de la reponse IA', action: 'Reessayez' }],\n      kpi_evaluations: {},\n      sparklines: {}\n    },\n    chat_message: {\n      content: aiOutput.output || 'Une erreur s\\'est produite lors de l\\'analyse.',\n      follow_up_questions: ['Pouvez-vous reformuler votre question?']\n    },\n    context: { data_status: 'ERROR', analysis_type: 'error' }\n  };\n}\n\nconst result = analysisData.analysis_result || {};\nconst chatMsg = analysisData.chat_message || {};\nconst ctx = analysisData.context || {};\n\n// ─────────────────────────────────────────────────────────────────────────\n// BUILD UI COMPONENTS (seulement si donnees disponibles)\n// ─────────────────────────────────────────────────────────────────────────\n\nconst uiComponents = [];\n\nif (result.global_status !== 'waiting_for_data' && result.global_status !== 'theoretical_response') {\n  const kpis = result.kpi_evaluations || {};\n  const sparklines = result.sparklines || {};\n  \n  // KPI Cards\n  if (kpis.roas) {\n    uiComponents.push({\n      type: 'KPI_CARD',\n      data: {\n        title: 'ROAS',\n        value: kpis.roas.value,\n        formatted_value: `${kpis.roas.value}x`,\n        unit: 'x',\n        trend: kpis.roas.change_pct ? {\n          direction: kpis.roas.change_pct > 0 ? 'up' : 'down',\n          value: Math.abs(kpis.roas.change_pct),\n          period: 'vs 7j',\n          is_positive: kpis.roas.change_pct > 0\n        } : null,\n        sparkline: sparklines.roas || null,\n        status: kpis.roas.status || 'neutral'\n      },\n      layout: { width: 'quarter', order: 1 }\n    });\n  }\n  \n  if (kpis.revenue) {\n    uiComponents.push({\n      type: 'KPI_CARD',\n      data: {\n        title: 'Revenue',\n        value: kpis.revenue.value,\n        formatted_value: `${kpis.revenue.value.toLocaleString('fr-FR')} EUR`,\n        unit: 'EUR',\n        trend: kpis.revenue.change_pct ? {\n          direction: kpis.revenue.change_pct > 0 ? 'up' : 'down',\n          value: Math.abs(kpis.revenue.change_pct),\n          period: 'vs 7j',\n          is_positive: kpis.revenue.change_pct > 0\n        } : null,\n        sparkline: sparklines.revenue || null,\n        status: kpis.revenue.status || 'neutral'\n      },\n      layout: { width: 'quarter', order: 2 }\n    });\n  }\n  \n  if (kpis.net_profit) {\n    uiComponents.push({\n      type: 'KPI_CARD',\n      data: {\n        title: 'Profit Net',\n        value: kpis.net_profit.value,\n        formatted_value: `${kpis.net_profit.value.toLocaleString('fr-FR')} EUR`,\n        unit: 'EUR',\n        trend: null,\n        sparkline: null,\n        status: kpis.net_profit.status || 'neutral'\n      },\n      layout: { width: 'quarter', order: 3 }\n    });\n  }\n  \n  if (kpis.cpa) {\n    uiComponents.push({\n      type: 'KPI_CARD',\n      data: {\n        title: 'CPA',\n        value: kpis.cpa.value,\n        formatted_value: `${kpis.cpa.value.toLocaleString('fr-FR')} EUR`,\n        unit: 'EUR',\n        trend: kpis.cpa.change_pct ? {\n          direction: kpis.cpa.change_pct > 0 ? 'up' : 'down',\n          value: Math.abs(kpis.cpa.change_pct),\n          period: 'vs 7j',\n          is_positive: kpis.cpa.change_pct < 0 // CPA: moins = mieux\n        } : null,\n        sparkline: null,\n        status: kpis.cpa.status || 'neutral'\n      },\n      layout: { width: 'quarter', order: 4 }\n    });\n  }\n  \n  // Charts si sparklines disponibles\n  if (sparklines.revenue && sparklines.revenue.length > 0) {\n    uiComponents.push({\n      type: 'CHART_WIDGET',\n      data: {\n        title: 'Revenue Trend (7 derniers jours)',\n        chart_type: 'area',\n        data: {\n          labels: ['J-6', 'J-5', 'J-4', 'J-3', 'J-2', 'J-1', 'Aujourd\\'hui'],\n          datasets: [{ label: 'Revenue', data: sparklines.revenue, color: '#10B981' }]\n        },\n        options: { show_legend: true, show_grid: true, stacked: false }\n      },\n      layout: { width: 'half', order: 5 }\n    });\n  }\n}\n\n// Action buttons (toujours present)\nuiComponents.push({\n  type: 'ACTION_BUTTONS',\n  data: {\n    layout: 'horizontal',\n    actions: result.global_status === 'waiting_for_data' ? [\n      { id: 'connect_ga4', label: 'Connecter GA4', icon: 'link', action_type: 'navigate', variant: 'primary', payload: { view: 'integrations' } },\n      { id: 'manual_input', label: 'Entrer manuellement', icon: 'edit', action_type: 'navigate', variant: 'secondary', payload: { view: 'manual_data' } }\n    ] : [\n      { id: 'drill_down', label: 'Detail par campagne', icon: 'table', action_type: 'navigate', variant: 'secondary', payload: { view: 'campaign_breakdown' } },\n      { id: 'export', label: 'Exporter rapport', icon: 'download', action_type: 'download', variant: 'secondary', payload: { format: 'pdf' } }\n    ]\n  },\n  layout: { width: 'full', order: 10 }\n});\n\n// ─────────────────────────────────────────────────────────────────────────\n// FINAL RESPONSE\n// ─────────────────────────────────────────────────────────────────────────\n\nconst uiResponse = {\n  thought_process: {\n    step: 'Data Analysis Complete',\n    reasoning: `Status: ${result.global_status}. ${result.insights?.length || 0} insights generes.`,\n    tools_used: ['ga4_fetcher', 'gsc_fetcher', 'ai_analyst', 'vision_ai', 'check_integrations'],\n    data_sources: ctx.data_status === 'DATA_AVAILABLE' ? ['Google Analytics 4', 'Google Search Console'] : [],\n    confidence: result.global_status === 'waiting_for_data' ? 1.0 : 0.9,\n    persona_context: 'analyst_v5'\n  },\n  \n  chat_message: {\n    content: chatMsg.content || 'Analyse terminee.',\n    tone: result.global_tone || 'neutral',\n    follow_up_questions: chatMsg.follow_up_questions || []\n  },\n  \n  ui_components: uiComponents,\n  \n  meta: {\n    agent_id: 'analyst',\n    agent_version: 'v5.1-vision',\n    timestamp: new Date().toISOString(),\n    request_id: `req_analyst_${Date.now()}`,\n    data_status: ctx.data_status,\n    analysis_type: ctx.analysis_type\n  }\n};\n\nreturn [{ json: uiResponse }];"
+      },
+      "id": "format-ui-response",
+      "name": "Format UI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1650, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "webhook-response",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1870, 400]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Load Brand Memory",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Load Strategy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Load Brand Memory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Brand Memory": {
+      "main": [
+        [
+          {
+            "node": "Merge Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Strategy": {
+      "main": [
+        [
+          {
+            "node": "Merge Context",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Context": {
+      "main": [
+        [
+          {
+            "node": "Prepare Analyst Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Analyst Context": {
+      "main": [
+        [
+          {
+            "node": "Data Fetcher (GA4 + GSC)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Data Fetcher (GA4 + GSC)": {
+      "main": [
+        [
+          {
+            "node": "Has Image?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool: Check Integrations": {
+      "ai_tool": [
+        [
+          {
+            "node": "Analyst Brain",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Image?": {
+      "main": [
+        [
+          {
+            "node": "Vision_AI",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Vision_AI": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Crafting",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crafting": {
+      "main": [
+        [
+          {
+            "node": "Analyst Brain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyst Brain": {
+      "main": [
+        [
+          {
+            "node": "Format UI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Analyst Brain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format UI Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "the-hive",
+      "id": "tag-hive-v5"
+    },
+    {
+      "name": "analyst",
+      "id": "tag-analyst"
+    },
+    {
+      "name": "v5-bio-brain",
+      "id": "tag-v5"
+    }
+  ],
+  "pinData": {},
+  "versionId": "5.2.0",
+  "meta": {
+    "instanceId": "the-hive-vps",
+    "templateCredsSetupCompleted": true
+  }
+}

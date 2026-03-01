@@ -1,0 +1,355 @@
+{
+  "name": "Runway Gen-3 Alpha Tool - Video Generation",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "execute-trigger",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// RUNWAY GEN-3 - REQUEST BUILDER\n// Prepare le payload pour l'API Runway Gen-3 Alpha\n// URL CORRECTE: https://api.dev.runwayml.com/v1/image_to_video\n// ============================================================================\n\nconst input = $input.first().json;\n\n// Parametres d'entree\nconst mode = input.mode || 'text_to_video';\nconst promptText = input.prompt_text || input.prompt || 'Smooth camera movement, cinematic lighting';\nconst imageBase64 = input.image_base64 || null;\nconst imageUrl = input.image_url || null;\nconst duration = Math.min(input.duration || 5, 10); // 5 ou 10 seconds\nconst ratio = input.ratio || '16:9'; // 16:9, 9:16, ou 1:1\n\n// Construire le body selon le mode\nlet requestBody = {};\nlet endpoint = '';\n\nif (mode === 'image_to_video' && (imageBase64 || imageUrl)) {\n  // Mode Image-to-Video\n  endpoint = 'image_to_video';\n  \n  // Determiner le format de l'image\n  let promptImage = '';\n  if (imageUrl) {\n    promptImage = imageUrl;\n  } else if (imageBase64) {\n    promptImage = imageBase64.startsWith('data:') ? imageBase64 : `data:image/png;base64,${imageBase64}`;\n  }\n  \n  requestBody = {\n    model: 'gen3a_turbo',\n    promptImage: promptImage,\n    promptText: promptText,\n    duration: duration,\n    ratio: ratio,\n    watermark: false\n  };\n} else {\n  // Mode Text-to-Video (Gen-3a Turbo supporte text_to_video aussi)\n  endpoint = 'image_to_video';\n  \n  // Pour text-to-video, on utilise le meme endpoint mais sans promptImage\n  // Note: Gen-3a_turbo peut accepter text seul dans certains cas\n  requestBody = {\n    model: 'gen3a_turbo',\n    promptText: promptText,\n    duration: duration,\n    ratio: ratio,\n    watermark: false\n  };\n}\n\nreturn [{\n  json: {\n    request_body: requestBody,\n    endpoint: endpoint,\n    mode: mode,\n    original_prompt: promptText,\n    has_image: !!(imageBase64 || imageUrl),\n    duration: duration,\n    ratio: ratio\n  }\n}];"
+      },
+      "id": "request-builder",
+      "name": "Build Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [320, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.dev.runwayml.com/v1/{{ $json.endpoint }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Runway-Version",
+              "value": "2024-11-06"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.request_body) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "http-runway-create",
+      "name": "Runway API - Create Task",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [540, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "runway-api-key",
+          "name": "Runway API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// RUNWAY GEN-3 - TASK ID EXTRACTOR\n// Extrait le task_id de la reponse et prepare le polling\n// ============================================================================\n\nconst response = $input.first().json;\nconst buildData = $('Build Request').item.json;\n\n// Extraire le task_id (Runway retourne 'id' directement)\nlet taskId = response.id || null;\nlet status = response.status || 'PENDING';\n\nif (!taskId) {\n  // Essayer d'autres formats possibles\n  taskId = response.task_id || response.taskId || response.data?.id;\n}\n\nif (!taskId) {\n  throw new Error('No task_id received from Runway API. Response: ' + JSON.stringify(response));\n}\n\nreturn [{\n  json: {\n    task_id: taskId,\n    initial_status: status,\n    mode: buildData.mode,\n    original_prompt: buildData.original_prompt,\n    duration: buildData.duration,\n    ratio: buildData.ratio,\n    poll_count: 0,\n    max_polls: 60 // 60 polls x 5s = 5 minutes max\n  }\n}];"
+      },
+      "id": "extract-task-id",
+      "name": "Extract Task ID",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [760, 300]
+    },
+    {
+      "parameters": {
+        "amount": 5,
+        "unit": "seconds"
+      },
+      "id": "wait-polling",
+      "name": "Wait 5s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [980, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.dev.runwayml.com/v1/tasks/{{ $json.task_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Runway-Version",
+              "value": "2024-11-06"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "http-runway-poll",
+      "name": "Runway API - Poll Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "runway-api-key",
+          "name": "Runway API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// RUNWAY GEN-3 - STATUS CHECKER\n// Verifie le statut et decide si on continue le polling\n// Statuts possibles: PENDING, RUNNING, SUCCEEDED, FAILED, CANCELLED\n// ============================================================================\n\nconst pollResponse = $input.first().json;\nconst previousData = $('Wait 5s').item.json;\n\n// Extraire le statut\nlet status = pollResponse.status || 'PENDING';\nlet videoUrl = null;\nlet error = null;\nlet progress = pollResponse.progress || 0;\n\n// Extraire l'URL de la video si terminee\nif (pollResponse.output && Array.isArray(pollResponse.output) && pollResponse.output.length > 0) {\n  videoUrl = pollResponse.output[0];\n} else if (pollResponse.outputUrl) {\n  videoUrl = pollResponse.outputUrl;\n} else if (pollResponse.artifacts && pollResponse.artifacts[0]) {\n  videoUrl = pollResponse.artifacts[0].url;\n}\n\n// Extraire l'erreur si echec\nif (pollResponse.failure || pollResponse.error) {\n  error = pollResponse.failure || pollResponse.error;\n}\n\nconst pollCount = (previousData.poll_count || 0) + 1;\nconst maxPolls = previousData.max_polls || 60;\n\n// Determiner si on doit continuer\nconst isComplete = status === 'SUCCEEDED' || status === 'COMPLETED';\nconst isFailed = status === 'FAILED' || status === 'CANCELLED' || pollCount >= maxPolls;\nconst shouldContinue = !isComplete && !isFailed;\n\nreturn [{\n  json: {\n    task_id: previousData.task_id,\n    status: status,\n    progress: progress,\n    video_url: videoUrl,\n    error: error,\n    is_complete: isComplete,\n    is_failed: isFailed,\n    should_continue: shouldContinue,\n    poll_count: pollCount,\n    max_polls: maxPolls,\n    mode: previousData.mode,\n    original_prompt: previousData.original_prompt,\n    duration: previousData.duration,\n    ratio: previousData.ratio\n  }\n}];"
+      },
+      "id": "check-status",
+      "name": "Check Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1420, 300]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.is_complete }}",
+                    "rightValue": true,
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "complete"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.should_continue }}",
+                    "rightValue": true,
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "continue"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.is_failed }}",
+                    "rightValue": true,
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "failed"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "status-router",
+      "name": "Status Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [1640, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// RUNWAY GEN-3 - SUCCESS OUTPUT\n// Structure la reponse finale pour l'Agent Principal\n// ============================================================================\n\nconst data = $input.first().json;\n\nreturn [{\n  json: {\n    success: true,\n    tool: 'runway_gen3',\n    video: {\n      url: data.video_url,\n      task_id: data.task_id,\n      duration: data.duration,\n      ratio: data.ratio,\n      mode: data.mode,\n      prompt_used: data.original_prompt,\n      status: 'SUCCEEDED',\n      model: 'gen3a_turbo',\n      polls_taken: data.poll_count\n    },\n    generated_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "success-output",
+      "name": "Success Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1900, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// RUNWAY GEN-3 - FAILURE OUTPUT\n// Retourne une erreur structuree\n// ============================================================================\n\nconst data = $input.first().json;\n\nreturn [{\n  json: {\n    success: false,\n    tool: 'runway_gen3',\n    error: {\n      message: data.error || 'Video generation failed or timed out',\n      status: data.status,\n      task_id: data.task_id,\n      polls_taken: data.poll_count\n    },\n    video: null,\n    generated_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "failure-output",
+      "name": "Failure Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1900, 400]
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Build Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Request": {
+      "main": [
+        [
+          {
+            "node": "Runway API - Create Task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Runway API - Create Task": {
+      "main": [
+        [
+          {
+            "node": "Extract Task ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Task ID": {
+      "main": [
+        [
+          {
+            "node": "Wait 5s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 5s": {
+      "main": [
+        [
+          {
+            "node": "Runway API - Poll Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Runway API - Poll Status": {
+      "main": [
+        [
+          {
+            "node": "Check Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Status": {
+      "main": [
+        [
+          {
+            "node": "Status Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Status Router": {
+      "main": [
+        [
+          {
+            "node": "Success Output",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait 5s",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Failure Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "creative-v6",
+      "id": "tag-creative-v6"
+    },
+    {
+      "name": "tool",
+      "id": "tag-tool"
+    },
+    {
+      "name": "video-generation",
+      "id": "tag-video"
+    },
+    {
+      "name": "runway",
+      "id": "tag-runway"
+    }
+  ],
+  "pinData": {},
+  "versionId": "1.1.0",
+  "meta": {
+    "instanceId": "agency-killer-vps",
+    "templateCredsSetupCompleted": true
+  }
+}

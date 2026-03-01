@@ -1,0 +1,287 @@
+{
+  "name": "Milo - Creative Designer V3 (MCP-Connected)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "milo-creative",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [100, 400],
+      "webhookId": "milo-creative-v3"
+    },
+    {
+      "parameters": {},
+      "id": "execute-workflow-trigger",
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [100, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// LOAD BRAND MEMORY - Milo Creative V3\n// ============================================================================\n\nconst userInput = $('Webhook Trigger').item.json;\nconst projectId = userInput.body?.project_id || userInput.project_id || userInput.body?.shared_memory?.project_id;\n\n// En production: charger depuis Supabase\n// const { data } = await supabase.from('brand_memory').select('*').eq('project_id', projectId).single();\n\n// Mock data pour développement\nreturn [{\n  json: {\n    project_id: projectId,\n    brand_identity: {\n      brand_name: \"Agency Killer\",\n      industry: \"Marketing SaaS\",\n      tone_of_voice: \"Expert but accessible\",\n      target_audience: \"Marketing Directors, 35-50 years old, SMEs\"\n    },\n    visual_guidelines: {\n      primary_colors: [\"#FF6B6B\", \"#FFD93D\", \"#4ECDC4\"],\n      secondary_colors: [\"#1A1A2E\", \"#16213E\"],\n      style: \"Modern, Clean, Minimalist\",\n      mood: \"Professional yet friendly, innovative\",\n      font_primary: \"Inter, sans-serif\",\n      font_secondary: \"Poppins, sans-serif\"\n    },\n    content_guidelines: {\n      messaging: [\"AI-powered marketing automation\", \"Built for teams\", \"Simplify your workflow\"],\n      value_props: [\"Save 10h/week\", \"Increase ROAS by 2x\", \"All-in-one platform\"],\n      avoid: [\"Overly technical jargon\", \"Aggressive sales language\", \"Generic stock imagery\"]\n    },\n    logo_url: \"https://example.com/logo.png\",\n    existing_assets_count: 12\n  }\n}];"
+      },
+      "id": "load-brand-memory",
+      "name": "Load Brand Memory",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [320, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// LOAD CREATIVE STRATEGY - Milo Creative V3\n// ============================================================================\n\nconst userInput = $('Webhook Trigger').item.json;\nconst projectId = userInput.body?.project_id || userInput.project_id;\n\n// En production: charger depuis project_memory\n// const { data } = await supabase.from('project_memory').select('*').eq('project_id', projectId).order('created_at', { ascending: false }).limit(10);\n\n// Mock data pour développement\nreturn [{\n  json: {\n    project_id: projectId,\n    recent_work: [\n      {\n        agent: \"luna\",\n        action: \"STRATEGY_VALIDATED\",\n        summary: \"SEO strategy defined. Target: 'marketing automation' keywords.\",\n        recommendations: [\"Use professional tone\", \"Focus on ROI benefits\", \"Highlight time savings\"]\n      }\n    ],\n    campaign_context: {\n      platform: \"meta_ads\",\n      objective: \"conversions\",\n      audience: \"Marketing Directors\",\n      budget_daily: 150,\n      launch_date: \"2026-02-15\"\n    },\n    creative_specs: {\n      image_formats: [\"1080x1080\", \"1200x628\"],\n      video_formats: [\"16:9\", \"9:16\"],\n      required_assets: 3,\n      variations_needed: [\"Hero\", \"Features\", \"CTA\"]\n    }\n  }\n}];"
+      },
+      "id": "load-strategy",
+      "name": "Load Creative Strategy",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [320, 500]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "id": "merge-context",
+      "name": "Merge Context",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [540, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// PREPARE CREATIVE CONTEXT - Merge all inputs for Milo\n// ============================================================================\n\nconst brandMemory = $('Load Brand Memory').item.json;\nconst strategy = $('Load Creative Strategy').item.json;\nconst userInput = $('Webhook Trigger').item.json;\n\nconst taskContext = userInput.body || userInput;\n\nreturn [{\n  json: {\n    task_context: {\n      task_id: taskContext.task_id,\n      task_title: taskContext.task_title || \"Creative Generation\",\n      task_description: taskContext.task_description || \"\",\n      user_inputs: taskContext.user_inputs || {},\n      project_id: taskContext.project_id || taskContext.shared_memory?.project_id\n    },\n    brand: brandMemory,\n    strategy: strategy,\n    creative_request: {\n      message: taskContext.message || taskContext.chatInput || \"Generate creative assets for the campaign\",\n      session_id: taskContext.session_id || `session_${Date.now()}`,\n      timestamp: new Date().toISOString()\n    }\n  }\n}];"
+      },
+      "id": "prepare-creative-context",
+      "name": "Prepare Creative Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [760, 400]
+    },
+    {
+      "parameters": {
+        "agent": "conversationalAgent",
+        "promptType": "define",
+        "text": "=## CREATIVE TASK:\n{{ JSON.stringify($json.task_context) }}\n\n## BRAND GUIDELINES:\n{{ JSON.stringify($json.brand) }}\n\n## STRATEGY CONTEXT:\n{{ JSON.stringify($json.strategy) }}\n\n## USER REQUEST:\n{{ $json.creative_request.message }}\n\nCréer les assets créatifs selon les spécifications ci-dessus.",
+        "options": {
+          "systemMessage": "# MILO - CREATIVE DESIGNER\n\n## Your Identity\nYou are **Milo**, the creative powerhouse of The Hive OS. You specialize in generating high-quality visual, video, and audio content for marketing campaigns using cutting-edge AI tools.\n\n## Core Capabilities\n\nYou have access to 3 powerful MCP tools:\n\n### 1. **Nano Banana Pro** (4K Image Generation)\n**Tool Name:** `nano_banana_pro`\n**Model:** Google's Gemini 3 Pro\n**Capabilities:**\n- 4K image generation (up to 4096x4096)\n- 10 style presets: photorealistic, digital_art, cinematic, anime, abstract, minimalist, vintage, cyberpunk, fantasy, professional_photo\n- 4 quality levels: standard, high, ultra, professional\n- Guidance scale (1-30) and creativity control (0-100)\n- Prompt enhancement via Gemini 3 Pro\n- Negative prompts for refinement\n- Seed control for reproducibility\n\n**When to use:**\n- Product photos\n- Social media posts (static images)\n- Banner ads\n- Landing page visuals\n- Brand assets\n\n**Best practices:**\n- Be specific: \"Professional product photo of a smartphone on a marble surface with soft natural lighting, shallow depth of field, 4K, ultra-realistic\"\n- Use negative prompts: \"blurry, low quality, watermark, text, logo\"\n- Match brand style from brand_memory\n- Use \"professional\" quality for finals, \"high\" for iterations\n\n---\n\n### 2. **Veo-3** (Video Generation)\n**Tool Name:** `veo3`\n**Model:** Google's Veo-3\n**Capabilities:**\n- Text-to-video (4s or 8s duration)\n- Resolutions: 720p, 1080p\n- FPS: 24, 30, 60\n- 4 styles: cinematic, animation, realistic, artistic\n- 5 camera motions: static, pan, zoom, tracking, dynamic\n- Aspect ratios: 16:9, 9:16, 1:1\n- Video extensions (2s-8s)\n- Image-to-video animation\n- Frame interpolation (up to 120fps)\n\n**When to use:**\n- Social media video ads (Reels, TikTok, Stories)\n- Product demos\n- Brand storytelling\n- Explainer videos\n\n**Best practices:**\n- Describe actions: \"Camera slowly pans across modern office, people collaborating, bright natural lighting\"\n- Specify camera work: \"Tracking shot following a person walking through...\"\n- Set the mood: \"cinematic, warm tones, inspirational feel\"\n- 8s recommended for ads, 4s for quick social content\n\n---\n\n### 3. **ElevenLabs** (Voice & Audio)\n**Tool Name:** `elevenlabs`\n**API:** ElevenLabs API\n**Capabilities:**\n- Text-to-speech in 29 languages\n- 3 models: monolingual_v1, multilingual_v2, turbo_v2\n- Voice controls: stability (0-1), similarity_boost (0-1), style\n- Voice cloning from audio samples\n- Sound effects generation (0.5-22s)\n\n**When to use:**\n- Voiceovers for video ads\n- Podcast intros/outros\n- Audio branding\n- Sound effects for videos\n\n**Best practices:**\n- Professional content: High stability (0.7-0.8)\n- Casual content: Lower stability (0.4-0.5) for variation\n- Use multilingual_v2 model (most versatile)\n- Use turbo_v2 for fast turnaround\n\n---\n\n## Workflow\n\n### Step 1: Understand Requirements\n1. Read task description and user inputs\n2. Check brand_memory for visual guidelines, colors, tone\n3. Check strategy for campaign context, audience, platform\n4. Identify what needs to be created (images, videos, voice)\n\n### Step 2: Generate Content\n\n**For Images:**\n```json\n{\n  \"prompt\": \"Professional product photo, marble surface, soft lighting, 4K\",\n  \"resolution\": \"4096x4096\",\n  \"style\": \"professional_photo\",\n  \"quality\": \"professional\",\n  \"negative_prompt\": \"blurry, low quality, watermark\",\n  \"creativity\": 70\n}\n```\n\n**For Videos:**\n```json\n{\n  \"prompt\": \"Camera pans across modern office, people collaborating\",\n  \"duration\": 8,\n  \"resolution\": \"1080p\",\n  \"fps\": 30,\n  \"style\": \"cinematic\",\n  \"camera_motion\": \"pan\",\n  \"aspect_ratio\": \"16:9\"\n}\n```\n\n**For Voice:**\n```json\n{\n  \"text\": \"Welcome to our revolutionary new product\",\n  \"voice_id\": \"21m00Tcm4TlvDq8ikWAM\",\n  \"model\": \"multilingual_v2\",\n  \"stability\": 0.75,\n  \"similarity_boost\": 0.75\n}\n```\n\n### Step 3: Quality Check\n1. Verify brand guidelines match\n2. Ensure appropriate for target audience\n3. Check technical quality (no artifacts)\n4. Re-generate if needed with adjusted parameters\n\n### Step 4: Write Back\n\nUse write-back commands to save deliverables:\n\n**ADD_FILE:**\n```\nCOMMAND: ADD_FILE\nREASON: Generated 4K campaign hero image\nPAYLOAD: {\n  \"file_type\": \"image\",\n  \"file_name\": \"campaign-hero-4k.png\",\n  \"file_base64\": \"[base64_data]\",\n  \"metadata\": {\n    \"resolution\": \"4096x4096\",\n    \"model\": \"nano-banana-pro\",\n    \"style\": \"professional_photo\",\n    \"generated_at\": \"2026-02-10T...\"\n  }\n}\n```\n\n**MEMORY_WRITE:**\n```\nCOMMAND: MEMORY_WRITE\nREASON: Document creative decisions\nPAYLOAD: {\n  \"action\": \"VISUALS_CREATED\",\n  \"summary\": \"Created 3 campaign images with cinematic style\",\n  \"key_findings\": [\"Style: Cinematic\", \"Resolution: 4K\"],\n  \"deliverables\": [{\"type\": \"image\", \"title\": \"Hero Visual\", \"url\": \"...\"}],\n  \"recommendations\": [\"Maintain style for future assets\", \"Hero visual has strongest hook\"]\n}\n```\n\n**UPDATE_TASK_STATUS:**\n```\nCOMMAND: UPDATE_TASK_STATUS\nREASON: Completed image generation\nPAYLOAD: {\n  \"task_id\": \"[task_id]\",\n  \"status\": \"done\",\n  \"completion_notes\": \"Generated 3 images (4K, professional quality)\"\n}\n```\n\n## ZERO MOCK DATA Rule\n- NEVER invent image/video/audio data\n- ALWAYS use real MCP tool responses\n- If a tool fails, explain honestly\n- Don't describe what \"would\" be generated - actually generate it\n\n## Communication Style\n- Professional yet approachable\n- Explain creative choices clearly\n- Ask for feedback proactively\n- Celebrate great results\n\nYou are now ready to create stunning content! 🎨"
+        }
+      },
+      "id": "milo-brain",
+      "name": "Milo Brain",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [980, 400]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gemini-1.5-pro"
+        },
+        "options": {
+          "temperature": 0.7,
+          "maxOutputTokens": 8000
+        }
+      },
+      "id": "google-gemini-model",
+      "name": "Google Gemini Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [980, 600],
+      "credentials": {
+        "googleGeminiOAuth2Api": {
+          "id": "google-gemini-credentials",
+          "name": "Google Gemini OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "window-buffer-memory",
+      "name": "Window Buffer Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.2,
+      "position": [980, 700]
+    },
+    {
+      "parameters": {
+        "name": "nano_banana_pro",
+        "description": "Generate high-quality 4K images using Google's Nano Banana Pro (Gemini 3 Pro). Supports 10 style presets, prompt enhancement, and professional-grade output up to 4096x4096 resolution.",
+        "workflowId": "={{ $env.NANO_BANANA_PRO_WORKFLOW_ID }}",
+        "specifyInputSchema": true,
+        "jsonSchemaExample": "{\n  \"prompt\": \"Professional product photo of a smartphone on marble surface, soft natural lighting, shallow depth of field, 4K, ultra-realistic\",\n  \"resolution\": \"4096x4096\",\n  \"style\": \"professional_photo\",\n  \"quality\": \"professional\",\n  \"negative_prompt\": \"blurry, low quality, watermark, text, logo\",\n  \"creativity\": 70,\n  \"guidance_scale\": 7.5,\n  \"seed\": null\n}"
+      },
+      "id": "tool-nano-banana-pro",
+      "name": "Tool: Nano Banana Pro",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.1,
+      "position": [980, 100]
+    },
+    {
+      "parameters": {
+        "name": "veo3",
+        "description": "Generate videos using Google's Veo-3. Supports text-to-video (4s-8s), image-to-video, video extension, and frame interpolation up to 120fps. Resolutions: 720p, 1080p. Styles: cinematic, animation, realistic, artistic.",
+        "workflowId": "={{ $env.VEO3_WORKFLOW_ID }}",
+        "specifyInputSchema": true,
+        "jsonSchemaExample": "{\n  \"prompt\": \"Camera slowly pans across modern office space, people collaborating at desks, bright natural lighting streaming through windows, professional corporate style, warm tones\",\n  \"duration\": 8,\n  \"resolution\": \"1080p\",\n  \"fps\": 30,\n  \"style\": \"cinematic\",\n  \"camera_motion\": \"pan\",\n  \"aspect_ratio\": \"16:9\"\n}"
+      },
+      "id": "tool-veo3",
+      "name": "Tool: Veo-3",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.1,
+      "position": [980, 0]
+    },
+    {
+      "parameters": {
+        "name": "elevenlabs",
+        "description": "Generate speech and sound effects using ElevenLabs API. Supports 29 languages, voice cloning, and custom sound effects (0.5-22s). Models: monolingual_v1, multilingual_v2, turbo_v2.",
+        "workflowId": "={{ $env.ELEVENLABS_WORKFLOW_ID }}",
+        "specifyInputSchema": true,
+        "jsonSchemaExample": "{\n  \"text\": \"Welcome to our revolutionary new product that will transform your marketing workflow\",\n  \"voice_id\": \"21m00Tcm4TlvDq8ikWAM\",\n  \"model\": \"multilingual_v2\",\n  \"stability\": 0.75,\n  \"similarity_boost\": 0.75,\n  \"style\": 0.5,\n  \"use_speaker_boost\": true\n}"
+      },
+      "id": "tool-elevenlabs",
+      "name": "Tool: ElevenLabs",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 1.1,
+      "position": [980, -100]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// PARSE MILO RESPONSE & EXTRACT COMMANDS\n// ============================================================================\n\nconst miloOutput = $input.first().json;\nlet responseText = '';\n\nif (typeof miloOutput.output === 'string') {\n  responseText = miloOutput.output;\n} else if (miloOutput.output && typeof miloOutput.output === 'object') {\n  responseText = JSON.stringify(miloOutput.output);\n} else {\n  responseText = miloOutput.text || '';\n}\n\n// Extract COMMAND blocks\nconst commandPattern = /COMMAND:\\s*([A-Z_]+)[\\s\\S]*?REASON:\\s*([^\\n]+)[\\s\\S]*?PAYLOAD:\\s*(\\{[\\s\\S]*?\\})/g;\nconst commands = [];\n\nlet match;\nwhile ((match = commandPattern.exec(responseText)) !== null) {\n  const [_, command, reason, payloadStr] = match;\n  try {\n    const payload = JSON.parse(payloadStr);\n    commands.push({ command, reason, payload });\n  } catch (e) {\n    console.error('Failed to parse command payload:', e);\n  }\n}\n\nconst taskContext = $('Prepare Creative Context').item.json.task_context;\n\nreturn [{\n  json: {\n    agent_response: {\n      message: responseText.split('COMMAND:')[0].trim(),\n      agent_used: 'milo',\n      commands,\n      raw_response: responseText\n    },\n    task_context: taskContext\n  }\n}];"
+      },
+      "id": "parse-response",
+      "name": "Parse Response & Commands",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// EXECUTE WRITE-BACK COMMANDS TO SUPABASE\n// ============================================================================\n\nconst { commands } = $input.item.json.agent_response;\nconst { project_id, task_id } = $input.item.json.task_context;\n\n// TODO: Implémenter vrais appels Supabase\n// Pour l'instant, log les commandes\n\nfor (const cmd of commands) {\n  console.log(`Executing command: ${cmd.command}`);\n  console.log(`Reason: ${cmd.reason}`);\n  console.log(`Payload:`, cmd.payload);\n  \n  // En production:\n  // switch (cmd.command) {\n  //   case 'ADD_FILE':\n  //     await supabase.from('project_files').insert({ project_id, ...cmd.payload });\n  //     break;\n  //   case 'UPDATE_TASK_STATUS':\n  //     await supabase.from('tasks').update({ status: cmd.payload.status }).eq('id', cmd.payload.task_id);\n  //     break;\n  //   case 'MEMORY_WRITE':\n  //     await supabase.from('project_memory').insert({ project_id, agent_id: 'milo', ...cmd.payload });\n  //     break;\n  // }\n}\n\nreturn [{\n  json: {\n    success: true,\n    commands_executed: commands.length,\n    agent_response: $input.item.json.agent_response,\n    project_id,\n    task_id\n  }\n}];"
+      },
+      "id": "execute-writebacks",
+      "name": "Execute Write-Backs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1420, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "webhook-response",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1640, 400]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [[
+        { "node": "Load Brand Memory", "type": "main", "index": 0 },
+        { "node": "Load Creative Strategy", "type": "main", "index": 0 }
+      ]]
+    },
+    "When Executed by Another Workflow": {
+      "main": [[
+        { "node": "Load Brand Memory", "type": "main", "index": 0 }
+      ]]
+    },
+    "Load Brand Memory": {
+      "main": [[
+        { "node": "Merge Context", "type": "main", "index": 0 }
+      ]]
+    },
+    "Load Creative Strategy": {
+      "main": [[
+        { "node": "Merge Context", "type": "main", "index": 1 }
+      ]]
+    },
+    "Merge Context": {
+      "main": [[
+        { "node": "Prepare Creative Context", "type": "main", "index": 0 }
+      ]]
+    },
+    "Prepare Creative Context": {
+      "main": [[
+        { "node": "Milo Brain", "type": "main", "index": 0 }
+      ]]
+    },
+    "Milo Brain": {
+      "main": [[
+        { "node": "Parse Response & Commands", "type": "main", "index": 0 }
+      ]]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [[
+        { "node": "Milo Brain", "type": "ai_languageModel", "index": 0 }
+      ]]
+    },
+    "Window Buffer Memory": {
+      "ai_memory": [[
+        { "node": "Milo Brain", "type": "ai_memory", "index": 0 }
+      ]]
+    },
+    "Tool: Nano Banana Pro": {
+      "ai_tool": [[
+        { "node": "Milo Brain", "type": "ai_tool", "index": 0 }
+      ]]
+    },
+    "Tool: Veo-3": {
+      "ai_tool": [[
+        { "node": "Milo Brain", "type": "ai_tool", "index": 0 }
+      ]]
+    },
+    "Tool: ElevenLabs": {
+      "ai_tool": [[
+        { "node": "Milo Brain", "type": "ai_tool", "index": 0 }
+      ]]
+    },
+    "Parse Response & Commands": {
+      "main": [[
+        { "node": "Execute Write-Backs", "type": "main", "index": 0 }
+      ]]
+    },
+    "Execute Write-Backs": {
+      "main": [[
+        { "node": "Respond to Webhook", "type": "main", "index": 0 }
+      ]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    { "name": "the-hive", "id": "tag-hive" },
+    { "name": "milo", "id": "tag-milo" },
+    { "name": "creative", "id": "tag-creative" }
+  ],
+  "pinData": {},
+  "versionId": "3.0.0",
+  "meta": {
+    "instanceId": "the-hive-vps"
+  }
+}

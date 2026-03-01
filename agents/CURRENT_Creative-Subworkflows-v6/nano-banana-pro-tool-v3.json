@@ -1,0 +1,207 @@
+{
+  "name": "Nano Banana Pro Tool V3 - Gemini + imgbb",
+  "description": "Image generator using Gemini 2.0 Flash with imgbb hosting (replaces file.io)",
+  "version": "3.0.0",
+  "lastUpdated": "2025-01-23",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "execute-trigger",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// NANO BANANA PRO - PROMPT ENHANCER (V4)\n// Extraction robuste du prompt depuis diverses sources\n// ============================================================================\n\nconst input = $input.first().json;\n\n// Fonction pour extraire le prompt de manière robuste\nfunction extractPrompt(data) {\n    // 1. Format Creative V6: query.some_input\n    if (data.query && data.query.some_input) {\n        return data.query.some_input;\n    }\n    // 2. Direct fields\n    if (data.some_input) return data.some_input;\n    if (data.positive_prompt) return data.positive_prompt;\n    if (data.prompt) return data.prompt;\n    if (data.chatInput) return data.chatInput;\n    if (data.message) return data.message;\n    if (data.text) return data.text;\n    \n    // 3. Nested query fields\n    if (data.query) {\n        if (data.query.prompt) return data.query.prompt;\n        if (data.query.positive_prompt) return data.query.positive_prompt;\n        if (data.query.chatInput) return data.query.chatInput;\n    }\n    \n    return null;\n}\n\nconst userPrompt = extractPrompt(input) || 'Modern minimalist marketing visual';\nconst aspectRatio = input.aspect_ratio || input.query?.aspect_ratio || '1:1';\nconst style = input.style || input.query?.style || 'minimalist, tech, premium';\nconst brandColors = input.brand_colors || input.query?.brand_colors || '#000000, #FFFFFF, #FF00FF, #00FFFF';\n\n// Determiner la taille\nlet size = '1024x1024';\nif (aspectRatio === '9:16' || aspectRatio === '9/16') {\n  size = '1024x1792';\n} else if (aspectRatio === '16:9' || aspectRatio === '16/9') {\n  size = '1792x1024';\n}\n\n// Enrichir le prompt\nconst enhancedPrompt = `${userPrompt}\n\nSTYLE REQUIREMENTS:\n- Ultra high quality, 8K resolution\n- ${style}\n- Color palette: ${brandColors}\n- Dark background (black or deep slate)\n- Neon accents and glow effects\n- Clean composition with 30% negative space\n- Professional marketing aesthetic\n- NO text, NO watermarks, NO logos\n- Photorealistic lighting with dramatic shadows`;\n\nreturn [{\n  json: {\n    enhanced_prompt: enhancedPrompt,\n    original_prompt: userPrompt,\n    size: size,\n    aspect_ratio: aspectRatio,\n    style: style\n  }\n}];"
+      },
+      "id": "prompt-enhancer-v4",
+      "name": "Enhance Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [320, 300],
+      "notes": "V4: Extraction robuste via extractPrompt() - supporte query.some_input, chatInput, etc."
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "generate",
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.0-flash-exp-image-generation",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.0-flash-exp-image-generation"
+        },
+        "prompt": "={{ $json.enhanced_prompt }}",
+        "options": {
+          "numberOfImages": 1
+        }
+      },
+      "id": "gemini-generate-image",
+      "name": "Generate Image",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.5,
+      "position": [540, 300],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "google-gemini-credentials",
+          "name": "Google Gemini (PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.imgbb.com/1/upload",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "key",
+              "value": "={{ $credentials.imgbbApiKey }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "image",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "upload-to-imgbb",
+      "name": "Upload to imgbb",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [760, 300],
+      "notes": "imgbb.com API - replaces file.io. Query param: key (API key), Body: image (binary)"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// NANO BANANA PRO - OUTPUT FORMATTER (V3 - GEMINI + IMGBB)\n// Pour Gemini image generation avec upload imgbb\n// ============================================================================\n\nconst imgbbResponse = $input.first().json;\nlet enhancerData = {};\nlet imageUrl = null;\nlet uploadSuccess = false;\nlet errorMessage = '';\n\n// Recuperer les donnees du node Enhance Prompt\ntry {\n  enhancerData = $('Enhance Prompt').first().json;\n} catch (e) {\n  enhancerData = { enhanced_prompt: '', original_prompt: '', size: '1024x1024' };\n}\n\n// Extraire l'URL de imgbb\n// imgbb retourne: { success: true, data: { display_url: \"...\", url: \"...\" } }\ntry {\n    if (imgbbResponse && imgbbResponse.success === true && imgbbResponse.data) {\n        imageUrl = imgbbResponse.data.display_url || imgbbResponse.data.url;\n        uploadSuccess = true;\n    } else if (imgbbResponse && imgbbResponse.error) {\n        errorMessage = imgbbResponse.error.message || JSON.stringify(imgbbResponse.error);\n    }\n} catch (e) {\n    errorMessage = 'Erreur parsing imgbb: ' + e.message;\n}\n\nif (!imageUrl) {\n  return [{\n    json: {\n      success: false,\n      tool: 'nano_banana_pro',\n      error: errorMessage || 'Upload failed: ' + JSON.stringify(imgbbResponse),\n      image: null,\n      image_url: null,\n      generated_at: new Date().toISOString()\n    }\n  }];\n}\n\n// Structure de sortie pour l'Agent Principal\nreturn [{\n  json: {\n    success: true,\n    tool: 'nano_banana_pro',\n    image: {\n      url: imageUrl,\n      prompt_used: enhancerData.enhanced_prompt || '',\n      original_prompt: enhancerData.original_prompt || '',\n      size: enhancerData.size || '1024x1024',\n      aspect_ratio: enhancerData.aspect_ratio || '1:1',\n      style: enhancerData.style || 'minimalist, tech, premium',\n      model: 'gemini-2.0-flash-exp-image-generation',\n      quality: 'hd'\n    },\n    // IMPORTANT: image_url au niveau racine pour l'extraction frontend\n    image_url: imageUrl,\n    prompt_used: enhancerData.original_prompt || '',\n    provider: 'imgbb',\n    generated_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "format-output-v3",
+      "name": "Format Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [980, 300],
+      "notes": "V3: Parse imgbb response, extract display_url, add provider: 'imgbb'"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// ERROR HANDLER - Format error response\n// ============================================================================\n\nconst error = $input.first().json;\n\nreturn [{\n  json: {\n    success: false,\n    tool: 'nano_banana_pro',\n    error: {\n      message: error.message || 'Image generation failed',\n      details: JSON.stringify(error)\n    },\n    image: null,\n    image_url: null,\n    generated_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "error-handler",
+      "name": "Error Handler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [980, 500]
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Enhance Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enhance Prompt": {
+      "main": [
+        [
+          {
+            "node": "Generate Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Image": {
+      "main": [
+        [
+          {
+            "node": "Upload to imgbb",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to imgbb": {
+      "main": [
+        [
+          {
+            "node": "Format Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "creative-v6",
+      "id": "tag-creative-v6"
+    },
+    {
+      "name": "tool",
+      "id": "tag-tool"
+    },
+    {
+      "name": "image-generation",
+      "id": "tag-image"
+    },
+    {
+      "name": "gemini",
+      "id": "tag-gemini"
+    },
+    {
+      "name": "imgbb",
+      "id": "tag-imgbb"
+    }
+  ],
+  "pinData": {},
+  "versionId": "3.0.0",
+  "meta": {
+    "instanceId": "agency-killer-vps",
+    "templateCredsSetupCompleted": true
+  },
+  "changelog": {
+    "v3.0.0": {
+      "date": "2025-01-23",
+      "changes": [
+        "Migrated from file.io to imgbb.com for image hosting",
+        "Enhanced prompt extraction with extractPrompt() function",
+        "Support for query.some_input, chatInput, and other input formats",
+        "Added provider field in output (imgbb)",
+        "imgbb configuration: Query param 'key' + Form-Data 'image'"
+      ]
+    },
+    "v2.0.0": {
+      "date": "2025-01",
+      "changes": [
+        "Initial Gemini 2.0 Flash integration",
+        "file.io upload (deprecated)"
+      ]
+    }
+  }
+}

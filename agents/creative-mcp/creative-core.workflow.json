@@ -1,0 +1,197 @@
+{
+  "name": "Creative MCP V5 - Bio-Brain Production Studio",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "creative",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [100, 400],
+      "webhookId": "creative-v4-entry"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// LOAD BRAND MEMORY - Creative MCP V5 (Cloud Native)\n// ============================================================================\n\nreturn [{\n  json: {\n    brand_id: \"ak_v4_demo\",\n    brand_name: \"The Hive\",\n    \n    visual_identity: {\n      style: \"Minimalist, Tech, Neon Accents\",\n      mood: \"Bold, Futuristic, Premium\",\n      hex_colors: {\n        primary: \"#000000\",\n        secondary: \"#FFFFFF\",\n        accent_1: \"#FF00FF\",\n        accent_2: \"#00FFFF\",\n        accent_3: \"#FFD700\",\n        danger: \"#EF4444\",\n        success: \"#10B981\"\n      },\n      fonts: {\n        headings: \"Inter\",\n        body: \"Inter\",\n        display: \"Space Grotesk\"\n      },\n      design_rules: [\n        \"Fond sombre obligatoire (noir ou gradient)\",\n        \"Texte blanc ou neon sur fond sombre\",\n        \"Accent magenta pour les CTA\",\n        \"Max 3 elements visuels par image\",\n        \"Espace negatif min 30%\"\n      ]\n    },\n    \n    tone_of_voice: {\n      personality: \"Bold, Direct, Urgent\",\n      formality: \"vous\",\n      writing_style: {\n        sentence_length: \"court\",\n        power_words: true,\n        questions: true,\n        numbers: true\n      },\n      power_words: [\"Instant\", \"Garanti\", \"Exclusif\", \"Limite\", \"Maintenant\", \"Gratuit\", \"Prouve\", \"Secret\", \"Nouveau\", \"Decouvrez\", \"Enfin\", \"Stop\"],\n      banned_words: [\"pas cher\", \"discount\", \"promo\", \"soldes\", \"meilleur\", \"numero 1\", \"leader\", \"revolutionnaire\", \"magique\", \"miracle\", \"garanti 100%\", \"sans risque\"],\n      hook_templates: {\n        pain_point: \"Stop aux [pain_point]. Voici la solution.\",\n        stat: \"[Stat]% des [cible] font cette erreur.\",\n        question: \"Vous perdez [X] par mois a cause de [probleme]?\",\n        curiosity: \"Ce que personne ne vous dit sur [sujet].\"\n      }\n    },\n    \n    platform_specs: {\n      meta_feed: { aspect_ratio: \"1:1\", dimensions: \"1080x1080\", text_safe_zone: \"center\", max_text_ratio: 0.20 },\n      meta_story: { aspect_ratio: \"9:16\", dimensions: \"1080x1920\", text_safe_zone: \"center_middle\", max_text_ratio: 0.20 },\n      meta_reel: { aspect_ratio: \"9:16\", dimensions: \"1080x1920\", text_safe_zone: \"center\", max_text_ratio: 0.15 },\n      linkedin_feed: { aspect_ratio: \"1.91:1\", dimensions: \"1200x628\", text_safe_zone: \"right\", max_text_ratio: 0.25 },\n      google_display: { aspect_ratio: \"1.91:1\", dimensions: \"1200x628\", text_safe_zone: \"center\", max_text_ratio: 0.20 },\n      youtube_thumbnail: { aspect_ratio: \"16:9\", dimensions: \"1280x720\", text_safe_zone: \"left_center\", max_text_ratio: 0.30 }\n    },\n    \n    products: [\n      { id: \"hive_pro\", name: \"The Hive Pro\", price: \"99EUR/mois\", tagline: \"4 agents IA pour le prix d'un outil\" },\n      { id: \"hive_enterprise\", name: \"The Hive Enterprise\", price: \"Sur devis\", tagline: \"Solution sur-mesure pour grandes equipes\" }\n    ],\n    \n    creative_learnings: [\n      { insight: \"Visages humains +35% CTR\", confidence: 0.85 },\n      { insight: \"Chiffres dans titre +28% engagement\", confidence: 0.82 },\n      { insight: \"Questions directes +22% click\", confidence: 0.78 },\n      { insight: \"Fond sombre +18% attention\", confidence: 0.75 }\n    ]\n  }\n}];"
+      },
+      "id": "load-brand-memory",
+      "name": "Load Brand Memory",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [320, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// PREPARE CREATIVE CONTEXT - Detect mode (brainstorm vs production)\n// ============================================================================\n\nconst brandMemory = $('Load Brand Memory').item.json;\nconst userInput = $('Webhook Trigger').item.json;\n\nconst message = (userInput.body?.message || userInput.message || \"\").toLowerCase();\n\n// ─────────────────────────────────────────────────────────────────────────\n// DETECT MODE: Brainstorming vs Production vs Need Clarification\n// ─────────────────────────────────────────────────────────────────────────\nlet detectedMode = 'unknown';\nlet needsClarification = false;\n\n// Keywords for brainstorming\nconst brainstormKeywords = ['idee', 'idées', 'concept', 'brainstorm', 'propose', 'suggere', 'inspiration', 'angle', 'hook', 'accroche'];\n// Keywords for production\nconst productionKeywords = ['cree', 'crée', 'genere', 'génère', 'fais', 'produis', 'ecris', 'écris', 'redige', 'rédige', 'pub', 'publicite', 'publicité', 'ad', 'visuel', 'image'];\n\nif (brainstormKeywords.some(kw => message.includes(kw))) {\n  detectedMode = 'brainstorming';\n} else if (productionKeywords.some(kw => message.includes(kw))) {\n  detectedMode = 'production';\n} else if (message.length < 20) {\n  // Message trop court = besoin de clarification\n  needsClarification = true;\n  detectedMode = 'needs_clarification';\n} else {\n  // Default: essayer de produire\n  detectedMode = 'production';\n}\n\n// ─────────────────────────────────────────────────────────────────────────\n// DETECT PLATFORM\n// ─────────────────────────────────────────────────────────────────────────\nlet platform = 'meta_feed';\nif (message.includes('story') || message.includes('stories')) platform = 'meta_story';\nelse if (message.includes('reel')) platform = 'meta_reel';\nelse if (message.includes('linkedin')) platform = 'linkedin_feed';\nelse if (message.includes('google') || message.includes('display')) platform = 'google_display';\nelse if (message.includes('youtube') || message.includes('thumbnail')) platform = 'youtube_thumbnail';\n\n// ─────────────────────────────────────────────────────────────────────────\n// DETECT PRODUCT (if mentioned)\n// ─────────────────────────────────────────────────────────────────────────\nlet targetProduct = null;\nif (message.includes('pro') || message.includes('99')) {\n  targetProduct = brandMemory.products.find(p => p.id === 'hive_pro');\n} else if (message.includes('enterprise') || message.includes('entreprise')) {\n  targetProduct = brandMemory.products.find(p => p.id === 'hive_enterprise');\n}\n\nreturn [{\n  json: {\n    user_request: {\n      message: userInput.body?.message || userInput.message || \"Fais une pub\",\n      session_id: userInput.body?.session_id || `session_${Date.now()}`,\n      timestamp: new Date().toISOString()\n    },\n    detected_mode: detectedMode,\n    needs_clarification: needsClarification,\n    creative_params: {\n      platform: platform,\n      platform_specs: brandMemory.platform_specs[platform],\n      target_product: targetProduct\n    },\n    brand: brandMemory,\n    available_products: brandMemory.products\n  }\n}];"
+      },
+      "id": "prepare-creative-context",
+      "name": "Prepare Creative Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [540, 400]
+    },
+    {
+      "parameters": {
+        "agent": "conversationalAgent",
+        "promptType": "define",
+        "text": "=## CONTEXTE RECU:\n{{ JSON.stringify($json) }}\n\n## DEMANDE UTILISATEUR:\n{{ $json.user_request.message }}\n\n## MODE DETECTE:\n{{ $json.detected_mode }}\n\n## PRODUITS DISPONIBLES:\n{{ JSON.stringify($json.available_products) }}\n\n## EXECUTE TA MISSION DE DIRECTEUR CREATIF.",
+        "options": {
+          "systemMessage": "=# ROLE: DIRECTEUR ARTISTIQUE & COPYWRITER SENIOR\n\nTu es un Directeur Creatif avec 15 ans d'experience en publicite digitale. Tu maitrises parfaitement:\n- Le copywriting (hooks, headlines, body copy, CTAs)\n- La direction artistique (composition, couleurs, typographie)\n- Les specs plateformes (Meta, LinkedIn, Google, YouTube)\n- La psychologie publicitaire (triggers emotionnels, AIDA, PAS)\n\n## IDENTITE VISUELLE DE LA MARQUE\n\nTu travailles pour \"The Hive\", une plateforme IA pour marketeurs. Respecte TOUJOURS:\n- Fond SOMBRE (noir #000000 ou gradient sombre)\n- Texte BLANC (#FFFFFF) ou NEON (magenta #FF00FF, cyan #00FFFF)\n- CTA en OR (#FFD700) sur fond sombre\n- Style: Minimalist, Tech, Futuriste, Premium\n- Police: Space Grotesk pour les gros titres\n\n## LOGIQUE DE DECISION (3 CAS)\n\n### CAS A: MODE BRAINSTORMING\nL'utilisateur veut des IDEES (\"donne-moi des idees\", \"propose des concepts\", \"brainstorme\").\n- Genere 3-5 concepts creatifs differents\n- Chaque concept = Hook + Angle visuel + Emotion ciblee\n- NE PAS produire de pub finie, juste des PISTES\n- mode = \"brainstorming\"\n- final_ad = null\n\n### CAS B: MODE PRODUCTION\nL'utilisateur veut une PUB FINIE (\"cree une pub\", \"fais un visuel\", \"redige une pub\").\n- Redige le copy COMPLET (headline, subheadline, body, CTA)\n- Decris le VISUEL en detail pour le generateur d'images\n- Inclus le TEXTE A INCRUSTER dans l'image\n- mode = \"production\"\n- Remplis final_ad avec tous les champs\n\n### CAS C: BESOIN DE CLARIFICATION\nL'utilisateur dit \"fais une pub\" SANS preciser quoi.\n- NE PAS inventer un produit\n- Proposer les options disponibles\n- mode = \"needs_clarification\"\n- final_ad = null\n\n## FORMAT DE SORTIE (JSON STRICT)\n\n```json\n{\n  \"creative_result\": {\n    \"mode\": \"production\" | \"brainstorming\" | \"needs_clarification\",\n    \"final_ad\": {\n      \"platform\": \"meta_feed\" | \"meta_story\" | \"linkedin_feed\" | etc.,\n      \"headline\": \"Titre principal (court, impactant)\",\n      \"subheadline\": \"Sous-titre explicatif\",\n      \"body_text\": \"Texte de description (2-3 phrases max)\",\n      \"cta\": \"Texte du bouton CTA\",\n      \"embedded_text\": {\n        \"primary\": \"TEXTE PRINCIPAL A INCRUSTER DANS L'IMAGE (gros, lisible)\",\n        \"secondary\": \"Sous-texte dans l'image (optionnel)\"\n      },\n      \"visual_description\": \"Description detaillee du visuel pour le generateur d'images. Inclure: composition, couleurs, elements, ambiance, position du texte.\",\n      \"creative_angle\": \"Pain Point\" | \"Social Proof\" | \"Value Proposition\" | \"FOMO\" | \"Curiosity\",\n      \"rationale\": \"Explication de pourquoi cet angle fonctionne\"\n    },\n    \"recommendations\": [\n      {\n        \"id\": \"concept_1\",\n        \"hook\": \"L'accroche (premiere phrase qui capte l'attention)\",\n        \"angle\": \"L'angle creatif (Pain Point, FOMO, etc.)\",\n        \"visual_idea\": \"Description courte du visuel\",\n        \"emotion\": \"L'emotion ciblee (peur, curiosite, desir, etc.)\",\n        \"why_it_works\": \"Explication\"\n      }\n    ],\n    \"creative_score\": {\n      \"estimated_ctr\": 0.0,\n      \"brand_consistency\": 0.0,\n      \"emotional_impact\": 0.0,\n      \"platform_fit\": 0.0\n    }\n  },\n  \"clarification_question\": \"Question a poser si mode = needs_clarification\",\n  \"clarification_options\": [\"Option 1\", \"Option 2\"],\n  \"chat_message\": {\n    \"content\": \"Ton message pour l'utilisateur (markdown autorise)\",\n    \"follow_up_questions\": [\"Question 1?\", \"Question 2?\"]\n  },\n  \"context\": {\n    \"mode\": \"production\" | \"brainstorming\" | \"needs_clarification\",\n    \"platform\": \"meta_feed\" | etc.\n  }\n}\n```\n\n## EXEMPLES\n\n### Exemple CAS A (Brainstorming):\nUtilisateur: \"Donne-moi des idees de pub pour The Hive\"\n```json\n{\n  \"creative_result\": {\n    \"mode\": \"brainstorming\",\n    \"final_ad\": null,\n    \"recommendations\": [\n      {\n        \"id\": \"concept_1\",\n        \"hook\": \"Stop aux fees d'agence.\",\n        \"angle\": \"Pain Point\",\n        \"visual_idea\": \"Split screen: facture agence 5000EUR vs interface The Hive 99EUR\",\n        \"emotion\": \"Frustration puis soulagement\",\n        \"why_it_works\": \"Attaque directe sur le budget, comparaison choc\"\n      },\n      {\n        \"id\": \"concept_2\",\n        \"hook\": \"67% des PME passent a l'IA. Et vous?\",\n        \"angle\": \"FOMO\",\n        \"visual_idea\": \"Graphique montant avec icones d'entreprises, fleche vers le haut\",\n        \"emotion\": \"Peur de rater le train\",\n        \"why_it_works\": \"Statistique + question directe = double impact\"\n      },\n      {\n        \"id\": \"concept_3\",\n        \"hook\": \"4 experts IA. 99EUR/mois. Zero reunion.\",\n        \"angle\": \"Value Proposition\",\n        \"visual_idea\": \"4 avatars IA stylises (analyste, stratege, creatif, trader) sur fond noir\",\n        \"emotion\": \"Desir de simplicite\",\n        \"why_it_works\": \"Valeur concrete, prix choc, benefice clair\"\n      }\n    ],\n    \"creative_score\": null\n  },\n  \"clarification_question\": null,\n  \"chat_message\": {\n    \"content\": \"**3 CONCEPTS CREATIFS POUR THE HIVE**\\n\\n1. **Pain Point** - 'Stop aux fees d'agence'\\n2. **FOMO** - '67% des PME passent a l'IA'\\n3. **Value Prop** - '4 experts IA. 99EUR/mois'\\n\\nQuel concept vous parle le plus?\",\n    \"follow_up_questions\": [\"Developper le concept 1?\", \"Voir le concept 2 en version Story?\", \"Mixer plusieurs angles?\"]\n  },\n  \"context\": { \"mode\": \"brainstorming\", \"platform\": \"meta_feed\" }\n}\n```\n\n### Exemple CAS B (Production):\nUtilisateur: \"Cree une pub Instagram pour The Hive Pro\"\n```json\n{\n  \"creative_result\": {\n    \"mode\": \"production\",\n    \"final_ad\": {\n      \"platform\": \"meta_feed\",\n      \"headline\": \"Stop aux fees d'agence.\",\n      \"subheadline\": \"Votre marketing. 100% automatise.\",\n      \"body_text\": \"Vous payez 5000EUR/mois pour des resultats moyens? The Hive automatise votre marketing avec l'IA. 4 experts virtuels. Resultats en 24h.\",\n      \"cta\": \"Essai Gratuit\",\n      \"embedded_text\": {\n        \"primary\": \"99EUR/mois\",\n        \"secondary\": \"vs 5000EUR d'agence\"\n      },\n      \"visual_description\": \"Fond: gradient noir vers violet fonce (#000 -> #1a1a2e). Centre: le chiffre '99EUR/mois' en grand (police Space Grotesk, blanc #FFF, taille dominante). En dessous, plus petit: 'vs 5000EUR d'agence' en magenta #FF00FF. Bas de l'image: bouton CTA dore (#FFD700) avec texte 'Essai Gratuit'. Effet: leger glow neon autour du texte principal. Style: ultra minimaliste, beaucoup d'espace negatif, tech premium.\",\n      \"creative_angle\": \"Value Proposition\",\n      \"rationale\": \"La comparaison de prix 99 vs 5000 cree un choc immediat. Le visuel minimaliste laisse le prix parler.\"\n    },\n    \"recommendations\": [],\n    \"creative_score\": {\n      \"estimated_ctr\": 2.8,\n      \"brand_consistency\": 0.95,\n      \"emotional_impact\": 0.88,\n      \"platform_fit\": 0.92\n    }\n  },\n  \"chat_message\": {\n    \"content\": \"**PUB INSTAGRAM GENEREE**\\n\\n**Headline:** Stop aux fees d'agence.\\n**Texte dans l'image:** '99EUR/mois' (en grand)\\n**CTA:** Essai Gratuit\\n\\n**Visuel:** Fond noir gradient, texte blanc/magenta, bouton or.\\n\\nScore creatif: 92%\",\n    \"follow_up_questions\": [\"Generer des variantes?\", \"Adapter pour Story?\", \"Voir d'autres angles?\"]\n  },\n  \"context\": { \"mode\": \"production\", \"platform\": \"meta_feed\" }\n}\n```\n\n### Exemple CAS C (Clarification):\nUtilisateur: \"Fais une pub\"\n```json\n{\n  \"creative_result\": {\n    \"mode\": \"needs_clarification\",\n    \"final_ad\": null,\n    \"recommendations\": [],\n    \"creative_score\": null\n  },\n  \"clarification_question\": \"Je peux creer une pub pour vous! Sur quel produit?\",\n  \"clarification_options\": [\"The Hive Pro (99EUR/mois)\", \"The Hive Enterprise (sur devis)\", \"Autre (precisez)\"],\n  \"chat_message\": {\n    \"content\": \"**Je peux creer une pub pour vous!**\\n\\nPrecisez le produit:\\n- **The Hive Pro** (99EUR/mois) - Pour independants et PME\\n- **The Hive Enterprise** - Pour grandes equipes\\n\\nOu donnez-moi plus de contexte sur ce que vous voulez mettre en avant.\",\n    \"follow_up_questions\": [\"Pub pour The Hive Pro?\", \"Pub pour l'offre Enterprise?\", \"Brainstormer d'abord?\"]\n  },\n  \"context\": { \"mode\": \"needs_clarification\", \"platform\": \"meta_feed\" }\n}\n```\n\n## REGLES ABSOLUES\n- TOUJOURS respecter l'identite visuelle (fond sombre, texte clair, CTA or)\n- JAMAIS utiliser les mots interdits (pas cher, discount, miracle, etc.)\n- TOUJOURS inclure embedded_text si mode = production (texte a incruster)\n- JAMAIS inventer de prix ou de produits qui n'existent pas\n- TOUJOURS retourner du JSON valide, rien d'autre"
+        }
+      },
+      "id": "creative-brain",
+      "name": "Creative Brain",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [760, 400]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o"
+        },
+        "options": {
+          "temperature": 0.7
+        }
+      },
+      "id": "openai-model",
+      "name": "OpenAI Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [760, 600],
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-credentials",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================================\n// FORMAT UI RESPONSE - Creative MCP V5\n// ============================================================================\n\nconst aiOutput = $input.first().json;\nlet creativeData;\n\n// ─────────────────────────────────────────────────────────────────────────\n// PARSE AI OUTPUT\n// ─────────────────────────────────────────────────────────────────────────\ntry {\n  if (typeof aiOutput.output === 'string') {\n    let cleanOutput = aiOutput.output\n      .replace(/```json\\n?/g, '')\n      .replace(/```\\n?/g, '')\n      .trim();\n    creativeData = JSON.parse(cleanOutput);\n  } else if (aiOutput.output && typeof aiOutput.output === 'object') {\n    creativeData = aiOutput.output;\n  } else if (aiOutput.creative_result) {\n    creativeData = aiOutput;\n  } else {\n    throw new Error('Format de sortie non reconnu');\n  }\n} catch (e) {\n  creativeData = {\n    creative_result: {\n      mode: 'needs_clarification',\n      final_ad: null,\n      recommendations: [],\n      creative_score: null\n    },\n    chat_message: {\n      content: aiOutput.output || 'Erreur de generation creative.',\n      follow_up_questions: ['Pouvez-vous reformuler?']\n    },\n    context: { mode: 'error', platform: 'meta_feed' }\n  };\n}\n\nconst result = creativeData.creative_result || {};\nconst chatMsg = creativeData.chat_message || {};\nconst ctx = creativeData.context || {};\n\n// ─────────────────────────────────────────────────────────────────────────\n// BUILD UI COMPONENTS\n// ─────────────────────────────────────────────────────────────────────────\n\nconst uiComponents = [];\n\n// MODE PRODUCTION: Show Ad Preview\nif (result.mode === 'production' && result.final_ad) {\n  const ad = result.final_ad;\n  \n  uiComponents.push({\n    type: 'AD_PREVIEW',\n    data: {\n      platform: ad.platform || 'meta_feed',\n      format: ad.platform?.includes('story') ? 'story' : 'feed',\n      image_url: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1080&h=1080&fit=crop',\n      headline: ad.headline,\n      primary_text: ad.body_text,\n      description: ad.subheadline,\n      cta: (ad.cta || 'en_savoir_plus').toLowerCase().replace(/ /g, '_'),\n      destination_url: 'https://thehive.ai',\n      embedded_text: ad.embedded_text,\n      visual_description: ad.visual_description,\n      creative_rationale: ad.rationale,\n      trigger_used: ad.creative_angle?.toLowerCase(),\n      creative_score: result.creative_score?.brand_consistency || 0.9,\n      brand_safety_passed: true\n    },\n    layout: { width: 'half', order: 1 }\n  });\n  \n  // Creative Score Card\n  if (result.creative_score) {\n    uiComponents.push({\n      type: 'BRAND_VOICE_CHECK',\n      data: {\n        overall_score: (result.creative_score.brand_consistency + result.creative_score.emotional_impact + result.creative_score.platform_fit) / 3,\n        checks: [\n          { name: 'Coherence Marque', status: result.creative_score.brand_consistency > 0.8 ? 'pass' : 'warning', details: `${Math.round(result.creative_score.brand_consistency * 100)}%` },\n          { name: 'Impact Emotionnel', status: result.creative_score.emotional_impact > 0.7 ? 'pass' : 'warning', details: `${Math.round(result.creative_score.emotional_impact * 100)}%` },\n          { name: 'Fit Plateforme', status: result.creative_score.platform_fit > 0.8 ? 'pass' : 'warning', details: `${Math.round(result.creative_score.platform_fit * 100)}%` },\n          { name: 'CTR Estime', status: result.creative_score.estimated_ctr > 2 ? 'pass' : 'neutral', details: `${result.creative_score.estimated_ctr}%` }\n        ]\n      },\n      layout: { width: 'half', order: 2 }\n    });\n  }\n}\n\n// MODE BRAINSTORMING: Show Concept Cards\nif (result.mode === 'brainstorming' && result.recommendations?.length > 0) {\n  const concepts = result.recommendations.map((rec, idx) => ({\n    id: rec.id || `concept_${idx}`,\n    name: rec.angle || 'Concept',\n    badge: idx === 0 ? 'recommended' : 'alternative',\n    preview: {\n      headline: rec.hook,\n      primary_text: rec.why_it_works,\n      visual_idea: rec.visual_idea\n    },\n    emotion: rec.emotion,\n    rationale: rec.why_it_works\n  }));\n  \n  uiComponents.push({\n    type: 'BATTLE_CARD',\n    data: {\n      title: 'Concepts Creatifs',\n      test_hypothesis: 'Choisissez un angle a developper',\n      variants: concepts,\n      selection_prompt: 'Quel concept souhaitez-vous developper?',\n      agent_recommendation: {\n        recommended_variant_id: concepts[0]?.id,\n        reason: concepts[0]?.rationale,\n        confidence: 0.85\n      }\n    },\n    layout: { width: 'full', order: 1 }\n  });\n}\n\n// MODE CLARIFICATION: Show Options\nif (result.mode === 'needs_clarification') {\n  const options = creativeData.clarification_options || ['Option 1', 'Option 2'];\n  \n  uiComponents.push({\n    type: 'ACTION_BUTTONS',\n    data: {\n      layout: 'vertical',\n      actions: options.map((opt, idx) => ({\n        id: `option_${idx}`,\n        label: opt,\n        icon: 'arrow_right',\n        action_type: 'reply',\n        variant: idx === 0 ? 'primary' : 'secondary',\n        payload: { reply: opt }\n      }))\n    },\n    layout: { width: 'full', order: 1 }\n  });\n}\n\n// Action Buttons (toujours present sauf clarification)\nif (result.mode !== 'needs_clarification') {\n  const actions = result.mode === 'production' ? [\n    { id: 'approve', label: 'Approuver', icon: 'check', action_type: 'approve', variant: 'primary', payload: { action: 'approve' } },\n    { id: 'regenerate', label: 'Regenerer', icon: 'refresh', action_type: 'navigate', variant: 'secondary', payload: { action: 'regenerate' } },\n    { id: 'variants', label: 'Plus de variantes', icon: 'copy', action_type: 'navigate', variant: 'secondary', payload: { action: 'variants' } },\n    { id: 'download', label: 'Telecharger', icon: 'download', action_type: 'download', variant: 'ghost', payload: { format: 'zip' } }\n  ] : [\n    { id: 'develop_1', label: 'Developper Concept 1', icon: 'arrow_right', action_type: 'navigate', variant: 'primary', payload: { concept: 1 } },\n    { id: 'develop_2', label: 'Developper Concept 2', icon: 'arrow_right', action_type: 'navigate', variant: 'secondary', payload: { concept: 2 } },\n    { id: 'more_ideas', label: 'Plus d\\'idees', icon: 'lightbulb', action_type: 'navigate', variant: 'ghost', payload: { action: 'more' } }\n  ];\n  \n  uiComponents.push({\n    type: 'ACTION_BUTTONS',\n    data: { layout: 'horizontal', actions: actions },\n    layout: { width: 'full', order: 10 }\n  });\n}\n\n// ─────────────────────────────────────────────────────────────────────────\n// FINAL RESPONSE\n// ─────────────────────────────────────────────────────────────────────────\n\nconst uiResponse = {\n  thought_process: {\n    step: `Creative ${result.mode === 'production' ? 'Production' : result.mode === 'brainstorming' ? 'Brainstorming' : 'Clarification'} Complete`,\n    reasoning: `Mode: ${result.mode}. ${result.mode === 'production' ? 'Pub generee avec angle ' + result.final_ad?.creative_angle : result.mode === 'brainstorming' ? result.recommendations?.length + ' concepts proposes' : 'Clarification requise'}`,\n    tools_used: ['creative_brain_ai', 'brand_memory'],\n    data_sources: ['Brand Identity', 'Tone of Voice', 'Platform Specs'],\n    confidence: result.mode === 'production' ? 0.92 : 0.85,\n    persona_context: 'creative_v5'\n  },\n  \n  chat_message: {\n    content: chatMsg.content || 'Creative generee.',\n    tone: result.mode === 'production' ? 'positive' : 'neutral',\n    follow_up_questions: chatMsg.follow_up_questions || []\n  },\n  \n  ui_components: uiComponents,\n  \n  meta: {\n    agent_id: 'creative',\n    timestamp: new Date().toISOString(),\n    request_id: `req_creative_${Date.now()}`,\n    mode: result.mode,\n    platform: ctx.platform\n  }\n};\n\nreturn [{ json: uiResponse }];"
+      },
+      "id": "format-ui-response",
+      "name": "Format UI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [980, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "webhook-response",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1200, 400]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Load Brand Memory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Brand Memory": {
+      "main": [
+        [
+          {
+            "node": "Prepare Creative Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Creative Context": {
+      "main": [
+        [
+          {
+            "node": "Creative Brain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Creative Brain": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "OpenAI Model",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ],
+      "main": [
+        [
+          {
+            "node": "Format UI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format UI Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "agency-killer",
+      "id": "tag-ak-v4"
+    },
+    {
+      "name": "creative",
+      "id": "tag-creative"
+    },
+    {
+      "name": "v5-bio-brain",
+      "id": "tag-v5"
+    }
+  ],
+  "pinData": {},
+  "versionId": "5.0.0",
+  "meta": {
+    "instanceId": "agency-killer-vps",
+    "templateCredsSetupCompleted": true
+  }
+}
