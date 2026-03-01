@@ -188,6 +188,17 @@ export const mcpServers = {
       GOOGLE_ADS_CUSTOMER_ID: config.googleAds.customerId,
     },
   },
+  'web-intelligence': {
+    name: 'Web Intelligence & Browsing (ALL AGENTS)',
+    serverPath: path.join(config.mcpServersPath, 'web-intelligence-server'),
+    command: 'node',
+    args: ['dist/index.js'],
+    env: {
+      CLOUDINARY_CLOUD_NAME: config.cloudinary.cloudName,
+      CLOUDINARY_API_KEY: config.cloudinary.apiKey,
+      CLOUDINARY_API_SECRET: config.cloudinary.apiSecret,
+    },
+  },
 } as const;
 
 export type MCPServerName = keyof typeof mcpServers;
