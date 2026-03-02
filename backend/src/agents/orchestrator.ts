@@ -1,0 +1,341 @@
+/**
+ * Orchestrator - Agent Router & Coordinator
+ * Replaces PM + Orchestrator n8n workflows
+ * Routes user messages to appropriate specialist agents
+ */
+
+import { buildProjectContext } from '../shared/context-builder.js';
+import { buildMemoryContext } from '../shared/memory-injector.js';
+import { executeWriteBackCommands } from '../shared/write-back.processor.js';
+import { writeMemory } from '../services/memory.service.js';
+import type { ChatRequest, ChatResponse, AgentId } from '../types/api.types.js';
+
+// ─────────────────────────────────────────────────────────────────
+// Agent Routing Configuration
+// ─────────────────────────────────────────────────────────────────
+
+const ROUTING_KEYWORDS: Record<AgentId, string[]> = {
+  sora: [
+    // Analytics & Data
+    'performance',
+    'metrics',
+    'metriques',
+    'ROAS',
+    'roas',
+    'CPA',
+    'cpa',
+    'analytics',
+    'rapport',
+    'report',
+    'donnees',
+    'data',
+    'chiffres',
+    'KPI',
+    'kpi',
+    'conversion',
+    'taux',
+    'statistiques',
+    'stats',
+    'baisse',
+    'hausse',
+    'evolution',
+    'tendance performance',
+    'tracking',
+    'pixel',
+    'GA4',
+    'Google Analytics',
+    'GTM',
+    'Tag Manager',
+  ],
+
+  luna: [
+    // SEO & Strategy
+    'concurrent',
+    'competitor',
+    'SEO',
+    'seo',
+    'marche',
+    'market',
+    'tendance',
+    'trend',
+    'recherche',
+    'search',
+    'veille',
+    'watch',
+    'strategie',
+    'strategy',
+    'analyse concurrentielle',
+    'benchmark',
+    'positionnement',
+    'Google',
+    'ranking',
+    'classement',
+    'mots-cles',
+    'keywords',
+    'audit',
+    'backlinks',
+    'indexation',
+  ],
+
+  milo: [
+    // Creative & Content
+    'publicite',
+    'pub',
+    'ad',
+    'ads',
+    'creative',
+    'creatif',
+    'texte',
+    'copy',
+    'visuel',
+    'visual',
+    'image',
+    'video',
+    'headline',
+    'accroche',
+    'campagne publicitaire',
+    'Facebook',
+    'Instagram',
+    'banner',
+    'banniere',
+    'A/B',
+    'test',
+    'variante',
+    'crée',
+    'cree',
+    'génère',
+    'genere',
+    'fais',
+    'rédige',
+    'redige',
+    'écris',
+    'ecris',
+    'design',
+  ],
+
+  marcus: [
+    // Ads & Budget
+    'budget',
+    'encheres',
+    'bid',
+    'lancer',
+    'launch',
+    'deployer',
+    'deploy',
+    'campagne active',
+    'Meta Ads',
+    'Google Ads',
+    'optimiser',
+    'optimize',
+    'depense',
+    'spend',
+    'allocation',
+    'pause',
+    'activer',
+    'desactiver',
+    'scaling',
+    'scaler',
+    'cut',
+    'couper',
+    'augmenter',
+  ],
+};
+
+// ─────────────────────────────────────────────────────────────────
+// Main Orchestrator Function
+// ─────────────────────────────────────────────────────────────────
+
+/**
+ * Process chat request and route to appropriate agent
+ */
+export async function processChat(
+  request: ChatRequest,
+  _userId: string
+): Promise<ChatResponse> {
+  try {
+    console.log(`[Orchestrator] Processing chat for project ${request.project_id}`);
+    console.log(`[Orchestrator] Active agent: ${request.activeAgentId}`);
+    console.log(`[Orchestrator] Message: "${request.chatInput}"`);
+
+    // Step 1: Build project context
+    const projectContext = await buildProjectContext(request.project_id);
+
+    // Step 2: Detect intent and route to agent
+    const targetAgent = routeToAgent(request.chatInput, request.activeAgentId);
+    console.log(`[Orchestrator] Routing to agent: ${targetAgent}`);
+
+    // Step 3: Build memory context for target agent
+    const memoryContext = await buildMemoryContext(request.project_id, targetAgent);
+
+    // Step 4: Execute agent (placeholder - will be implemented in Phase 2.3)
+    // const agentResponse = await executeAgent(targetAgent, {
+    //   userMessage: request.chatInput,
+    //   projectContext,
+    //   memoryContext,
+    //   sessionId: request.session_id,
+    //   chatMode: request.chat_mode,
+    //   images: request.image ? [request.image] : undefined,
+    // });
+
+    // Temporary placeholder response
+    const agentResponse: ChatResponse = {
+      success: true,
+      agent: targetAgent,
+      message: `[${getAgentName(targetAgent)}] Je suis prêt à vous aider ! (Agent execution coming in Phase 2.3)
+
+**Contexte projet :**
+- Projet : ${projectContext.project_name}
+- Scope : ${projectContext.project_scope}
+
+**Mémoire collective :**
+${memoryContext.substring(0, 200)}...`,
+      ui_components: [],
+      write_back_commands: [],
+      session_id: request.session_id,
+      memory_contribution: {
+        action: 'orchestrator_routing',
+        summary: `Message routé vers ${getAgentName(targetAgent)}`,
+        key_findings: [`Intent détecté : ${detectIntent(request.chatInput)}`],
+        deliverables: [],
+        recommendations: [],
+      },
+    };
+
+    // Step 5: Write memory contribution
+    if (agentResponse.memory_contribution) {
+      await writeMemory(request.project_id, targetAgent, agentResponse.memory_contribution);
+      console.log(`[Orchestrator] Memory contribution written`);
+    }
+
+    // Step 6: Execute write-back commands
+    if (agentResponse.write_back_commands && agentResponse.write_back_commands.length > 0) {
+      const successCount = await executeWriteBackCommands(
+        agentResponse.write_back_commands,
+        request.project_id
+      );
+      console.log(`[Orchestrator] Executed ${successCount} write-back commands`);
+    }
+
+    return agentResponse;
+  } catch (error: any) {
+    console.error('[Orchestrator] Error processing chat:', error);
+    throw error;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Routing Logic
+// ─────────────────────────────────────────────────────────────────
+
+/**
+ * Route to appropriate agent based on message intent
+ */
+function routeToAgent(userMessage: string, activeAgentId: AgentId): AgentId {
+  // If user is already talking to a specific agent, continue with that agent
+  // unless they explicitly want to switch
+  const switchKeywords = ['autre', 'different', 'plutot', 'changer', 'switch'];
+  const wantsToSwitch = switchKeywords.some((kw) =>
+    userMessage.toLowerCase().includes(kw.toLowerCase())
+  );
+
+  if (activeAgentId && !wantsToSwitch) {
+    // Continue with active agent
+    return activeAgentId;
+  }
+
+  // Detect intent from keywords
+  const messageLower = userMessage.toLowerCase();
+
+  // Priority 1: Creative keywords (CRÉATION = TOUJOURS CREATIVE)
+  const creativeCreationKeywords = [
+    'crée',
+    'cree',
+    'génère',
+    'genere',
+    'fais une',
+    'fais un',
+    'rédige',
+    'redige',
+  ];
+  if (creativeCreationKeywords.some((kw) => messageLower.includes(kw))) {
+    return 'milo';
+  }
+
+  // Priority 2: Match keywords for each agent
+  let bestMatch: AgentId = 'luna'; // Default to Luna (strategy)
+  let maxMatches = 0;
+
+  for (const [agentId, keywords] of Object.entries(ROUTING_KEYWORDS)) {
+    const matches = keywords.filter((kw) => messageLower.includes(kw.toLowerCase())).length;
+
+    if (matches > maxMatches) {
+      maxMatches = matches;
+      bestMatch = agentId as AgentId;
+    }
+  }
+
+  return bestMatch;
+}
+
+/**
+ * Detect intent from user message (for logging)
+ */
+function detectIntent(userMessage: string): string {
+  const messageLower = userMessage.toLowerCase();
+
+  // Check for creation intent
+  if (
+    messageLower.includes('crée') ||
+    messageLower.includes('cree') ||
+    messageLower.includes('génère') ||
+    messageLower.includes('genere') ||
+    messageLower.includes('fais')
+  ) {
+    return 'création_contenu';
+  }
+
+  // Check for analysis intent
+  if (
+    messageLower.includes('analyse') ||
+    messageLower.includes('audit') ||
+    messageLower.includes('vérifie') ||
+    messageLower.includes('verifie')
+  ) {
+    return 'analyse';
+  }
+
+  // Check for data/metrics intent
+  if (
+    messageLower.includes('performance') ||
+    messageLower.includes('roas') ||
+    messageLower.includes('données') ||
+    messageLower.includes('chiffres')
+  ) {
+    return 'données_metrics';
+  }
+
+  // Check for campaign intent
+  if (
+    messageLower.includes('campagne') ||
+    messageLower.includes('lancer') ||
+    messageLower.includes('budget')
+  ) {
+    return 'gestion_campagne';
+  }
+
+  return 'discussion_generale';
+}
+
+/**
+ * Get friendly agent name
+ */
+function getAgentName(agentId: AgentId): string {
+  const names: Record<AgentId, string> = {
+    luna: 'Luna (Stratège SEO)',
+    sora: 'Sora (Data Analyst)',
+    marcus: 'Marcus (Expert Ads)',
+    milo: 'Milo (Directeur Créatif)',
+  };
+
+  return names[agentId] || agentId;
+}
