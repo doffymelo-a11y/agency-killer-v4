@@ -70,12 +70,8 @@ export interface AgentConfig {
   role: string;
   systemPromptTemplate: string; // Template with {{variables}}
   mcpTools: string[]; // List of MCP tool names this agent can use
-  color: {
-    primary: string;
-    light: string;
-    dark: string;
-  };
-  expertise: string[];
+  color: string; // Hex color for UI display
+  temperature: number; // Claude temperature (0.0-1.0)
 }
 
 // ─────────────────────────────────────────────────────────────────

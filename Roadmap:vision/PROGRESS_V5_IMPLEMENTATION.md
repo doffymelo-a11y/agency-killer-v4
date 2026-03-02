@@ -376,27 +376,146 @@ async function processChat(request: ChatRequest, userId: string): Promise<ChatRe
 
 ---
 
-### 🟡 Phase 2.3 — Porter les 4 Agents (Jours 19-25)
+### 🟢 Phase 2.3 — Porter les 4 Agents (Jours 19-25)
 
-**Statut :** En cours (prochaine étape)
+**Statut :** Luna complété, Sora/Marcus/Milo en attente
 **Date de démarrage :** 2026-03-01
+**Commit :** En préparation
 
 #### Objectif
 
 Porter les 4 agents de n8n vers TypeScript :
 
-**Ordre de migration :** Luna → Sora → Marcus → Milo (du plus simple au plus complexe)
+**Ordre de migration :** Luna ✅ → Sora → Marcus → Milo
 
-**Pattern commun par agent :**
+**Approche :**
+- Base execution class `agent-executor.ts` qui gère Claude API + MCP tools + response parsing
+- Configuration centralisée dans `agents.config.ts` avec system prompts et MCP tools
+- Orchestrator utilise executeAgent() pour exécuter n'importe quel agent
+
+#### Implémentation
+
+**Fichiers créés :**
+
+1. **`/backend/src/agents/agent-executor.ts`** (246 lignes)
+   - `executeAgent(context)` : Fonction principale d'exécution
+   - `buildSystemPrompt()` : Injection du contexte dans le template
+   - `buildMCPToolsDefinitions()` : Construction des tool definitions pour Claude
+   - `executeMCPToolCalls()` : Exécution des MCP tools via Bridge
+   - Tool use loop avec MAX_ITERATIONS=5 pour gérer les appels MCP en série
+
+2. **`/backend/src/config/agents.config.ts`**
+   - **Luna** : System prompt complet (14 fonctions SEO/Keyword, temperature 0.7)
+   - **Sora** : Placeholder (sera implémenté)
+   - **Marcus** : Placeholder (sera implémenté)
+   - **Milo** : Placeholder (sera implémenté)
+   - `getAgentConfig(agentId)` : Helper pour récupérer config
+
+**Pattern d'exécution agent :**
 ```typescript
-async function execute(context: AgentContext): Promise<AgentResponse> {
-  // 1. Construire system prompt avec contexte projet + mémoire
-  const systemPrompt = buildSystemPrompt(AGENT_CONFIG, context);
+async function executeAgent(context: AgentExecutionContext) {
+  // 1. Build system prompt avec injection contexte
+  const systemPrompt = buildSystemPrompt(context);
 
-  // 2. Appeler Claude avec message utilisateur
-  const llmResponse = await claude.chat(systemPrompt, context.userMessage, context.images);
+  // 2. Build MCP tools definitions pour Claude
+  const tools = buildMCPToolsDefinitions(context.agentConfig.mcpTools);
 
-  // 3. Si LLM demande outil MCP, l'exécuter via Bridge
+  // 3. Appeler Claude avec system prompt + messages + tools
+  let response = await chat({ systemPrompt, messages, tools });
+
+  // 4. Tool use loop (max 5 iterations)
+  while (response.stop_reason === 'tool_use') {
+    const toolCalls = response.content.filter(block => block.type === 'tool_use');
+    const toolResults = await executeMCPToolCalls(toolCalls);
+
+    // Re-call Claude avec tool results
+    response = await chat({ systemPrompt, messages, tools });
+  }
+
+  // 5. Parse final response
+  return parseAgentResponse(response, context.agentId);
+}
+```
+
+**Luna Agent Configuration :**
+
+```typescript
+{
+  id: 'luna',
+  name: 'Luna',
+  role: 'Stratège SEO',
+  systemPromptTemplate: LUNA_SYSTEM_PROMPT,
+  mcpTools: [
+    // SEO Audit (7 tools)
+    'seo-audit__seo_technical_audit',
+    'seo-audit__seo_semantic_audit',
+    'seo-audit__competitor_analysis',
+    'seo-audit__site_health_check',
+    'seo-audit__backlink_analysis',
+    'seo-audit__page_speed_insights',
+    'seo-audit__mobile_usability',
+    // Keyword Research (7 tools)
+    'keyword-research__keyword_research',
+    'keyword-research__related_questions',
+    'keyword-research__trending_keywords',
+    'keyword-research__keyword_gap_analysis',
+    'keyword-research__search_intent_analysis',
+    'keyword-research__competitor_keywords',
+    'keyword-research__keyword_difficulty',
+  ],
+  color: '#9333EA',
+  temperature: 0.7,
+}
+```
+
+**System Prompt Structure (Luna) :**
+- Identity: Rôle et expertise
+- Core Capabilities: Liste des 14 MCP tools avec descriptions
+- Project Context: Injection {{project_name}}, {{industry}}, {{kpis}}, etc.
+- Collective Memory: Injection {{memory_context}}
+- Workflow: Guide étape par étape pour exécuter des analyses
+- Best Practices: Priorités et approche stratégique
+- Communication Style: Ton et style de réponse
+
+**Modifications orchestrator :**
+
+```typescript
+// Step 4: Get agent configuration
+const agentConfig = getAgentConfig(targetAgent);
+
+// Step 5: Execute agent with full context
+const agentResponse = await executeAgent({
+  agentId: targetAgent,
+  agentConfig,
+  userMessage: request.chatInput,
+  projectContext,
+  memoryContext,
+  sessionId: request.session_id,
+  images: request.image ? [request.image] : undefined,
+});
+
+// Step 6: Memory write (inchangé)
+// Step 7: Write-back execution (inchangé)
+```
+
+#### Tâches
+
+- [x] Analyser workflow Luna n8n (FINALE_LUNA_MCP.workflow.json)
+- [x] Créer `agents/agent-executor.ts` base class
+- [x] Créer `config/agents.config.ts` avec Luna complet
+- [x] Intégrer executeAgent() dans orchestrator
+- [x] Fix TypeScript errors (unused functions)
+- [x] Tests compilation TypeScript
+- [ ] Test end-to-end Luna agent
+- [ ] Créer Sora agent
+- [ ] Créer Marcus agent
+- [ ] Créer Milo agent
+- [ ] Commit Phase 2.3 - Luna
+
+**Tests :**
+- ✅ TypeScript compilation : 0 erreurs
+- ✅ Server restart automatique (tsx watch)
+- 🔄 Test Luna agent end-to-end (en cours)
   if (llmResponse.toolCalls) {
     const toolResults = await executeMCPTools(llmResponse.toolCalls);
     // Re-appeler Claude avec résultats

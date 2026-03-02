@@ -8,6 +8,8 @@ import { buildProjectContext } from '../shared/context-builder.js';
 import { buildMemoryContext } from '../shared/memory-injector.js';
 import { executeWriteBackCommands } from '../shared/write-back.processor.js';
 import { writeMemory } from '../services/memory.service.js';
+import { executeAgent } from './agent-executor.js';
+import { getAgentConfig } from '../config/agents.config.js';
 import type { ChatRequest, ChatResponse, AgentId } from '../types/api.types.js';
 
 // ─────────────────────────────────────────────────────────────────
@@ -167,39 +169,19 @@ export async function processChat(
     // Step 3: Build memory context for target agent
     const memoryContext = await buildMemoryContext(request.project_id, targetAgent);
 
-    // Step 4: Execute agent (placeholder - will be implemented in Phase 2.3)
-    // const agentResponse = await executeAgent(targetAgent, {
-    //   userMessage: request.chatInput,
-    //   projectContext,
-    //   memoryContext,
-    //   sessionId: request.session_id,
-    //   chatMode: request.chat_mode,
-    //   images: request.image ? [request.image] : undefined,
-    // });
+    // Step 4: Get agent configuration
+    const agentConfig = getAgentConfig(targetAgent);
 
-    // Temporary placeholder response
-    const agentResponse: ChatResponse = {
-      success: true,
-      agent: targetAgent,
-      message: `[${getAgentName(targetAgent)}] Je suis prêt à vous aider ! (Agent execution coming in Phase 2.3)
-
-**Contexte projet :**
-- Projet : ${projectContext.project_name}
-- Scope : ${projectContext.project_scope}
-
-**Mémoire collective :**
-${memoryContext.substring(0, 200)}...`,
-      ui_components: [],
-      write_back_commands: [],
-      session_id: request.session_id,
-      memory_contribution: {
-        action: 'orchestrator_routing',
-        summary: `Message routé vers ${getAgentName(targetAgent)}`,
-        key_findings: [`Intent détecté : ${detectIntent(request.chatInput)}`],
-        deliverables: [],
-        recommendations: [],
-      },
-    };
+    // Step 5: Execute agent with full context
+    const agentResponse = await executeAgent({
+      agentId: targetAgent,
+      agentConfig,
+      userMessage: request.chatInput,
+      projectContext,
+      memoryContext,
+      sessionId: request.session_id,
+      images: request.image ? [request.image] : undefined,
+    });
 
     // Step 5: Write memory contribution
     if (agentResponse.memory_contribution) {
@@ -275,67 +257,4 @@ function routeToAgent(userMessage: string, activeAgentId: AgentId): AgentId {
   }
 
   return bestMatch;
-}
-
-/**
- * Detect intent from user message (for logging)
- */
-function detectIntent(userMessage: string): string {
-  const messageLower = userMessage.toLowerCase();
-
-  // Check for creation intent
-  if (
-    messageLower.includes('crée') ||
-    messageLower.includes('cree') ||
-    messageLower.includes('génère') ||
-    messageLower.includes('genere') ||
-    messageLower.includes('fais')
-  ) {
-    return 'création_contenu';
-  }
-
-  // Check for analysis intent
-  if (
-    messageLower.includes('analyse') ||
-    messageLower.includes('audit') ||
-    messageLower.includes('vérifie') ||
-    messageLower.includes('verifie')
-  ) {
-    return 'analyse';
-  }
-
-  // Check for data/metrics intent
-  if (
-    messageLower.includes('performance') ||
-    messageLower.includes('roas') ||
-    messageLower.includes('données') ||
-    messageLower.includes('chiffres')
-  ) {
-    return 'données_metrics';
-  }
-
-  // Check for campaign intent
-  if (
-    messageLower.includes('campagne') ||
-    messageLower.includes('lancer') ||
-    messageLower.includes('budget')
-  ) {
-    return 'gestion_campagne';
-  }
-
-  return 'discussion_generale';
-}
-
-/**
- * Get friendly agent name
- */
-function getAgentName(agentId: AgentId): string {
-  const names: Record<AgentId, string> = {
-    luna: 'Luna (Stratège SEO)',
-    sora: 'Sora (Data Analyst)',
-    marcus: 'Marcus (Expert Ads)',
-    milo: 'Milo (Directeur Créatif)',
-  };
-
-  return names[agentId] || agentId;
 }
