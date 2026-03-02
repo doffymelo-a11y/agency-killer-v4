@@ -23,7 +23,7 @@ Ce document suit l'implémentation complète de THE HIVE OS V5, basée sur 2 dé
 | **Chantier 1** | Phase 1.2 | ✅ Terminé | 100% | `8f2a1cd` |
 | **Chantier 1** | Phase 1.3 | ✅ Terminé | 100% | `3d9b4fe` |
 | **Chantier 2** | Phase 2.1 | ✅ Terminé | 100% | `1819974` |
-| **Chantier 2** | Phase 2.2 | ✅ Terminé | 100% | `[commit_hash]` |
+| **Chantier 2** | Phase 2.2 | ✅ Terminé | 100% | `c9184de` |
 | **Chantier 2** | Phase 2.3 | ⚪ À venir | 0% | - |
 | **Chantier 2** | Phase 2.4 | ⚪ À venir | 0% | - |
 | **Chantier 2** | Phase 2.5 | ⚪ À venir | 0% | - |
@@ -262,7 +262,7 @@ backend/
 ### ✅ Phase 2.2 — Porter le PM/Orchestrator (Jours 16-18)
 
 **Statut :** Terminé
-**Commit :** `[commit_hash]` - "feat: Complete Phase 2.2 - Orchestrator with routing logic + memory integration"
+**Commit :** `c9184de` - "feat: Complete Phase 2.2 - Orchestrator with routing logic + memory integration"
 **Date :** 2026-03-01
 
 #### Livrable
@@ -502,7 +502,7 @@ Tests complets + migration finale de n8n vers backend TS :
 2. `8f2a1cd` - Phase 1.2 : 3 outils Playwright (screenshot, audit, pixels)
 3. `3d9b4fe` - Phase 1.3 : 4 UI components frontend
 4. `1819974` - Phase 2.1 : Backend TypeScript API Gateway complet
-5. `[commit_hash]` - Phase 2.2 : Orchestrator + routing logic
+5. `c9184de` - Phase 2.2 : Orchestrator + routing logic
 
 **Total : 5 commits majeurs, ~10,300 lignes de code**
 
