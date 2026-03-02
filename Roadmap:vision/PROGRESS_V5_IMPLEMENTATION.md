@@ -26,7 +26,8 @@ Ce document suit l'implémentation complète de THE HIVE OS V5, basée sur 2 dé
 | **Chantier 2** | Phase 2.2 | ✅ Terminé | 100% | `c9184de` |
 | **Chantier 2** | Phase 2.3 | ✅ Terminé | 100% | `fa54072`, `cefa870` |
 | **Chantier 2** | Phase 2.4 | ✅ Terminé | 100% | `afb1cb9` |
-| **Chantier 2** | Phase 2.5 | ✅ Terminé | 100% | En préparation |
+| **Chantier 2** | Phase 2.5 | ✅ Terminé | 100% | `a235b57` |
+| **Chantier 2** | Phase 2.6 | ✅ Terminé | 100% | `69de0e3` |
 
 ---
 
@@ -835,10 +836,72 @@ curl -X POST http://localhost:3457/api/chat \
 - [x] Fix context builder DB dependency
 - [x] Documentation résultats dans MIGRATION_V5.md
 - [x] Documentation résultats dans PROGRESS_V5_IMPLEMENTATION.md
-- [ ] Obtenir clé API Anthropic pour tests live (Phase 2.6)
-- [ ] Intégration frontend (Phase 2.6)
+
+---
+
+### ✅ Phase 2.6 — Frontend Integration (TypeScript Backend)
+
+**Statut :** ✅ COMPLÉTÉ - Frontend migré vers backend V5
+**Date :** 2026-03-01
+**Commit :** `69de0e3`
+
+#### Objectif
+
+Migrer le frontend React pour utiliser le backend TypeScript V5 au lieu du service n8n legacy.
+
+#### Modifications
+
+**1. `/cockpit/src/services/api.ts`**
+   - Mis à jour `ChatRequest` interface pour correspondre au schéma backend
+   - Ajouté `shared_memory` (requis par la validation backend)
+   - Corrigé enums: `action` ('chat' | 'task_launch' | 'quick_action')
+   - Corrigé enums: `chat_mode` ('chat' | 'task_execution' | 'quick_research')
+   - Importé types de n8n.ts pour compatibilité (SharedProjectContext, WriteBackCommand, UIComponent)
+   - Créé `transformSharedMemory()` helper pour mapper scope → project_scope
+   - Mis à jour signature `sendChatMessage()` pour accepter `SharedProjectContext`
+   - Assuré que `ParsedChatResponse` = `ParsedOrchestratorResponse`
+
+**2. `/cockpit/src/store/useHiveStore.ts`**
+   - Remplacé imports n8n par nouveau service V5 API
+   - Changé de `sendMessageToOrchestrator()` vers `sendChatMessage()`
+   - Changé de `parseOrchestratorResponse()` vers `parseChatResponse()`
+   - Mis à jour `sendMessage()` pour utiliser nouvelle API avec SharedProjectContext
+   - Maintenu compatibilité avec write-back et state management existants
+
+#### Architecture Communication
+
+```
+ChatPanel → useHiveStore.sendMessage() → api.sendChatMessage() →
+  Backend TypeScript API (http://localhost:3457/api/chat) →
+  Orchestrator → Agent Executor → Claude API
+```
+
+#### Compatibilité Types
+
+Maintenu compatibilité totale entre V4 (n8n) et V5 (TypeScript) :
+- Réutilisation types n8n.ts (SharedProjectContext, WriteBackCommand, UIComponent)
+- `ParsedChatResponse` = `ParsedOrchestratorResponse` (alias de type)
+- Couche de transformation dans `api.ts` (scope → project_scope mapping)
+
+#### Tests
+
+- ✅ Backend health check: Opérationnel
+- ✅ Frontend compile sans erreurs TypeScript
+- ✅ Communication frontend-backend établie
+- ⏸️ Tests end-to-end requièrent clé API Claude
+
+#### Tâches
+
+- [x] Modifier api.ts pour correspondre au schéma backend
+- [x] Créer transformSharedMemory() helper
+- [x] Mettre à jour useHiveStore.sendMessage()
+- [x] Importer types de n8n.ts pour compatibilité
+- [x] Résoudre erreurs TypeScript
+- [x] Test backend health check
+- [x] Commit Phase 2.6
+- [ ] Obtenir clé API Claude pour tests live (Phase 2.7)
 - [ ] Tests end-to-end avec les 4 agents (Phase 2.7)
-- [ ] Cutover final n8n (Phase 2.7)
+- [ ] Cutover final n8n (Phase 2.8)
 
 ---
 
@@ -854,7 +917,8 @@ curl -X POST http://localhost:3457/api/chat \
 | Orchestrator | 1 | ~300 | ✅ | Terminé |
 | 4 Agents (Executor + Config) | 2 | ~820 | ✅ | Terminé |
 | Frontend API Service | 2 | ~320 | ✅ | Terminé |
-| **TOTAL** | **46** | **~11,405** | - | **95% terminé** |
+| Frontend Integration (Store) | 1 | ~60 | ✅ | Terminé |
+| **TOTAL** | **47** | **~11,465** | - | **98% terminé** |
 
 ### Commits GitHub
 
@@ -866,8 +930,10 @@ curl -X POST http://localhost:3457/api/chat \
 6. `fa54072` - Phase 2.3a : Luna agent + Agent Executor base class
 7. `cefa870` - Phase 2.3b : All 4 agents (Sora, Marcus, Milo)
 8. `afb1cb9` - Phase 2.4 : Frontend API service + Migration guide
+9. `a235b57` - Phase 2.5 : Backend architecture validation complete
+10. `69de0e3` - Phase 2.6 : Frontend integration with V5 backend
 
-**Total : 8 commits majeurs, ~11,400 lignes de code**
+**Total : 10 commits majeurs, ~11,500 lignes de code**
 
 ---
 
@@ -880,10 +946,11 @@ curl -X POST http://localhost:3457/api/chat \
 - ✅ ~~Phase 2.3 Migration 4 agents~~ (Terminé)
 - ✅ ~~Phase 2.4 Frontend API service~~ (Terminé)
 - ✅ ~~Phase 2.5 Architecture validation~~ (Terminé)
+- ✅ ~~Phase 2.6 Frontend Integration~~ (Terminé)
 
 ### Moyen terme (Prochaines étapes)
-- 🟡 Phase 2.6 : Intégration frontend + Clé API Claude
-- ⚪ Phase 2.7 : Tests end-to-end + Cutover n8n
+- 🟡 Phase 2.7 : Clé API Claude + Tests end-to-end
+- ⚪ Phase 2.8 : Cutover final n8n
 
 ---
 
@@ -941,5 +1008,5 @@ Seul outil au monde combinant :
 
 ---
 
-**Dernière mise à jour :** 2026-03-01 - Phase 2.5 Terminée (Architecture Backend Validée)
-**Prochaine mise à jour :** Phase 2.6 (Intégration Frontend + API Key)
+**Dernière mise à jour :** 2026-03-01 - Phase 2.6 Terminée (Frontend Intégré avec Backend V5)
+**Prochaine mise à jour :** Phase 2.7 (Clé API Claude + Tests End-to-End)
