@@ -17,9 +17,14 @@ import type {
   ChatMessage,
   Notification,
 } from '../types';
+// V5 - TypeScript Backend API (New)
 import {
-  sendMessageToOrchestrator,
-  parseOrchestratorResponse,
+  sendChatMessage,
+  parseChatResponse,
+} from '../services/api';
+
+// Keep n8n types for compatibility (will be migrated later)
+import {
   type SharedProjectContext,
   type TaskExecutionContext,
   type WriteBackCommand,
@@ -648,24 +653,26 @@ export const useHiveStore = create<HiveState>()(
             chatMode,
           });
 
-          // Call n8n with full context
-          const response = await sendMessageToOrchestrator(
+          // V5 - Call TypeScript Backend API
+          // Ensure we have a valid shared context
+          if (!sharedContext) {
+            throw new Error('Projet non trouvé. Veuillez sélectionner un projet d\'abord.');
+          }
+
+          const response = await sendChatMessage(
             text,
             sessionId,
-            currentProject?.metadata || null,
-            currentProject?.name,
-            imageBase64,
-            activeAgent,
             sharedContext,
-            taskExecContext,
-            chatMode
+            activeAgent,
+            chatMode,
+            imageBase64
           );
 
           // Increment agent calls after successful orchestrator call
           await incrementUsage('agent_calls', 1);
 
-          // Parse response
-          const parsed = parseOrchestratorResponse(response);
+          // Parse response (V5 format)
+          const parsed = parseChatResponse(response);
 
           // V4.2 - Process Write-Back Commands
           if (parsed.writeBackCommands.length > 0) {

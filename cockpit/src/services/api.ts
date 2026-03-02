@@ -36,13 +36,17 @@ const DEBUG_MODE = import.meta.env.DEV && import.meta.env.VITE_DEBUG_API === 'tr
 // Types (matching backend API)
 // ============================================
 
+// Import types from n8n for compatibility (TODO: move to shared types)
+import type { SharedProjectContext, WriteBackCommand, UIComponent } from './n8n';
+
 export interface ChatRequest {
-  project_id: string;
-  session_id: string;
+  action: 'task_launch' | 'quick_action' | 'chat';
   chatInput: string;
+  session_id: string;
+  project_id: string;
   activeAgentId: AgentRole;
-  chat_mode: 'TASK' | 'CHAT';
-  action: 'AGENT_CHAT';
+  chat_mode: 'task_execution' | 'quick_research' | 'chat';
+  shared_memory: SharedProjectContext;
   image?: string; // Base64
 }
 
@@ -66,25 +70,7 @@ export interface ChatResponse {
   session_id: string;
 }
 
-export interface UIComponent {
-  type: string;
-  id: string;
-  title?: string;
-  data: unknown;
-}
-
-export interface WriteBackCommand {
-  type: 'UPDATE_TASK_STATUS' | 'UPDATE_STATE_FLAG' | 'SET_DELIVERABLE' | 'COMPLETE_TASK' | 'UPDATE_PROJECT_PHASE' | 'ADD_FILE' | 'NOTIFY_USER';
-  task_id?: string;
-  status?: TaskStatus;
-  flag_name?: string;
-  flag_value?: boolean;
-  deliverable_url?: string;
-  deliverable_type?: string;
-  phase?: string;
-  file_data?: unknown;
-  notification?: unknown;
-}
+// WriteBackCommand and UIComponent are imported from n8n.ts
 
 // ============================================
 // Utility Functions
@@ -167,24 +153,43 @@ function parseError(error: unknown): { message: string; technical: string; type:
 }
 
 // ============================================
+// Helper Functions
+// ============================================
+
+/**
+ * Transform frontend SharedProjectContext to backend shared_memory format
+ */
+function transformSharedMemory(context: SharedProjectContext) {
+  return {
+    project_id: context.project_id,
+    project_name: context.project_name,
+    project_scope: context.scope as any, // Map 'scope' to 'project_scope'
+    project_metadata: context.metadata || {},
+    current_phase: context.current_phase,
+    state_flags: context.state_flags || {},
+  };
+}
+
+// ============================================
 // Main Chat Function
 // ============================================
 
 export const sendChatMessage = async (
   message: string,
   sessionId: string,
-  projectId: string,
+  sharedMemory: SharedProjectContext,
   activeAgentId?: AgentRole,
-  chatMode: 'TASK' | 'CHAT' = 'CHAT',
+  chatMode: 'task_execution' | 'quick_research' | 'chat' = 'chat',
   imageBase64?: string
 ): Promise<ChatResponse> => {
   const payload: ChatRequest = {
-    project_id: projectId,
-    session_id: sessionId,
+    action: chatMode === 'task_execution' ? 'task_launch' : chatMode === 'quick_research' ? 'quick_action' : 'chat',
     chatInput: message,
+    session_id: sessionId,
+    project_id: sharedMemory.project_id,
     activeAgentId: activeAgentId || 'luna', // Default to Luna if not specified
     chat_mode: chatMode,
-    action: 'AGENT_CHAT',
+    shared_memory: transformSharedMemory(sharedMemory) as any,
   };
 
   if (imageBase64) {
@@ -218,23 +223,23 @@ export const sendChatMessage = async (
 // Parse Response (for compatibility with existing code)
 // ============================================
 
-export interface ParsedChatResponse {
-  message: string;
-  agentUsed?: AgentRole;
-  respondingAgent?: AgentRole;
-  uiComponents: UIComponent[];
-  writeBackCommands: WriteBackCommand[];
-}
+// Import types from n8n for compatibility
+import type { ParsedOrchestratorResponse } from './n8n';
+
+// Re-export for convenience
+export type ParsedChatResponse = ParsedOrchestratorResponse;
 
 export const parseChatResponse = (response: ChatResponse): ParsedChatResponse => {
   debugLog('Parsing Chat Response', response);
 
+  // V5 backend format → V4 format for compatibility
   return {
     message: response.message || 'Réponse reçue du backend.',
     agentUsed: response.agent,
     respondingAgent: response.agent,
     uiComponents: response.ui_components || [],
     writeBackCommands: response.write_back_commands || [],
+    stateUpdate: undefined, // V5 backend handles this via write_back_commands
   };
 };
 
