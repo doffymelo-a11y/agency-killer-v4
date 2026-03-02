@@ -75,6 +75,7 @@ export const schemas = {
     action: z.enum(['task_launch', 'quick_action', 'chat']),
     chatInput: z.string().min(1, 'Chat input cannot be empty'),
     session_id: z.string().uuid('Invalid session ID'),
+    project_id: z.string().uuid('Invalid project ID'),
     activeAgentId: z.enum(['luna', 'sora', 'marcus', 'milo']),
     system_instruction: z.string().optional(),
     chat_mode: z.enum(['task_execution', 'quick_research', 'chat']),

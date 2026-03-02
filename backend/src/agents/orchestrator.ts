@@ -159,8 +159,9 @@ export async function processChat(
     console.log(`[Orchestrator] Active agent: ${request.activeAgentId}`);
     console.log(`[Orchestrator] Message: "${request.chatInput}"`);
 
-    // Step 1: Build project context
-    const projectContext = await buildProjectContext(request.project_id);
+    // Step 1: Use provided shared_memory as context (frontend already sends complete context)
+    // In production, we could augment with fresh DB data, but for now use what's provided
+    const projectContext = request.shared_memory;
 
     // Step 2: Detect intent and route to agent
     const targetAgent = routeToAgent(request.chatInput, request.activeAgentId);

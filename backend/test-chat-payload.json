@@ -1,0 +1,19 @@
+{
+  "action": "chat",
+  "chatInput": "Bonjour Luna, peux-tu me donner 3 recommandations SEO rapides?",
+  "session_id": "550e8400-e29b-41d4-a716-446655440000",
+  "project_id": "660e8400-e29b-41d4-a716-446655440001",
+  "activeAgentId": "luna",
+  "chat_mode": "chat",
+  "shared_memory": {
+    "project_id": "660e8400-e29b-41d4-a716-446655440001",
+    "project_name": "Test Project SEO",
+    "project_scope": "seo_campaign",
+    "project_metadata": {
+      "website": "https://example.com",
+      "industry": "Tech"
+    },
+    "current_phase": "Strategy",
+    "state_flags": {}
+  }
+}
