@@ -10,7 +10,6 @@ import { ArrowLeft, ArrowRight, Rocket, CheckCircle2 } from 'lucide-react';
 
 import { useHiveStore, useWizardState } from '../store/useHiveStore';
 import { SCOPE_OPTIONS, getQuestionsForScope, generateTasksForScope, getContextQuestionsForScope } from '../lib/wizard-config';
-import { createProjectWithGenesis, type GenesisRequest, type ProjectScope as PMProjectScope } from '../services/n8n';
 import type { ProjectScope, WizardAnswer, ProjectMetadata } from '../types';
 import { AGENTS } from '../types';
 
@@ -477,48 +476,7 @@ function PreviewStep() {
     dispatch({ type: 'SUBMIT' });
 
     try {
-      // V4.3 - Try PM Genesis endpoint first, fallback to local creation
-      const USE_PM_GENESIS = false; // Toggle to enable PM backend genesis
-
-      if (USE_PM_GENESIS) {
-        // Build Genesis request for PM
-        const genesisRequest: GenesisRequest = {
-          scope: wizardState.scope as PMProjectScope,
-          answers: wizardState.answers.map((a) => ({
-            questionId: a.questionId,
-            value: a.value,
-          })),
-          project_name: wizardState.projectName,
-          deadline: wizardState.deadline,
-          context_data: {
-            website_url: wizardState.contextAnswers?.websiteUrl || wizardState.contextAnswers?.website_url,
-            usp: wizardState.contextAnswers?.usp,
-            target_persona: wizardState.contextAnswers?.targetPersona || wizardState.contextAnswers?.persona,
-            pain_point: wizardState.contextAnswers?.mainPainPoint || wizardState.contextAnswers?.pain_point,
-            competitors: Array.isArray(wizardState.contextAnswers?.competitors)
-              ? wizardState.contextAnswers.competitors.join(', ')
-              : wizardState.contextAnswers?.competitors,
-            monthly_budget: wizardState.contextAnswers?.budget_monthly?.toString(),
-            business_goal: wizardState.contextAnswers?.businessGoal,
-          },
-        };
-
-        console.log('[Genesis] Calling PM with:', genesisRequest);
-        const response = await createProjectWithGenesis(genesisRequest);
-        console.log('[Genesis] PM Response:', response);
-
-        if (response.success && response.project?.id) {
-          dispatch({ type: 'GENERATION_COMPLETE', projectId: response.project.id });
-
-          // Redirect to board
-          setTimeout(() => {
-            navigate(`/board/${response.project.id}`);
-          }, 1500);
-          return;
-        }
-      }
-
-      // Fallback: Local creation (when PM backend not available)
+      // V5 - Local project creation with backend API integration
       const projectData = {
         name: wizardState.projectName,
         scope: wizardState.scope,

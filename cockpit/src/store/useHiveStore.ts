@@ -74,6 +74,7 @@ interface HiveState {
   fetchProjectWithTasks: (projectId: string) => Promise<void>;
   createProject: (project: Omit<Project, 'id' | 'created_at' | 'updated_at'>, tasks: Omit<Task, 'id' | 'project_id' | 'created_at'>[]) => Promise<string>;
   updateTaskStatus: (taskId: string, status: TaskStatus) => Promise<void>;
+  unblockTask: (taskId: string, taskTitle: string) => Promise<void>;
   updateTaskUserInputs: (taskId: string, userInputs: Record<string, string>) => Promise<void>;
   completeTask: (taskId: string, deliverableUrl?: string) => Promise<void>;
 
@@ -387,6 +388,33 @@ export const useHiveStore = create<HiveState>()(
 
           if (tasksError) throw tasksError;
 
+          // V5 - Setup sequential dependencies (each task depends on the previous one)
+          if (tasks && tasks.length > 1) {
+            console.log('[HIVE] Setting up sequential task dependencies...');
+
+            for (let i = 1; i < tasks.length; i++) {
+              const currentTask = tasks[i];
+              const previousTask = tasks[i - 1];
+
+              // Update task to depend on previous task
+              const { error: depError } = await supabase
+                .from('tasks')
+                .update({
+                  depends_on: [previousTask.id],
+                })
+                .eq('id', currentTask.id);
+
+              if (depError) {
+                console.error(`[HIVE] Error setting dependency for task ${i}:`, depError);
+              } else {
+                // Update local task object
+                currentTask.depends_on = [previousTask.id];
+              }
+            }
+
+            console.log('[HIVE] Sequential dependencies set up successfully');
+          }
+
           // Update store
           set((state) => ({
             projects: [project, ...state.projects],
@@ -411,6 +439,7 @@ export const useHiveStore = create<HiveState>()(
 
       updateTaskStatus: async (taskId: string, status: TaskStatus) => {
         try {
+          const state = _get();
           const updates: Partial<Task> = { status };
 
           if (status === 'in_progress') {
@@ -427,13 +456,80 @@ export const useHiveStore = create<HiveState>()(
           if (error) throw error;
 
           // Optimistic update
-          set((state) => ({
-            tasks: state.tasks.map((t) =>
+          set((s) => ({
+            tasks: s.tasks.map((t) =>
               t.id === taskId ? { ...t, ...updates } : t
             ),
           }));
+
+          // V5 - Auto-unblock dependent tasks when this task is completed
+          if (status === 'done') {
+            console.log('[HIVE] Task completed, checking for dependent tasks to unblock...');
+
+            // Strategy 1: Find explicit dependent tasks (with depends_on referencing this task)
+            const explicitDependents = state.tasks.filter((t) =>
+              t.depends_on && t.depends_on.includes(taskId) && t.status === 'blocked'
+            );
+
+            // Strategy 2: Find next blocked task in sequence (for legacy tasks without depends_on)
+            const completedTaskIndex = state.tasks.findIndex((t) => t.id === taskId);
+            const nextTask = completedTaskIndex >= 0 && completedTaskIndex < state.tasks.length - 1
+              ? state.tasks[completedTaskIndex + 1]
+              : null;
+
+            console.log('[HIVE] Found explicit dependent tasks:', explicitDependents.length);
+            console.log('[HIVE] Next task in sequence:', nextTask?.title);
+
+            // Unblock explicit dependents
+            for (const depTask of explicitDependents) {
+              const allDependenciesDone = depTask.depends_on?.every((depId) => {
+                const dep = state.tasks.find((t) => t.id === depId);
+                return dep?.status === 'done';
+              });
+
+              if (allDependenciesDone) {
+                console.log('[HIVE] Unblocking task (explicit dependency):', depTask.title);
+                await state.unblockTask(depTask.id, depTask.title);
+              }
+            }
+
+            // Unblock next task in sequence if blocked and no explicit dependents were found
+            if (nextTask && nextTask.status === 'blocked' && explicitDependents.length === 0) {
+              console.log('[HIVE] Unblocking next task in sequence:', nextTask.title);
+              await state.unblockTask(nextTask.id, nextTask.title);
+            }
+          }
         } catch (err) {
           set({ error: (err as Error).message });
+        }
+      },
+
+      unblockTask: async (taskId: string, taskTitle: string) => {
+        const state = _get();
+        try {
+          // Unblock task by setting status to 'todo'
+          const { error: unblockError } = await supabase
+            .from('tasks')
+            .update({ status: 'todo' })
+            .eq('id', taskId);
+
+          if (!unblockError) {
+            // Update local state
+            set((s) => ({
+              tasks: s.tasks.map((t) =>
+                t.id === taskId ? { ...t, status: 'todo' as TaskStatus } : t
+              ),
+            }));
+
+            // Add notification
+            state.addNotification({
+              type: 'success',
+              message: `✅ Tâche débloquée: ${taskTitle}`,
+              duration: 5000,
+            });
+          }
+        } catch (err) {
+          console.error('[HIVE] Error unblocking task:', err);
         }
       },
 
@@ -612,10 +708,8 @@ export const useHiveStore = create<HiveState>()(
             throw new Error(errorMsg);
           }
 
-          // Generate session ID
-          const sessionId = currentProject?.id
-            ? `${currentProject.id}-${activeAgent}-${Date.now()}`
-            : `default-${activeAgent}-${Date.now()}`;
+          // Generate session ID (V5: must be a valid UUID for backend validation)
+          const sessionId = crypto.randomUUID();
 
           // V4.2 - Build Shared Project Context (La Mémoire Partagée)
           const sharedContext: SharedProjectContext | null = currentProject

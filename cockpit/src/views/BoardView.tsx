@@ -115,8 +115,8 @@ export default function BoardView() {
       // Navigate to chat immediately (user sees loading message)
       navigate(`/chat/${projectId}/${taskId}`);
 
-      // Prepare shared project context for PM
-      const sharedContext: import('../services/n8n').SharedProjectContext = {
+      // Prepare shared project context for Backend V5
+      const sharedContext = {
         project_id: projectId!,
         project_name: project?.name || 'Projet',
         project_status: project?.status || 'active',
@@ -132,29 +132,23 @@ export default function BoardView() {
         metadata: project?.metadata || {},
       };
 
-      // Prepare task launch request
-      const taskRequest: import('../services/n8n').TaskLaunchRequest = {
+      console.log('[Board] About to call Backend V5 with task:', {
         task_id: task.id,
-        task_title: task.title,
-        task_description: task.description,
-        task_phase: task.phase,
         assignee: task.assignee,
-        context_questions: task.context_questions || [],
-        user_inputs: task.user_inputs || {},
-        depends_on: task.depends_on || [],
-        shared_memory: sharedContext,
-      };
+        context: sharedContext,
+      });
 
-      console.log('[Board] About to call PM with:', taskRequest);
+      // V5 - Call TypeScript Backend API (NOT n8n)
+      const { sendChatMessage } = await import('../services/api');
 
-      // Call PM with full context
-      const { launchTaskExecution } = await import('../services/n8n');
+      console.log('[Board] Calling Backend V5 API for task execution...');
 
-      console.log('[Board] Calling launchTaskExecution...');
-
-      const response = await launchTaskExecution(
-        taskRequest,
-        `Exécute la tâche: ${task.title}`
+      const response = await sendChatMessage(
+        `Exécute la tâche: ${task.title}`,
+        crypto.randomUUID(), // V5: Generate valid UUID for session
+        sharedContext,
+        task.assignee,
+        'task_execution' // chat_mode for tasks
       );
 
       console.log('[Board] ✅ PM Response received:', response);

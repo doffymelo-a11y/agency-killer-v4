@@ -6,9 +6,9 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageSquare, ArrowLeft } from 'lucide-react';
+import { MessageSquare, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { AGENTS, type ChatMessage as ChatMessageType, type AgentRole } from '../../types';
-import { useCurrentProject } from '../../store/useHiveStore';
+import { useCurrentProject, useHiveStore } from '../../store/useHiveStore';
 import ChatMessage from './ChatMessage';
 import ChatInput from './ChatInput';
 
@@ -88,13 +88,44 @@ export default function ChatPanel({
           </div>
         </div>
 
-        {/* Task Badge (when in task mode) */}
+        {/* Task Badge + Complete Button (when in task mode) */}
         {taskContext && (
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 rounded-lg">
-            <span className="text-xs text-slate-500">Tache:</span>
-            <span className="text-xs font-medium text-slate-700 max-w-[200px] truncate">
-              {taskContext.title}
-            </span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 rounded-lg">
+              <span className="text-xs text-slate-500">Tâche:</span>
+              <span className="text-xs font-medium text-slate-700 max-w-[200px] truncate">
+                {taskContext.title}
+              </span>
+            </div>
+            <button
+              onClick={async () => {
+                if (window.confirm('Marquer cette tâche comme terminée ?')) {
+                  // Update task status to done
+                  await useHiveStore.getState().updateTaskStatus(taskContext.taskId, 'done');
+
+                  // Add success notification
+                  useHiveStore.getState().addNotification({
+                    type: 'success',
+                    message: `✅ Tâche terminée: ${taskContext.title}`,
+                    duration: 5000,
+                  });
+
+                  // Clear task context
+                  useHiveStore.setState({
+                    taskContext: null,
+                    activeTaskId: null,
+                  });
+
+                  // Redirect to board
+                  navigate(`/board/${project?.id}`);
+                }
+              }}
+              className="btn btn-primary bg-green-600 hover:bg-green-700 text-sm"
+              title="Terminer la tâche"
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              Terminer
+            </button>
           </div>
         )}
       </div>

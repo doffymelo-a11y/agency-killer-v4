@@ -104,8 +104,8 @@ function TaskRow({
       {/* Action */}
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">
-          {/* Launch/Continue buttons */}
-          {task.status === 'todo' && (
+          {/* Launch button - visible on hover */}
+          {task.status === 'todo' && !isBlocked && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -117,6 +117,7 @@ function TaskRow({
               <ChevronRight className="w-4 h-4" />
             </button>
           )}
+          {/* Continue + Complete buttons - always visible when in_progress */}
           {task.status === 'in_progress' && (
             <>
               <button
@@ -134,24 +135,33 @@ function TaskRow({
                   e.stopPropagation();
                   onComplete();
                 }}
-                className="p-2 rounded-lg hover:bg-green-50 transition-colors opacity-0 group-hover:opacity-100"
+                className="btn btn-primary text-sm bg-green-600 hover:bg-green-700"
                 title="Marquer comme terminée"
               >
-                <CheckCircle2 className="w-4 h-4 text-green-600" />
+                Terminer
+                <CheckCircle2 className="w-4 h-4" />
               </button>
             </>
           )}
+          {/* Reopen button - visible on hover */}
           {task.status === 'done' && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 onReopen();
               }}
-              className="p-2 rounded-lg hover:bg-slate-100 transition-colors opacity-0 group-hover:opacity-100"
+              className="btn btn-ghost text-sm opacity-0 group-hover:opacity-100 transition-opacity"
               title="Rouvrir la tâche"
             >
-              <Circle className="w-4 h-4 text-slate-400" />
+              <Circle className="w-4 h-4" />
+              Rouvrir
             </button>
+          )}
+          {/* Blocked indicator */}
+          {isBlocked && (
+            <span className="text-xs px-2 py-1 rounded-full bg-red-100 text-red-700">
+              🔒 Bloqué
+            </span>
           )}
         </div>
       </td>

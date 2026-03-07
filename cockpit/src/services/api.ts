@@ -160,10 +160,19 @@ function parseError(error: unknown): { message: string; technical: string; type:
  * Transform frontend SharedProjectContext to backend shared_memory format
  */
 function transformSharedMemory(context: SharedProjectContext) {
+  // Map frontend scope values to backend project_scope enum
+  const scopeMapping: Record<string, string> = {
+    'meta_ads': 'paid_ads_launch',
+    'sem': 'paid_ads_launch',
+    'seo': 'seo_campaign',
+    'analytics': 'website_audit',
+    'full_scale': 'brand_strategy',
+  };
+
   return {
     project_id: context.project_id,
     project_name: context.project_name,
-    project_scope: context.scope as any, // Map 'scope' to 'project_scope'
+    project_scope: scopeMapping[context.scope] || 'brand_strategy', // Fallback to brand_strategy
     project_metadata: context.metadata || {},
     current_phase: context.current_phase,
     state_flags: context.state_flags || {},
