@@ -97,22 +97,7 @@ export default function BoardView() {
         isChatOpen: true,
       });
 
-      // Add loading message
-      useHiveStore.setState((state) => ({
-        chatMessages: [
-          ...state.chatMessages,
-          {
-            id: uuidv4(),
-            role: 'assistant',
-            content: '🚀 Lancement de votre tâche en cours...\n\nJe prépare tout ce dont j\'ai besoin pour commencer. Un instant !',
-            agent_id: task.assignee,
-            timestamp: new Date(),
-            created_at: new Date().toISOString(),
-          },
-        ],
-      }));
-
-      // Navigate to chat immediately (user sees loading message)
+      // Navigate to chat immediately (agent will greet user intelligently)
       navigate(`/chat/${projectId}/${taskId}`);
 
       // Prepare shared project context for Backend V5
@@ -143,8 +128,35 @@ export default function BoardView() {
 
       console.log('[Board] Calling Backend V5 API for task execution...');
 
+      // V5 - Build intelligent task prompt with context and instructions
+      const taskPrompt = `# TASK LAUNCH: ${task.title}
+
+## Your Mission
+${task.description}
+
+## Context Questions to Ask
+${task.context_questions?.length > 0
+  ? task.context_questions.map((q: string) => `- ${q}`).join('\n')
+  : '- Prerequisites needed?\n- Access/connections required?\n- Information to gather?'
+}
+
+## INSTRUCTIONS
+🎯 **START BY ENGAGING THE USER - DO NOT execute anything yet!**
+
+1. **Greet professionally** and acknowledge the task launch
+2. **Assess what's needed**: Based on the context questions above, identify what information, connections, or prerequisites are required
+3. **Ask proactive questions**: Engage the user by asking about:
+   - What connections/access they have (GA4, GSC, CMS, etc.)
+   - What information is available or missing
+   - Their goals and constraints for this specific task
+4. **Propose an action plan**: Once you understand the situation, propose concrete next steps
+
+**Remember:** You have powerful MCP tools at your disposal. Be specific about what you can do and what you need from the user to proceed.
+
+Let's start! 🚀`;
+
       const response = await sendChatMessage(
-        `Exécute la tâche: ${task.title}`,
+        taskPrompt,
         crypto.randomUUID(), // V5: Generate valid UUID for session
         sharedContext,
         task.assignee,

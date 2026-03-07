@@ -1,0 +1,410 @@
+{
+  "luna": {
+    "agent": "luna",
+    "tasks": 3,
+    "totalScore": 15,
+    "maxScore": 15,
+    "percentage": 100,
+    "results": [
+      {
+        "task": {
+          "title": "🔑 Accès Google Search Console",
+          "description": "Obtenir les accès à Google Search Console pour analyser les performances SEO organiques du site : vérifier la propriété du domaine, configurer les utilisateurs autorisés, et s'assurer que les données sont collectées correctement.",
+          "assignee": "luna",
+          "phase": "Audit",
+          "context_questions": [
+            "Accès GSC existant ?",
+            "Propriété vérifiée ?",
+            "Utilisateurs à ajouter ?"
+          ]
+        },
+        "validation": {
+          "greets": true,
+          "asksPrerequisites": true,
+          "asksQuestions": true,
+          "listsMCPCapabilities": true,
+          "doesNotExecute": true,
+          "score": 5,
+          "issues": [],
+          "message": "Bonjour ! Je suis Luna, votre stratège SEO. 🎯\n\nJe vois que nous devons configurer l'accès à Google Search Console pour analyser les performances SEO organiques de votre site. C'est une excellente première étape pour optimiser votre visibilité en ligne !\n\n**📊 Avant de commencer, j'ai besoin de comprendre votre situation actuelle :**\n\n**1. Accès Google Search Console**\n- Avez-vous déjà un compte Google Search Console existant ?\n- Si oui, êtes-vous connecté en tant que propriétaire ou avez-vous des droits d'accès ?\n\n**2. Vérification de propriété**\n- Quel est le domaine exact que nous devons analyser ?\n- La propriété de ce domaine est-elle déjà vérifiée dans GSC ?\n- Si non, avez-vous accès au DNS du domaine ou au code HTML du site pour la vérification ?\n\n**3. Équipe et accès**\n- Qui dans votre équipe devrait avoir accès aux données GSC ?\n- Quel niveau d'accès souhaitez-vous leur donner ? (propriétaire complet ou utilisateur avec restrictions)\n\n**🎯 Ce que je peux faire pour vous avec mes outils MCP :**\n\nUne fois l'accès GSC configuré, je pourrai :\n- ✅ Analyser la santé technique de votre site (indexation, erreurs de crawl)\n- ✅ Identifier vos mots-clés performants et opportunités manquées\n- ✅ Évaluer vos Core Web Vitals et performances mobiles\n- ✅ Détecter les problèmes d'indexation ou de contenu dupliqué\n\n**💡 Important :** Mes outils sont en lecture seule - je ne peux pas directement configurer GSC pour vous, mais je peux vous guider étape par étape et analyser les données une fois l'accès établi.\n\nDites-moi où vous en êtes avec GSC et je vous proposerai un plan d'action concret ! 🚀"
+        },
+        "response": {
+          "success": true,
+          "agent": "luna",
+          "message": "Bonjour ! Je suis Luna, votre stratège SEO. 🎯\n\nJe vois que nous devons configurer l'accès à Google Search Console pour analyser les performances SEO organiques de votre site. C'est une excellente première étape pour optimiser votre visibilité en ligne !\n\n**📊 Avant de commencer, j'ai besoin de comprendre votre situation actuelle :**\n\n**1. Accès Google Search Console**\n- Avez-vous déjà un compte Google Search Console existant ?\n- Si oui, êtes-vous connecté en tant que propriétaire ou avez-vous des droits d'accès ?\n\n**2. Vérification de propriété**\n- Quel est le domaine exact que nous devons analyser ?\n- La propriété de ce domaine est-elle déjà vérifiée dans GSC ?\n- Si non, avez-vous accès au DNS du domaine ou au code HTML du site pour la vérification ?\n\n**3. Équipe et accès**\n- Qui dans votre équipe devrait avoir accès aux données GSC ?\n- Quel niveau d'accès souhaitez-vous leur donner ? (propriétaire complet ou utilisateur avec restrictions)\n\n**🎯 Ce que je peux faire pour vous avec mes outils MCP :**\n\nUne fois l'accès GSC configuré, je pourrai :\n- ✅ Analyser la santé technique de votre site (indexation, erreurs de crawl)\n- ✅ Identifier vos mots-clés performants et opportunités manquées\n- ✅ Évaluer vos Core Web Vitals et performances mobiles\n- ✅ Détecter les problèmes d'indexation ou de contenu dupliqué\n\n**💡 Important :** Mes outils sont en lecture seule - je ne peux pas directement configurer GSC pour vous, mais je peux vous guider étape par étape et analyser les données une fois l'accès établi.\n\nDites-moi où vous en êtes avec GSC et je vous proposerai un plan d'action concret ! 🚀",
+          "ui_components": [],
+          "write_back_commands": [],
+          "session_id": "cb4413de-a729-49f0-bff9-e3a296d88ac8"
+        }
+      },
+      {
+        "task": {
+          "title": "🔑 Keyword Research",
+          "description": "Rechercher et analyser les mots-clés prioritaires pour le référencement naturel : identifier les termes de recherche à fort volume et faible concurrence alignés avec les intentions utilisateur.",
+          "assignee": "luna",
+          "phase": "Audit",
+          "context_questions": [
+            "Intentions prioritaires ?",
+            "Volume recherche cible ?",
+            "Difficulté acceptable ?"
+          ]
+        },
+        "validation": {
+          "greets": true,
+          "asksPrerequisites": true,
+          "asksQuestions": true,
+          "listsMCPCapabilities": true,
+          "doesNotExecute": true,
+          "score": 5,
+          "issues": [],
+          "message": "Bonjour ! Je suis Luna, votre stratège SEO. 🎯\n\nJe suis ravie de lancer cette mission de recherche de mots-clés avec vous ! L'identification des bons termes de recherche est cruciale pour le succès de votre référencement naturel.\n\n## 📊 Avant de commencer, j'ai besoin de mieux comprendre votre projet :\n\n### **1. Votre activité et marché cible**\n- Quelle est votre activité principale ou vos produits/services phares ?\n- Sur quel marché géographique vous concentrez-vous ? (France, Canada, international ?)\n- Avez-vous déjà identifié des mots-clés \"graines\" ou des thématiques prioritaires ?\n\n### **2. Vos objectifs et contraintes**\n- **Intentions prioritaires** : Cherchez-vous des mots-clés informationnels (blog/contenu), transactionnels (vente), ou navigationnels (marque) ?\n- **Volume de recherche cible** : Visez-vous des mots-clés à fort volume (>1000/mois) ou acceptez-vous des niches plus spécifiques ?\n- **Difficulté acceptable** : Préférez-vous des opportunités rapides (faible concurrence) ou êtes-vous prêt à investir sur des mots-clés compétitifs ?\n\n### **3. Votre situation actuelle**\n- Avez-vous un site web existant ? Si oui, quelle est l'URL ?\n- Connaissez-vous vos principaux concurrents ? (2-3 URLs seraient idéales)\n- Avez-vous accès à des données existantes (Google Search Console, Analytics, etc.) ?\n\n## 🚀 Ce que je peux faire pour vous avec mes outils MCP :\n\n✅ **Recherche complète de mots-clés** : volume, difficulté, CPC, tendances\n✅ **Analyse des questions fréquentes** : \"People Also Ask\" et opportunités FAQ\n✅ **Identification des tendances** : mots-clés émergents et saisonniers\n✅ **Analyse des gaps** : mots-clés que vos concurrents exploitent mais pas vous\n✅ **Analyse d'intention** : classifier vos mots-clés par type d'intention utilisateur\n✅ **Mots-clés concurrents** : découvrir sur quoi vos compétiteurs se positionnent\n\nPartagez-moi ces informations et je vous proposerai une stratégie de recherche personnalisée ! 💪\n\nQu'est-ce qui est le plus important pour vous dans cette recherche de mots-clés ?"
+        },
+        "response": {
+          "success": true,
+          "agent": "luna",
+          "message": "Bonjour ! Je suis Luna, votre stratège SEO. 🎯\n\nJe suis ravie de lancer cette mission de recherche de mots-clés avec vous ! L'identification des bons termes de recherche est cruciale pour le succès de votre référencement naturel.\n\n## 📊 Avant de commencer, j'ai besoin de mieux comprendre votre projet :\n\n### **1. Votre activité et marché cible**\n- Quelle est votre activité principale ou vos produits/services phares ?\n- Sur quel marché géographique vous concentrez-vous ? (France, Canada, international ?)\n- Avez-vous déjà identifié des mots-clés \"graines\" ou des thématiques prioritaires ?\n\n### **2. Vos objectifs et contraintes**\n- **Intentions prioritaires** : Cherchez-vous des mots-clés informationnels (blog/contenu), transactionnels (vente), ou navigationnels (marque) ?\n- **Volume de recherche cible** : Visez-vous des mots-clés à fort volume (>1000/mois) ou acceptez-vous des niches plus spécifiques ?\n- **Difficulté acceptable** : Préférez-vous des opportunités rapides (faible concurrence) ou êtes-vous prêt à investir sur des mots-clés compétitifs ?\n\n### **3. Votre situation actuelle**\n- Avez-vous un site web existant ? Si oui, quelle est l'URL ?\n- Connaissez-vous vos principaux concurrents ? (2-3 URLs seraient idéales)\n- Avez-vous accès à des données existantes (Google Search Console, Analytics, etc.) ?\n\n## 🚀 Ce que je peux faire pour vous avec mes outils MCP :\n\n✅ **Recherche complète de mots-clés** : volume, difficulté, CPC, tendances\n✅ **Analyse des questions fréquentes** : \"People Also Ask\" et opportunités FAQ\n✅ **Identification des tendances** : mots-clés émergents et saisonniers\n✅ **Analyse des gaps** : mots-clés que vos concurrents exploitent mais pas vous\n✅ **Analyse d'intention** : classifier vos mots-clés par type d'intention utilisateur\n✅ **Mots-clés concurrents** : découvrir sur quoi vos compétiteurs se positionnent\n\nPartagez-moi ces informations et je vous proposerai une stratégie de recherche personnalisée ! 💪\n\nQu'est-ce qui est le plus important pour vous dans cette recherche de mots-clés ?",
+          "ui_components": [],
+          "write_back_commands": [],
+          "session_id": "b4f1e66e-14e0-4030-a1ce-ab9cb8c92df4"
+        }
+      },
+      {
+        "task": {
+          "title": "👤 Création Avatar Client Idéal",
+          "description": "Créer un profil détaillé de l'Avatar Client (Ideal Customer Profile) avec démographie, psychographie, comportements d'achat, pain points spécifiques.",
+          "assignee": "luna",
+          "phase": "Audit",
+          "context_questions": [
+            "Qui est votre client idéal ?",
+            "Quels sont ses problèmes principaux ?",
+            "Qu'est-ce qui le motive à acheter ?"
+          ]
+        },
+        "validation": {
+          "greets": true,
+          "asksPrerequisites": true,
+          "asksQuestions": true,
+          "listsMCPCapabilities": true,
+          "doesNotExecute": true,
+          "score": 5,
+          "issues": [],
+          "message": "Bonjour ! Je suis Luna, votre stratège marketing. 🎯\n\nJe suis ravie de vous accompagner dans la création de votre Avatar Client Idéal ! C'est une étape cruciale pour orienter toute votre stratégie marketing et SEO.\n\n## 📊 Avant de commencer, j'ai besoin de mieux comprendre votre situation :\n\n### **1. Votre secteur d'activité**\n- Quel est votre produit ou service principal ?\n- Dans quelle industrie opérez-vous ?\n- Êtes-vous en B2B, B2C, ou les deux ?\n\n### **2. Données existantes**\n- Avez-vous accès à Google Analytics 4 ? (pour analyser le comportement de vos visiteurs actuels)\n- Disposez-vous de données clients existantes ? (CRM, enquêtes, feedback)\n- Avez-vous déjà identifié des segments de clients ?\n\n### **3. Vos objectifs**\n- Cherchez-vous à attirer un nouveau type de client ou mieux servir vos clients actuels ?\n- Y a-t-il un marché géographique spécifique ? (France, Canada, international ?)\n- Quel est le problème principal que vous résolvez pour vos clients ?\n\n## 🚀 Ce que je peux faire pour vous :\n\nAvec mes outils d'analyse, je peux :\n\n✅ **Analyser les mots-clés** que votre audience cible recherche\n✅ **Identifier les questions** qu'ils se posent (People Also Ask)\n✅ **Étudier vos concurrents** pour comprendre qui ils ciblent\n✅ **Analyser l'intention de recherche** pour comprendre leurs motivations\n✅ **Découvrir les tendances** dans votre secteur\n\nUne fois que j'aurai ces informations, je pourrai créer un profil détaillé incluant :\n- **Démographie** (âge, genre, localisation, revenus)\n- **Psychographie** (valeurs, intérêts, style de vie)\n- **Comportements d'achat** (processus de décision, canaux préférés)\n- **Pain points** spécifiques et motivations profondes\n\nParlez-moi de votre entreprise et de ce que vous savez déjà sur vos clients ! 💡"
+        },
+        "response": {
+          "success": true,
+          "agent": "luna",
+          "message": "Bonjour ! Je suis Luna, votre stratège marketing. 🎯\n\nJe suis ravie de vous accompagner dans la création de votre Avatar Client Idéal ! C'est une étape cruciale pour orienter toute votre stratégie marketing et SEO.\n\n## 📊 Avant de commencer, j'ai besoin de mieux comprendre votre situation :\n\n### **1. Votre secteur d'activité**\n- Quel est votre produit ou service principal ?\n- Dans quelle industrie opérez-vous ?\n- Êtes-vous en B2B, B2C, ou les deux ?\n\n### **2. Données existantes**\n- Avez-vous accès à Google Analytics 4 ? (pour analyser le comportement de vos visiteurs actuels)\n- Disposez-vous de données clients existantes ? (CRM, enquêtes, feedback)\n- Avez-vous déjà identifié des segments de clients ?\n\n### **3. Vos objectifs**\n- Cherchez-vous à attirer un nouveau type de client ou mieux servir vos clients actuels ?\n- Y a-t-il un marché géographique spécifique ? (France, Canada, international ?)\n- Quel est le problème principal que vous résolvez pour vos clients ?\n\n## 🚀 Ce que je peux faire pour vous :\n\nAvec mes outils d'analyse, je peux :\n\n✅ **Analyser les mots-clés** que votre audience cible recherche\n✅ **Identifier les questions** qu'ils se posent (People Also Ask)\n✅ **Étudier vos concurrents** pour comprendre qui ils ciblent\n✅ **Analyser l'intention de recherche** pour comprendre leurs motivations\n✅ **Découvrir les tendances** dans votre secteur\n\nUne fois que j'aurai ces informations, je pourrai créer un profil détaillé incluant :\n- **Démographie** (âge, genre, localisation, revenus)\n- **Psychographie** (valeurs, intérêts, style de vie)\n- **Comportements d'achat** (processus de décision, canaux préférés)\n- **Pain points** spécifiques et motivations profondes\n\nParlez-moi de votre entreprise et de ce que vous savez déjà sur vos clients ! 💡",
+          "ui_components": [],
+          "write_back_commands": [],
+          "session_id": "bc017995-a456-4ec2-9399-711e35a67d93"
+        }
+      }
+    ]
+  },
+  "sora": {
+    "agent": "sora",
+    "tasks": 3,
+    "totalScore": 15,
+    "maxScore": 15,
+    "percentage": 100,
+    "results": [
+      {
+        "task": {
+          "title": "📦 Création Compte GTM",
+          "description": "Créer un compte Google Tag Manager et configurer le conteneur : créer un compte GTM sous l'organisation appropriée, installer le code GTM sur toutes les pages du site.",
+          "assignee": "sora",
+          "phase": "Setup",
+          "context_questions": [
+            "GTM existant ?",
+            "Accès au code source ?",
+            "CMS utilisé ?"
+          ]
+        },
+        "validation": {
+          "greets": true,
+          "asksPrerequisites": true,
+          "asksQuestions": true,
+          "listsMCPCapabilities": true,
+          "doesNotExecute": true,
+          "score": 5,
+          "issues": [],
+          "message": "Bonjour ! Je suis Sora, votre analyste de données chez The Hive OS. 📊\n\nJe vois que vous souhaitez **créer un compte Google Tag Manager et configurer le conteneur sur votre site**. C'est parfait, je vais vous accompagner dans cette configuration essentielle pour le tracking !\n\n## 🔍 Évaluation de votre situation\n\nAvant de commencer, j'ai besoin de comprendre votre configuration actuelle pour adapter la mise en place :\n\n### 📋 **Questions préliminaires :**\n\n1. **GTM existant ?**\n   - Avez-vous déjà un compte Google Tag Manager ?\n   - Si oui, sous quelle adresse email/organisation Google ?\n   - Y a-t-il déjà un conteneur GTM installé sur votre site ?\n\n2. **Accès au code source ?**\n   - Avez-vous accès direct au code source de votre site web ?\n   - Qui gère actuellement les modifications techniques (développeur, agence, vous-même) ?\n   - Quel niveau d'accès avez-vous (FTP, admin CMS, éditeur de code) ?\n\n3. **CMS utilisé ?**\n   - Sur quelle plateforme votre site est-il construit ? (WordPress, Shopify, Webflow, custom, etc.)\n   - Avez-vous accès administrateur à ce CMS ?\n   - Des plugins de tracking sont-ils déjà installés ?\n\n### 🎯 **Objectifs de tracking :**\n- Quels sont vos objectifs principaux avec GTM ? (tracking e-commerce, conversions, événements spécifiques)\n- Avez-vous déjà Google Analytics 4 (GA4) configuré ?\n- Prévoyez-vous d'installer le Meta Pixel ou d'autres tags publicitaires ?\n\n## 🚀 Ce que je peux faire pour vous\n\nAvec mes outils MCP GTM Manager, je peux :\n\n✅ **Lister vos conteneurs GTM existants** (si vous en avez)\n✅ **Créer des tags de tracking** (GA4, Meta Pixel, conversions Google Ads)\n✅ **Configurer des déclencheurs** (pages vues, clics, soumissions de formulaires)\n✅ **Créer des variables personnalisées**\n✅ **Publier les versions** une fois testées\n✅ **Activer le mode preview** pour vérifier l'installation\n\n**Note importante :** Je peux vous guider dans la configuration GTM, mais l'installation physique du code sur votre site nécessitera un accès au code source.\n\nPouvez-vous me donner ces informations pour que je puisse vous proposer le meilleur plan d'action ? 🎯"
+        },
+        "response": {
+          "success": true,
+          "agent": "sora",
+          "message": "Bonjour ! Je suis Sora, votre analyste de données chez The Hive OS. 📊\n\nJe vois que vous souhaitez **créer un compte Google Tag Manager et configurer le conteneur sur votre site**. C'est parfait, je vais vous accompagner dans cette configuration essentielle pour le tracking !\n\n## 🔍 Évaluation de votre situation\n\nAvant de commencer, j'ai besoin de comprendre votre configuration actuelle pour adapter la mise en place :\n\n### 📋 **Questions préliminaires :**\n\n1. **GTM existant ?**\n   - Avez-vous déjà un compte Google Tag Manager ?\n   - Si oui, sous quelle adresse email/organisation Google ?\n   - Y a-t-il déjà un conteneur GTM installé sur votre site ?\n\n2. **Accès au code source ?**\n   - Avez-vous accès direct au code source de votre site web ?\n   - Qui gère actuellement les modifications techniques (développeur, agence, vous-même) ?\n   - Quel niveau d'accès avez-vous (FTP, admin CMS, éditeur de code) ?\n\n3. **CMS utilisé ?**\n   - Sur quelle plateforme votre site est-il construit ? (WordPress, Shopify, Webflow, custom, etc.)\n   - Avez-vous accès administrateur à ce CMS ?\n   - Des plugins de tracking sont-ils déjà installés ?\n\n### 🎯 **Objectifs de tracking :**\n- Quels sont vos objectifs principaux avec GTM ? (tracking e-commerce, conversions, événements spécifiques)\n- Avez-vous déjà Google Analytics 4 (GA4) configuré ?\n- Prévoyez-vous d'installer le Meta Pixel ou d'autres tags publicitaires ?\n\n## 🚀 Ce que je peux faire pour vous\n\nAvec mes outils MCP GTM Manager, je peux :\n\n✅ **Lister vos conteneurs GTM existants** (si vous en avez)\n✅ **Créer des tags de tracking** (GA4, Meta Pixel, conversions Google Ads)\n✅ **Configurer des déclencheurs** (pages vues, clics, soumissions de formulaires)\n✅ **Créer des variables personnalisées**\n✅ **Publier les versions** une fois testées\n✅ **Activer le mode preview** pour vérifier l'installation\n\n**Note importante :** Je peux vous guider dans la configuration GTM, mais l'installation physique du code sur votre site nécessitera un accès au code source.\n\nPouvez-vous me donner ces informations pour que je puisse vous proposer le meilleur plan d'action ? 🎯",
+          "ui_components": [],
+          "write_back_commands": [],
+          "session_id": "1656b2f6-de84-43ba-a27b-b7425604da99"
+        }
+      },
+      {
+        "task": {
+          "title": "📊 Configuration GA4",
+          "description": "Configurer Google Analytics 4 pour le tracking du site : créer une propriété GA4, obtenir le Measurement ID, configurer les data streams.",
+          "assignee": "sora",
+          "phase": "Setup",
+          "context_questions": [
+            "GA4 existant ?",
+            "Domaines à tracker ?",
+            "Cross-domain nécessaire ?"
+          ]
+        },
+        "validation": {
+          "greets": true,
+          "asksPrerequisites": true,
+          "asksQuestions": true,
+          "listsMCPCapabilities": true,
+          "doesNotExecute": true,
+          "score": 5,
+          "issues": [],
+          "message": "Bonjour ! Je suis Sora, votre analyste de données. 📊\n\nJe viens de recevoir votre mission : **Configurer Google Analytics 4 pour le tracking du site**. C'est parfait, je vais vous accompagner dans cette configuration essentielle pour mesurer vos performances !\n\n## 🔍 Évaluation de la situation\n\nAvant de procéder à la configuration GA4, j'ai besoin de comprendre votre situation actuelle :\n\n### 📌 **Accès et connexions**\n- **Google Tag Manager (GTM)** : Avez-vous déjà GTM installé sur votre site ? C'est l'outil idéal pour déployer GA4 proprement\n- **Compte Google Analytics** : Possédez-vous déjà un compte Google Analytics (même une ancienne version UA) ?\n- **Accès au site** : Avez-vous accès au code source de votre site pour installer les tags si nécessaire ?\n\n### 🌐 **Architecture du site**\n- **Domaine principal** : Quel est l'URL exact de votre site à tracker ?\n- **Sous-domaines** : Avez-vous des sous-domaines (ex: blog.votresite.com, shop.votresite.com) ?\n- **Sites multiples** : Gérez-vous plusieurs sites qui nécessiteraient un tracking cross-domain ?\n\n### 🎯 **Objectifs de tracking**\n- **Type de site** : E-commerce, lead generation, contenu, SaaS ?\n- **Événements prioritaires** : Quelles actions utilisateur sont cruciales à mesurer ? (achats, formulaires, téléchargements, etc.)\n- **Intégrations** : Prévoyez-vous de connecter GA4 à Google Ads ou d'autres plateformes ?\n\n## 💡 Ce que je peux faire pour vous\n\nAvec mes outils MCP, voici comment je peux vous aider :\n\n✅ **Vérifier votre configuration GTM** existante (containers, tags déjà en place)\n✅ **Créer les tags GA4** dans GTM (configuration tag, pageview trigger, etc.)\n✅ **Configurer les événements de conversion** essentiels\n✅ **Mettre en place le Enhanced Ecommerce** si vous avez une boutique\n✅ **Tester la configuration** en mode preview avant publication\n\n**Note importante :** Je ne peux pas créer directement la propriété GA4 dans votre compte Google Analytics (cela se fait manuellement), mais je peux vous guider étape par étape et configurer tout le tracking via GTM une fois que vous aurez le Measurement ID.\n\nDites-moi ce que vous avez déjà en place et je vous proposerai un plan d'action personnalisé ! 🚀"
+        },
+        "response": {
+          "success": true,
+          "agent": "sora",
+          "message": "Bonjour ! Je suis Sora, votre analyste de données. 📊\n\nJe viens de recevoir votre mission : **Configurer Google Analytics 4 pour le tracking du site**. C'est parfait, je vais vous accompagner dans cette configuration essentielle pour mesurer vos performances !\n\n## 🔍 Évaluation de la situation\n\nAvant de procéder à la configuration GA4, j'ai besoin de comprendre votre situation actuelle :\n\n### 📌 **Accès et connexions**\n- **Google Tag Manager (GTM)** : Avez-vous déjà GTM installé sur votre site ? C'est l'outil idéal pour déployer GA4 proprement\n- **Compte Google Analytics** : Possédez-vous déjà un compte Google Analytics (même une ancienne version UA) ?\n- **Accès au site** : Avez-vous accès au code source de votre site pour installer les tags si nécessaire ?\n\n### 🌐 **Architecture du site**\n- **Domaine principal** : Quel est l'URL exact de votre site à tracker ?\n- **Sous-domaines** : Avez-vous des sous-domaines (ex: blog.votresite.com, shop.votresite.com) ?\n- **Sites multiples** : Gérez-vous plusieurs sites qui nécessiteraient un tracking cross-domain ?\n\n### 🎯 **Objectifs de tracking**\n- **Type de site** : E-commerce, lead generation, contenu, SaaS ?\n- **Événements prioritaires** : Quelles actions utilisateur sont cruciales à mesurer ? (achats, formulaires, téléchargements, etc.)\n- **Intégrations** : Prévoyez-vous de connecter GA4 à Google Ads ou d'autres plateformes ?\n\n## 💡 Ce que je peux faire pour vous\n\nAvec mes outils MCP, voici comment je peux vous aider :\n\n✅ **Vérifier votre configuration GTM** existante (containers, tags déjà en place)\n✅ **Créer les tags GA4** dans GTM (configuration tag, pageview trigger, etc.)\n✅ **Configurer les événements de conversion** essentiels\n✅ **Mettre en place le Enhanced Ecommerce** si vous avez une boutique\n✅ **Tester la configuration** en mode preview avant publication\n\n**Note importante :** Je ne peux pas créer directement la propriété GA4 dans votre compte Google Analytics (cela se fait manuellement), mais je peux vous guider étape par étape et configurer tout le tracking via GTM une fois que vous aurez le Measurement ID.\n\nDites-moi ce que vous avez déjà en place et je vous proposerai un plan d'action personnalisé ! 🚀",
+          "ui_components": [],
+          "write_back_commands": [],
+          "session_id": "b719febe-eed0-4711-980a-17db41bacd58"
+        }
+      },
+      {
+        "task": {
+          "title": "🎯 Définition Objectif & KPIs Campagne",
+          "description": "Définir les objectifs SMART de la campagne Meta Ads et identifier les KPIs prioritaires : ROAS cible, CPA cible, taux de conversion, CTR.",
+          "assignee": "sora",
+          "phase": "Audit",
+          "context_questions": [
+            "Objectif business principal ?",
+            "Budget mensuel prévu ?",
+            "KPIs actuels ?"
+          ]
+        },
+        "validation": {
+          "greets": true,
+          "asksPrerequisites": true,
+          "asksQuestions": true,
+          "listsMCPCapabilities": true,
+          "doesNotExecute": true,
+          "score": 5,
+          "issues": [],
+          "message": "Bonjour ! Je suis Sora, votre analyste de données spécialisée en performance publicitaire. 📊\n\nJe vois que nous devons définir ensemble les objectifs SMART de votre campagne Meta Ads et identifier les KPIs prioritaires. C'est une étape cruciale pour assurer le succès de vos campagnes !\n\n## 🎯 Compréhension de vos besoins\n\nAvant de définir vos objectifs et KPIs, j'ai besoin de mieux comprendre votre situation actuelle et vos ambitions :\n\n### 💼 **Objectif Business**\n- Quel est votre objectif principal ? (Ventes e-commerce, génération de leads, notoriété, trafic...)\n- Avez-vous un produit/service spécifique à promouvoir ou plusieurs ?\n- Quelle est votre proposition de valeur unique ?\n\n### 💰 **Budget et Ressources**\n- Quel budget mensuel envisagez-vous pour Meta Ads ?\n- Avez-vous déjà un compte Meta Business Manager actif ?\n- Le Meta Pixel est-il installé sur votre site ?\n\n### 📈 **Performance Actuelle**\n- Avez-vous déjà des campagnes Meta Ads en cours ou passées ?\n- Si oui, quels sont vos KPIs actuels ? (ROAS, CPA, taux de conversion)\n- Sinon, avez-vous des benchmarks de votre industrie ?\n\n### 🔍 **Avec mes outils MCP, je peux :**\n✅ Analyser vos campagnes Meta Ads existantes pour établir une baseline\n✅ Vérifier le statut de votre tracking (Meta Pixel, événements de conversion)\n✅ Identifier les audiences performantes et les opportunités\n✅ Créer des rapports de suivi automatisés dans Looker\n\n**Une fois que j'aurai ces informations, je pourrai vous proposer :**\n- Des objectifs SMART personnalisés (Spécifiques, Mesurables, Atteignables, Réalistes, Temporels)\n- Un ROAS cible réaliste basé sur votre industrie et vos marges\n- Un CPA cible aligné sur votre rentabilité\n- Des KPIs secondaires pertinents (CTR, CPM, fréquence)\n\nPouvez-vous me partager ces informations pour que nous construisions ensemble une stratégie data-driven gagnante ? 🚀"
+        },
+        "response": {
+          "success": true,
+          "agent": "sora",
+          "message": "Bonjour ! Je suis Sora, votre analyste de données spécialisée en performance publicitaire. 📊\n\nJe vois que nous devons définir ensemble les objectifs SMART de votre campagne Meta Ads et identifier les KPIs prioritaires. C'est une étape cruciale pour assurer le succès de vos campagnes !\n\n## 🎯 Compréhension de vos besoins\n\nAvant de définir vos objectifs et KPIs, j'ai besoin de mieux comprendre votre situation actuelle et vos ambitions :\n\n### 💼 **Objectif Business**\n- Quel est votre objectif principal ? (Ventes e-commerce, génération de leads, notoriété, trafic...)\n- Avez-vous un produit/service spécifique à promouvoir ou plusieurs ?\n- Quelle est votre proposition de valeur unique ?\n\n### 💰 **Budget et Ressources**\n- Quel budget mensuel envisagez-vous pour Meta Ads ?\n- Avez-vous déjà un compte Meta Business Manager actif ?\n- Le Meta Pixel est-il installé sur votre site ?\n\n### 📈 **Performance Actuelle**\n- Avez-vous déjà des campagnes Meta Ads en cours ou passées ?\n- Si oui, quels sont vos KPIs actuels ? (ROAS, CPA, taux de conversion)\n- Sinon, avez-vous des benchmarks de votre industrie ?\n\n### 🔍 **Avec mes outils MCP, je peux :**\n✅ Analyser vos campagnes Meta Ads existantes pour établir une baseline\n✅ Vérifier le statut de votre tracking (Meta Pixel, événements de conversion)\n✅ Identifier les audiences performantes et les opportunités\n✅ Créer des rapports de suivi automatisés dans Looker\n\n**Une fois que j'aurai ces informations, je pourrai vous proposer :**\n- Des objectifs SMART personnalisés (Spécifiques, Mesurables, Atteignables, Réalistes, Temporels)\n- Un ROAS cible réaliste basé sur votre industrie et vos marges\n- Un CPA cible aligné sur votre rentabilité\n- Des KPIs secondaires pertinents (CTR, CPM, fréquence)\n\nPouvez-vous me partager ces informations pour que nous construisions ensemble une stratégie data-driven gagnante ? 🚀",
+          "ui_components": [],
+          "write_back_commands": [],
+          "session_id": "7c1b94e1-9001-4a17-afb9-1abd821705d8"
+        }
+      }
+    ]
+  },
+  "marcus": {
+    "agent": "marcus",
+    "tasks": 3,
+    "totalScore": 15,
+    "maxScore": 15,
+    "percentage": 100,
+    "results": [
+      {
+        "task": {
+          "title": "💰 Plan Budget & Allocation",
+          "description": "Établir le plan budgétaire complet avec budget de test initial, allocation par ad set, règles de scaling vertical et horizontal.",
+          "assignee": "marcus",
+          "phase": "Audit",
+          "context_questions": [
+            "Budget quotidien initial ?",
+            "Budget phase de test ?",
+            "Objectif scaling à 30 jours ?"
+          ]
+        },
+        "validation": {
+          "greets": true,
+          "asksPrerequisites": true,
+          "asksQuestions": true,
+          "listsMCPCapabilities": true,
+          "doesNotExecute": true,
+          "score": 5,
+          "issues": [],
+          "message": "Bonjour ! Je suis Marcus, votre expert en publicité et gestionnaire de budgets publicitaires. 💰\n\nJe vois que vous souhaitez établir un plan budgétaire complet avec stratégie de scaling. Excellente initiative - une bonne planification budgétaire est la clé d'une croissance rentable !\n\n## 📊 Analyse de votre demande\n\nPour créer un plan budgétaire optimal avec règles de scaling, j'ai besoin de comprendre votre situation actuelle et vos objectifs.\n\n### 🎯 Questions stratégiques essentielles :\n\n**1. Budget et objectifs**\n- Quel est votre **budget quotidien initial** envisagé ?\n- Quel budget souhaitez-vous allouer à la **phase de test** ? (généralement 7-14 jours)\n- Quel est votre **objectif de scaling à 30 jours** ? (ex: passer de 100€/jour à 1000€/jour)\n\n**2. Plateformes et répartition**\n- Sur quelles plateformes souhaitez-vous investir ? (Meta Ads, Google Ads, les deux ?)\n- Avez-vous une préférence de répartition ? (ex: 60% Meta, 40% Google)\n\n**3. Structure de campagne**\n- Combien d'ad sets prévoyez-vous par campagne ?\n- Quels sont vos segments d'audience prioritaires ?\n\n**4. Métriques de performance**\n- Quel est votre ROAS cible minimum ?\n- Quel CPA maximum êtes-vous prêt à accepter ?\n\n### 💡 Ce que je peux faire pour vous avec mes outils :\n\n✅ **Analyser vos campagnes existantes** (si vous en avez) pour établir des benchmarks\n✅ **Calculer la distribution optimale** des budgets entre campagnes\n✅ **Définir des règles de scaling intelligent** qui protègent la Learning Phase\n✅ **Créer un plan de scaling progressif** avec checkpoints de validation\n\n### 🚀 Ma proposition d'approche :\n\n**Phase 1 - Audit (si campagnes existantes)**\n- Analyser les performances actuelles\n- Identifier les winners/losers\n- Établir les benchmarks de référence\n\n**Phase 2 - Plan budgétaire**\n- Définir le budget de test initial (généralement 3-5x votre CPA cible par ad set)\n- Structurer l'allocation par ad set\n- Créer les règles de scaling vertical (même ad set) et horizontal (nouveaux ad sets)\n\n**Phase 3 - Règles d'optimisation**\n- Scaling : +20% max par période de 4 jours (protection Learning Phase)\n- Cut : ROAS < 1.5 après phase de test\n- Scale agressif : ROAS > 5.0\n\n**🔍 Avez-vous déjà des campagnes actives** que je pourrais analyser pour affiner le plan ? Ou partons-nous de zéro ?\n\nDites-moi vos contraintes budgétaires et objectifs, et je créerai un plan sur mesure avec des règles de scaling précises ! 📈"
+        },
+        "response": {
+          "success": true,
+          "agent": "marcus",
+          "message": "Bonjour ! Je suis Marcus, votre expert en publicité et gestionnaire de budgets publicitaires. 💰\n\nJe vois que vous souhaitez établir un plan budgétaire complet avec stratégie de scaling. Excellente initiative - une bonne planification budgétaire est la clé d'une croissance rentable !\n\n## 📊 Analyse de votre demande\n\nPour créer un plan budgétaire optimal avec règles de scaling, j'ai besoin de comprendre votre situation actuelle et vos objectifs.\n\n### 🎯 Questions stratégiques essentielles :\n\n**1. Budget et objectifs**\n- Quel est votre **budget quotidien initial** envisagé ?\n- Quel budget souhaitez-vous allouer à la **phase de test** ? (généralement 7-14 jours)\n- Quel est votre **objectif de scaling à 30 jours** ? (ex: passer de 100€/jour à 1000€/jour)\n\n**2. Plateformes et répartition**\n- Sur quelles plateformes souhaitez-vous investir ? (Meta Ads, Google Ads, les deux ?)\n- Avez-vous une préférence de répartition ? (ex: 60% Meta, 40% Google)\n\n**3. Structure de campagne**\n- Combien d'ad sets prévoyez-vous par campagne ?\n- Quels sont vos segments d'audience prioritaires ?\n\n**4. Métriques de performance**\n- Quel est votre ROAS cible minimum ?\n- Quel CPA maximum êtes-vous prêt à accepter ?\n\n### 💡 Ce que je peux faire pour vous avec mes outils :\n\n✅ **Analyser vos campagnes existantes** (si vous en avez) pour établir des benchmarks\n✅ **Calculer la distribution optimale** des budgets entre campagnes\n✅ **Définir des règles de scaling intelligent** qui protègent la Learning Phase\n✅ **Créer un plan de scaling progressif** avec checkpoints de validation\n\n### 🚀 Ma proposition d'approche :\n\n**Phase 1 - Audit (si campagnes existantes)**\n- Analyser les performances actuelles\n- Identifier les winners/losers\n- Établir les benchmarks de référence\n\n**Phase 2 - Plan budgétaire**\n- Définir le budget de test initial (généralement 3-5x votre CPA cible par ad set)\n- Structurer l'allocation par ad set\n- Créer les règles de scaling vertical (même ad set) et horizontal (nouveaux ad sets)\n\n**Phase 3 - Règles d'optimisation**\n- Scaling : +20% max par période de 4 jours (protection Learning Phase)\n- Cut : ROAS < 1.5 après phase de test\n- Scale agressif : ROAS > 5.0\n\n**🔍 Avez-vous déjà des campagnes actives** que je pourrais analyser pour affiner le plan ? Ou partons-nous de zéro ?\n\nDites-moi vos contraintes budgétaires et objectifs, et je créerai un plan sur mesure avec des règles de scaling précises ! 📈",
+          "ui_components": [],
+          "write_back_commands": [],
+          "session_id": "b478a1e0-bdab-4fb5-8e1e-1f070556361e"
+        }
+      },
+      {
+        "task": {
+          "title": "✅ QA Pre-Launch Checklist",
+          "description": "Exécuter la checklist complète avant lancement : tester liens, vérifier Pixel/CAPI track, confirmer visuels respectent règles Meta.",
+          "assignee": "marcus",
+          "phase": "Production",
+          "context_questions": [
+            "Liens testés ?",
+            "Visuels respectent règles Meta ?",
+            "Tracking fire en preview ?"
+          ]
+        },
+        "validation": {
+          "greets": true,
+          "asksPrerequisites": true,
+          "asksQuestions": true,
+          "listsMCPCapabilities": true,
+          "doesNotExecute": true,
+          "score": 5,
+          "issues": [],
+          "message": "Salut ! C'est Marcus, votre expert en publicité digitale. 🚀\n\nJe viens de recevoir votre mission : **exécuter la checklist QA pré-lancement**. Excellent réflexe ! Rien de pire que de lancer une campagne avec des problèmes techniques - c'est comme jeter de l'argent par la fenêtre.\n\n## 🔍 Analyse de la situation\n\nPour effectuer une checklist QA complète avant lancement, j'ai besoin de vérifier plusieurs éléments critiques :\n\n### 1. **Liens et Landing Pages** 🔗\n- Quels sont les URLs de destination de vos publicités ?\n- Avez-vous déjà testé que ces liens fonctionnent sur mobile ET desktop ?\n- Les pages se chargent-elles rapidement (< 3 secondes) ?\n\n### 2. **Tracking et Pixels** 📊\n- Sur quelle plateforme allez-vous lancer ? (Meta Ads, Google Ads, ou les deux ?)\n- Le **Meta Pixel** est-il installé ? Avec CAPI configuré ?\n- Le **Google Ads Conversion Tracking** est-il en place ?\n- Puis-je accéder à vos comptes pour vérifier le tracking ?\n\n### 3. **Visuels et Conformité** 🎨\n- Avez-vous les visuels prêts ? Combien de variations ?\n- Sont-ils au bon format ? (1:1, 9:16, 16:9)\n- Texte sur image < 20% ? (règle Meta)\n- Pas de contenu interdit ? (avant/après, parties du corps zoomées, etc.)\n\n### 4. **Configuration de campagne** ⚙️\n- Quel est votre objectif ? (Conversions, Trafic, Leads)\n- Budget prévu ?\n- Audience cible déjà définie ?\n\n## 🚨 Ce que je peux faire pour vous\n\nAvec mes outils MCP, je peux :\n\n✅ **Vérifier le tracking en temps réel** :\n- Tester si le Meta Pixel fire correctement\n- Vérifier les events de conversion\n- Analyser la configuration CAPI\n\n✅ **Auditer vos visuels** :\n- Vérifier la conformité Meta Ads (ratio texte/image)\n- M'assurer qu'ils respectent les politiques publicitaires\n\n✅ **Tester vos liens** :\n- Vérifier la vitesse de chargement\n- Tester sur différents appareils\n- Confirmer le tracking UTM\n\n✅ **Créer un rapport de QA complet** avec tous les points vérifiés\n\n## 📋 Questions pour démarrer\n\n1. **Sur quelle(s) plateforme(s) comptez-vous lancer ?** (Meta, Google, ou les deux ?)\n\n2. **Avez-vous accès aux comptes suivants ?**\n   - Meta Business Manager\n   - Google Ads\n   - Google Tag Manager\n   - Analytics (GA4)\n\n3. **Quel est le statut actuel ?**\n   - Campagne déjà créée en brouillon ?\n   - Ou on part de zéro ?\n\n4. **Partagez-vous les URLs** des landing pages à tester ?\n\nUne fois que j'aurai ces infos, je pourrai lancer ma checklist QA complète et vous donner un GO/NO-GO pour le lancement ! 🎯\n\n**Prêt à sécuriser votre lancement ?** Donnez-moi les accès et infos nécessaires, et je m'occupe du reste !"
+        },
+        "response": {
+          "success": true,
+          "agent": "marcus",
+          "message": "Salut ! C'est Marcus, votre expert en publicité digitale. 🚀\n\nJe viens de recevoir votre mission : **exécuter la checklist QA pré-lancement**. Excellent réflexe ! Rien de pire que de lancer une campagne avec des problèmes techniques - c'est comme jeter de l'argent par la fenêtre.\n\n## 🔍 Analyse de la situation\n\nPour effectuer une checklist QA complète avant lancement, j'ai besoin de vérifier plusieurs éléments critiques :\n\n### 1. **Liens et Landing Pages** 🔗\n- Quels sont les URLs de destination de vos publicités ?\n- Avez-vous déjà testé que ces liens fonctionnent sur mobile ET desktop ?\n- Les pages se chargent-elles rapidement (< 3 secondes) ?\n\n### 2. **Tracking et Pixels** 📊\n- Sur quelle plateforme allez-vous lancer ? (Meta Ads, Google Ads, ou les deux ?)\n- Le **Meta Pixel** est-il installé ? Avec CAPI configuré ?\n- Le **Google Ads Conversion Tracking** est-il en place ?\n- Puis-je accéder à vos comptes pour vérifier le tracking ?\n\n### 3. **Visuels et Conformité** 🎨\n- Avez-vous les visuels prêts ? Combien de variations ?\n- Sont-ils au bon format ? (1:1, 9:16, 16:9)\n- Texte sur image < 20% ? (règle Meta)\n- Pas de contenu interdit ? (avant/après, parties du corps zoomées, etc.)\n\n### 4. **Configuration de campagne** ⚙️\n- Quel est votre objectif ? (Conversions, Trafic, Leads)\n- Budget prévu ?\n- Audience cible déjà définie ?\n\n## 🚨 Ce que je peux faire pour vous\n\nAvec mes outils MCP, je peux :\n\n✅ **Vérifier le tracking en temps réel** :\n- Tester si le Meta Pixel fire correctement\n- Vérifier les events de conversion\n- Analyser la configuration CAPI\n\n✅ **Auditer vos visuels** :\n- Vérifier la conformité Meta Ads (ratio texte/image)\n- M'assurer qu'ils respectent les politiques publicitaires\n\n✅ **Tester vos liens** :\n- Vérifier la vitesse de chargement\n- Tester sur différents appareils\n- Confirmer le tracking UTM\n\n✅ **Créer un rapport de QA complet** avec tous les points vérifiés\n\n## 📋 Questions pour démarrer\n\n1. **Sur quelle(s) plateforme(s) comptez-vous lancer ?** (Meta, Google, ou les deux ?)\n\n2. **Avez-vous accès aux comptes suivants ?**\n   - Meta Business Manager\n   - Google Ads\n   - Google Tag Manager\n   - Analytics (GA4)\n\n3. **Quel est le statut actuel ?**\n   - Campagne déjà créée en brouillon ?\n   - Ou on part de zéro ?\n\n4. **Partagez-vous les URLs** des landing pages à tester ?\n\nUne fois que j'aurai ces infos, je pourrai lancer ma checklist QA complète et vous donner un GO/NO-GO pour le lancement ! 🎯\n\n**Prêt à sécuriser votre lancement ?** Donnez-moi les accès et infos nécessaires, et je m'occupe du reste !",
+          "ui_components": [],
+          "write_back_commands": [],
+          "session_id": "2bbd4135-a172-47ad-a88b-2cb312f59df4"
+        }
+      },
+      {
+        "task": {
+          "title": "🎪 Création Structure Campagne",
+          "description": "Créer la structure de campagne dans Ads Manager : choisir CBO vs ABO, sélectionner objectif, configurer budget quotidien vs lifetime.",
+          "assignee": "marcus",
+          "phase": "Production",
+          "context_questions": [
+            "CBO ou ABO ?",
+            "Budget quotidien ou lifetime ?",
+            "Placements auto ou manuels ?"
+          ]
+        },
+        "validation": {
+          "greets": true,
+          "asksPrerequisites": true,
+          "asksQuestions": true,
+          "listsMCPCapabilities": true,
+          "doesNotExecute": true,
+          "score": 5,
+          "issues": [],
+          "message": "Bonjour ! Je suis Marcus, votre expert en publicité digitale. 🚀\n\nJe vois que vous souhaitez créer une structure de campagne dans Ads Manager. Excellent ! C'est une étape cruciale pour assurer le succès de vos campagnes publicitaires.\n\n## 🎯 Avant de commencer, j'ai besoin de clarifier plusieurs points stratégiques :\n\n### 📊 **Structure de campagne**\n**CBO (Campaign Budget Optimization) ou ABO (Ad Set Budget Optimization) ?**\n- **CBO** : Facebook optimise automatiquement la distribution du budget entre vos ad sets pour maximiser les résultats\n- **ABO** : Vous contrôlez précisément le budget de chaque ad set (plus de contrôle, mais demande plus de gestion)\n\n💡 Ma recommandation : Si vous débutez ou avez moins de 3-5 ad sets, je recommande ABO pour mieux contrôler et apprendre. Pour des campagnes matures avec 5+ ad sets, CBO est souvent plus efficace.\n\n### 💰 **Configuration du budget**\n**Budget quotidien ou lifetime ?**\n- **Quotidien** : Flexibilité maximale, peut être ajusté à tout moment\n- **Lifetime** : Idéal pour des campagnes avec date de fin fixe (promos, événements)\n\n### 📱 **Placements**\n**Automatiques ou manuels ?**\n- **Auto** : Facebook/Instagram optimise pour vous (recommandé pour commencer)\n- **Manuels** : Vous choisissez exactement où apparaissent vos pubs\n\n## ❓ **Questions essentielles avant de procéder :**\n\n1. **Sur quelle plateforme ?** Meta Ads (Facebook/Instagram) ou Google Ads ?\n\n2. **Quel est votre objectif principal ?**\n   - Ventes en ligne (e-commerce)\n   - Génération de leads\n   - Trafic vers le site\n   - Notoriété de marque\n\n3. **Quel est votre budget envisagé ?**\n   - Budget quotidien : ___€/jour\n   - Ou budget total : ___€ sur ___ jours\n\n4. **Avez-vous déjà des audiences définies ?** (clients existants, lookalike, intérêts...)\n\n5. **Combien d'ad sets prévoyez-vous ?** (pour décider entre CBO/ABO)\n\n## ⚠️ **Prérequis critiques :**\n- Avez-vous un compte Business Manager configuré avec facturation ?\n- Le pixel/tracking est-il installé ? (CRUCIAL pour mesurer les résultats)\n\nUne fois que j'aurai ces informations, je pourrai :\n✅ Créer votre campagne avec la structure optimale\n✅ Configurer les budgets intelligemment\n✅ Définir les bons paramètres d'optimisation\n✅ Vous montrer un aperçu AVANT de lancer\n\nQu'est-ce qui vous intéresse le plus pour commencer ? 🎯"
+        },
+        "response": {
+          "success": true,
+          "agent": "marcus",
+          "message": "Bonjour ! Je suis Marcus, votre expert en publicité digitale. 🚀\n\nJe vois que vous souhaitez créer une structure de campagne dans Ads Manager. Excellent ! C'est une étape cruciale pour assurer le succès de vos campagnes publicitaires.\n\n## 🎯 Avant de commencer, j'ai besoin de clarifier plusieurs points stratégiques :\n\n### 📊 **Structure de campagne**\n**CBO (Campaign Budget Optimization) ou ABO (Ad Set Budget Optimization) ?**\n- **CBO** : Facebook optimise automatiquement la distribution du budget entre vos ad sets pour maximiser les résultats\n- **ABO** : Vous contrôlez précisément le budget de chaque ad set (plus de contrôle, mais demande plus de gestion)\n\n💡 Ma recommandation : Si vous débutez ou avez moins de 3-5 ad sets, je recommande ABO pour mieux contrôler et apprendre. Pour des campagnes matures avec 5+ ad sets, CBO est souvent plus efficace.\n\n### 💰 **Configuration du budget**\n**Budget quotidien ou lifetime ?**\n- **Quotidien** : Flexibilité maximale, peut être ajusté à tout moment\n- **Lifetime** : Idéal pour des campagnes avec date de fin fixe (promos, événements)\n\n### 📱 **Placements**\n**Automatiques ou manuels ?**\n- **Auto** : Facebook/Instagram optimise pour vous (recommandé pour commencer)\n- **Manuels** : Vous choisissez exactement où apparaissent vos pubs\n\n## ❓ **Questions essentielles avant de procéder :**\n\n1. **Sur quelle plateforme ?** Meta Ads (Facebook/Instagram) ou Google Ads ?\n\n2. **Quel est votre objectif principal ?**\n   - Ventes en ligne (e-commerce)\n   - Génération de leads\n   - Trafic vers le site\n   - Notoriété de marque\n\n3. **Quel est votre budget envisagé ?**\n   - Budget quotidien : ___€/jour\n   - Ou budget total : ___€ sur ___ jours\n\n4. **Avez-vous déjà des audiences définies ?** (clients existants, lookalike, intérêts...)\n\n5. **Combien d'ad sets prévoyez-vous ?** (pour décider entre CBO/ABO)\n\n## ⚠️ **Prérequis critiques :**\n- Avez-vous un compte Business Manager configuré avec facturation ?\n- Le pixel/tracking est-il installé ? (CRUCIAL pour mesurer les résultats)\n\nUne fois que j'aurai ces informations, je pourrai :\n✅ Créer votre campagne avec la structure optimale\n✅ Configurer les budgets intelligemment\n✅ Définir les bons paramètres d'optimisation\n✅ Vous montrer un aperçu AVANT de lancer\n\nQu'est-ce qui vous intéresse le plus pour commencer ? 🎯",
+          "ui_components": [],
+          "write_back_commands": [],
+          "session_id": "92330d6d-f27c-43e3-bc6d-613802e11635"
+        }
+      }
+    ]
+  },
+  "milo": {
+    "agent": "milo",
+    "tasks": 3,
+    "totalScore": 15,
+    "maxScore": 15,
+    "percentage": 100,
+    "results": [
+      {
+        "task": {
+          "title": "🎨 Production Visuels (6 variations)",
+          "description": "Produire 6 variations visuelles respectant les spécifications Meta : 2 images statiques carrées, 2 carrousels, 2 formats verticaux pour Stories/Reels.",
+          "assignee": "milo",
+          "phase": "Production",
+          "context_questions": [
+            "Charte graphique (couleurs, fonts) ?",
+            "Produits/services à mettre en avant ?",
+            "Références visuelles inspirantes ?"
+          ]
+        },
+        "validation": {
+          "greets": true,
+          "asksPrerequisites": true,
+          "asksQuestions": true,
+          "listsMCPCapabilities": true,
+          "doesNotExecute": true,
+          "score": 5,
+          "issues": [],
+          "message": "Bonjour ! Je suis Milo, votre directeur créatif. 🎨\n\nParfait, je vois que nous devons créer **6 variations visuelles pour Meta** ! C'est exactement dans mes cordes. Je suis ravi de travailler sur cette production créative avec vous.\n\n## 📋 Brief créatif - J'ai besoin de comprendre votre vision\n\nAvant de lancer la production de vos 6 visuels, permettez-moi de clarifier quelques points essentiels :\n\n### 🎨 **Identité visuelle**\n- **Quelle est votre charte graphique ?** (couleurs principales, secondaires, fonts)\n- Avez-vous un guide de style ou des exemples de visuels de votre marque ?\n- Y a-t-il des éléments visuels obligatoires ? (logo, tagline, packshot produit)\n\n### 🛍️ **Contenu à promouvoir**\n- **Quels produits/services devons-nous mettre en avant ?**\n- S'agit-il d'une promotion spéciale, d'un lancement, ou de brand awareness ?\n- Quel est le message clé ou le call-to-action principal ?\n\n### 💡 **Inspiration et direction créative**\n- Avez-vous des **références visuelles inspirantes** ? (liens, screenshots, mood board)\n- Quel style souhaitez-vous ? (minimaliste, coloré, lifestyle, corporate, trendy)\n- Quelle émotion voulez-vous transmettre ? (confiance, joie, innovation, premium)\n\n### 🎯 **Spécificités techniques**\nPour les 6 variations Meta, je prévois :\n- **2 images carrées (1080x1080)** - Pour le feed Instagram/Facebook\n- **2 carrousels** - Combien de slides par carrousel ? (2-10 slides)\n- **2 formats verticaux (1080x1920)** - Pour Stories/Reels\n\n### 📅 **Contexte de campagne**\n- Ces visuels font-ils partie d'une campagne plus large ?\n- Y a-t-il une période de diffusion prévue ? (saisonnalité, événement)\n- Devons-nous décliner un concept unique ou explorer 6 directions créatives différentes ?\n\nAvec mes outils de génération d'images **Nano Banana Pro**, je peux créer des visuels 4K ultra-réalistes parfaitement adaptés à chaque format Meta. Une fois que j'aurai ces informations, je vous proposerai des concepts créatifs concrets avant de lancer la production ! \n\nQu'est-ce qui est déjà défini de votre côté ? 🚀"
+        },
+        "response": {
+          "success": true,
+          "agent": "milo",
+          "message": "Bonjour ! Je suis Milo, votre directeur créatif. 🎨\n\nParfait, je vois que nous devons créer **6 variations visuelles pour Meta** ! C'est exactement dans mes cordes. Je suis ravi de travailler sur cette production créative avec vous.\n\n## 📋 Brief créatif - J'ai besoin de comprendre votre vision\n\nAvant de lancer la production de vos 6 visuels, permettez-moi de clarifier quelques points essentiels :\n\n### 🎨 **Identité visuelle**\n- **Quelle est votre charte graphique ?** (couleurs principales, secondaires, fonts)\n- Avez-vous un guide de style ou des exemples de visuels de votre marque ?\n- Y a-t-il des éléments visuels obligatoires ? (logo, tagline, packshot produit)\n\n### 🛍️ **Contenu à promouvoir**\n- **Quels produits/services devons-nous mettre en avant ?**\n- S'agit-il d'une promotion spéciale, d'un lancement, ou de brand awareness ?\n- Quel est le message clé ou le call-to-action principal ?\n\n### 💡 **Inspiration et direction créative**\n- Avez-vous des **références visuelles inspirantes** ? (liens, screenshots, mood board)\n- Quel style souhaitez-vous ? (minimaliste, coloré, lifestyle, corporate, trendy)\n- Quelle émotion voulez-vous transmettre ? (confiance, joie, innovation, premium)\n\n### 🎯 **Spécificités techniques**\nPour les 6 variations Meta, je prévois :\n- **2 images carrées (1080x1080)** - Pour le feed Instagram/Facebook\n- **2 carrousels** - Combien de slides par carrousel ? (2-10 slides)\n- **2 formats verticaux (1080x1920)** - Pour Stories/Reels\n\n### 📅 **Contexte de campagne**\n- Ces visuels font-ils partie d'une campagne plus large ?\n- Y a-t-il une période de diffusion prévue ? (saisonnalité, événement)\n- Devons-nous décliner un concept unique ou explorer 6 directions créatives différentes ?\n\nAvec mes outils de génération d'images **Nano Banana Pro**, je peux créer des visuels 4K ultra-réalistes parfaitement adaptés à chaque format Meta. Une fois que j'aurai ces informations, je vous proposerai des concepts créatifs concrets avant de lancer la production ! \n\nQu'est-ce qui est déjà défini de votre côté ? 🚀",
+          "ui_components": [],
+          "write_back_commands": [],
+          "session_id": "beff32dd-f32c-4b1b-afd2-ac4cf483d227"
+        }
+      },
+      {
+        "task": {
+          "title": "✍️ Copywriting Ads (9 variations)",
+          "description": "Rédiger 9 variations de copy publicitaire en testant 3 angles créatifs (pain point, bénéfice, urgence) × 3 variations d'exécution.",
+          "assignee": "milo",
+          "phase": "Production",
+          "context_questions": [
+            "Ton de la marque ?",
+            "Bénéfices à mettre en avant ?",
+            "Mots-clés obligatoires ?"
+          ]
+        },
+        "validation": {
+          "greets": true,
+          "asksPrerequisites": true,
+          "asksQuestions": true,
+          "listsMCPCapabilities": true,
+          "doesNotExecute": true,
+          "score": 5,
+          "issues": [],
+          "message": "Bonjour ! Je suis Milo, votre directeur créatif. ✨\n\nJe vois que vous avez besoin de **9 variations de copy publicitaire** - excellent ! C'est exactement le type de défi créatif que j'adore relever. \n\n## 📋 Brief Créatif - J'ai besoin de comprendre votre marque\n\nAvant de rédiger ces copies qui vont convertir, j'ai quelques questions essentielles :\n\n### 🎯 **Produit/Service**\n- Qu'est-ce que vous vendez exactement ?\n- Quel est le prix ou la gamme de prix ?\n- Y a-t-il une offre spéciale en cours ?\n\n### 🎨 **Identité de Marque**\n- **Ton de la marque** : Plutôt professionnel, fun, premium, accessible, expert ?\n- **Mots-clés obligatoires** : Y a-t-il des termes spécifiques à inclure absolument ?\n- Avez-vous un slogan ou une baseline ?\n\n### 💎 **Proposition de Valeur**\n- **Bénéfices principaux** : Quels sont les 3 avantages clés pour vos clients ?\n- **Points de douleur** : Quels problèmes résolvez-vous ?\n- **Différenciation** : Qu'est-ce qui vous rend unique vs la concurrence ?\n\n### 🎯 **Cible et Plateforme**\n- Pour qui écrivons-nous ? (âge, intérêts, problématiques)\n- Sur quelles plateformes seront diffusées ces pubs ? (Facebook, Google Ads, LinkedIn...)\n- Format souhaité : Court (headline) ou long (description) ?\n\n### 📊 **Structure proposée**\nJe vais créer 9 variations selon cette matrice :\n\n**3 angles créatifs :**\n1. **Pain Point** (problème client)\n2. **Bénéfice** (solution/avantage)\n3. **Urgence** (FOMO/offre limitée)\n\n**× 3 variations d'exécution pour chaque angle**\n\nUne fois que j'aurai ces infos, je pourrai créer des copies qui parlent vraiment à votre audience et génèrent des conversions ! \n\nQu'est-ce que vous pouvez me dire sur votre produit/service ? 🚀"
+        },
+        "response": {
+          "success": true,
+          "agent": "milo",
+          "message": "Bonjour ! Je suis Milo, votre directeur créatif. ✨\n\nJe vois que vous avez besoin de **9 variations de copy publicitaire** - excellent ! C'est exactement le type de défi créatif que j'adore relever. \n\n## 📋 Brief Créatif - J'ai besoin de comprendre votre marque\n\nAvant de rédiger ces copies qui vont convertir, j'ai quelques questions essentielles :\n\n### 🎯 **Produit/Service**\n- Qu'est-ce que vous vendez exactement ?\n- Quel est le prix ou la gamme de prix ?\n- Y a-t-il une offre spéciale en cours ?\n\n### 🎨 **Identité de Marque**\n- **Ton de la marque** : Plutôt professionnel, fun, premium, accessible, expert ?\n- **Mots-clés obligatoires** : Y a-t-il des termes spécifiques à inclure absolument ?\n- Avez-vous un slogan ou une baseline ?\n\n### 💎 **Proposition de Valeur**\n- **Bénéfices principaux** : Quels sont les 3 avantages clés pour vos clients ?\n- **Points de douleur** : Quels problèmes résolvez-vous ?\n- **Différenciation** : Qu'est-ce qui vous rend unique vs la concurrence ?\n\n### 🎯 **Cible et Plateforme**\n- Pour qui écrivons-nous ? (âge, intérêts, problématiques)\n- Sur quelles plateformes seront diffusées ces pubs ? (Facebook, Google Ads, LinkedIn...)\n- Format souhaité : Court (headline) ou long (description) ?\n\n### 📊 **Structure proposée**\nJe vais créer 9 variations selon cette matrice :\n\n**3 angles créatifs :**\n1. **Pain Point** (problème client)\n2. **Bénéfice** (solution/avantage)\n3. **Urgence** (FOMO/offre limitée)\n\n**× 3 variations d'exécution pour chaque angle**\n\nUne fois que j'aurai ces infos, je pourrai créer des copies qui parlent vraiment à votre audience et génèrent des conversions ! \n\nQu'est-ce que vous pouvez me dire sur votre produit/service ? 🚀",
+          "ui_components": [],
+          "write_back_commands": [],
+          "session_id": "fd62e5de-d3b7-4a61-a719-656c0bf6976b"
+        }
+      },
+      {
+        "task": {
+          "title": "🏷️ Optimisation Balises Title",
+          "description": "Optimiser les balises <title> de toutes les pages stratégiques du site pour améliorer le CTR organique dans les SERPs.",
+          "assignee": "milo",
+          "phase": "Production",
+          "context_questions": [
+            "Nombre de pages ?",
+            "Templates existants ?",
+            "Marque en suffix ?"
+          ]
+        },
+        "validation": {
+          "greets": true,
+          "asksPrerequisites": true,
+          "asksQuestions": true,
+          "listsMCPCapabilities": true,
+          "doesNotExecute": true,
+          "score": 5,
+          "issues": [],
+          "message": "Bonjour ! Je suis Milo, votre directeur créatif. 🎨\n\nJe vois que vous avez une mission d'optimisation des balises `<title>` pour améliorer le CTR organique. C'est un excellent projet pour booster la visibilité dans les SERPs !\n\nAvant de commencer, j'ai besoin de comprendre le contexte et vos besoins créatifs :\n\n## 📊 **Analyse de l'existant**\n- **Combien de pages stratégiques** devons-nous optimiser ?\n- Avez-vous déjà des **templates de titres** existants que nous pouvons améliorer ?\n- Souhaitez-vous inclure le **nom de marque en suffixe** ? (ex: \"Titre | VotreMarque\")\n\n## 🔗 **Accès et données**\nPour créer des titres percutants, j'aurais besoin de savoir :\n- Avez-vous accès à **Google Search Console** pour voir les CTR actuels ?\n- Disposez-vous de données sur les **mots-clés cibles** pour chaque page ?\n- Quel est votre **CMS** ? (WordPress, Shopify, custom...)\n- Avez-vous une **charte éditoriale** ou des guidelines de ton ?\n\n## 🎯 **Objectifs créatifs**\n- Quel est votre **secteur d'activité** et votre **audience cible** ?\n- Y a-t-il des **concurrents** dont les titres vous inspirent ?\n- Préférez-vous des titres **informatifs**, **accrocheurs** ou **orientés action** ?\n\n## 💡 **Ma proposition créative**\nUne fois ces informations en main, je pourrai :\n1. **Analyser** vos titres actuels et identifier les opportunités\n2. **Créer** des variations optimisées pour le CTR (avec power words, chiffres, urgence...)\n3. **Proposer** un template réutilisable pour maintenir la cohérence\n4. **Générer des visuels** si besoin pour illustrer l'impact des nouveaux titres dans les SERPs\n\nAvec mes outils créatifs, je peux même créer des **maquettes visuelles** montrant comment vos nouveaux titres apparaîtront dans Google, ou des **vidéos de présentation** pour votre équipe !\n\nPar où souhaitez-vous commencer ? 🚀"
+        },
+        "response": {
+          "success": true,
+          "agent": "milo",
+          "message": "Bonjour ! Je suis Milo, votre directeur créatif. 🎨\n\nJe vois que vous avez une mission d'optimisation des balises `<title>` pour améliorer le CTR organique. C'est un excellent projet pour booster la visibilité dans les SERPs !\n\nAvant de commencer, j'ai besoin de comprendre le contexte et vos besoins créatifs :\n\n## 📊 **Analyse de l'existant**\n- **Combien de pages stratégiques** devons-nous optimiser ?\n- Avez-vous déjà des **templates de titres** existants que nous pouvons améliorer ?\n- Souhaitez-vous inclure le **nom de marque en suffixe** ? (ex: \"Titre | VotreMarque\")\n\n## 🔗 **Accès et données**\nPour créer des titres percutants, j'aurais besoin de savoir :\n- Avez-vous accès à **Google Search Console** pour voir les CTR actuels ?\n- Disposez-vous de données sur les **mots-clés cibles** pour chaque page ?\n- Quel est votre **CMS** ? (WordPress, Shopify, custom...)\n- Avez-vous une **charte éditoriale** ou des guidelines de ton ?\n\n## 🎯 **Objectifs créatifs**\n- Quel est votre **secteur d'activité** et votre **audience cible** ?\n- Y a-t-il des **concurrents** dont les titres vous inspirent ?\n- Préférez-vous des titres **informatifs**, **accrocheurs** ou **orientés action** ?\n\n## 💡 **Ma proposition créative**\nUne fois ces informations en main, je pourrai :\n1. **Analyser** vos titres actuels et identifier les opportunités\n2. **Créer** des variations optimisées pour le CTR (avec power words, chiffres, urgence...)\n3. **Proposer** un template réutilisable pour maintenir la cohérence\n4. **Générer des visuels** si besoin pour illustrer l'impact des nouveaux titres dans les SERPs\n\nAvec mes outils créatifs, je peux même créer des **maquettes visuelles** montrant comment vos nouveaux titres apparaîtront dans Google, ou des **vidéos de présentation** pour votre équipe !\n\nPar où souhaitez-vous commencer ? 🚀",
+          "ui_components": [],
+          "write_back_commands": [],
+          "session_id": "eaf60d42-f78b-4f4f-863c-2a9f640a1f7d"
+        }
+      }
+    ]
+  }
+}
