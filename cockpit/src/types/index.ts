@@ -115,7 +115,7 @@ export const AGENTS: Record<AgentRole, Agent> = {
 // ─────────────────────────────────────────────────────────────────
 
 export type ProjectStatus = 'planning' | 'in_progress' | 'completed' | 'paused';
-export type ProjectScope = 'meta_ads' | 'sem' | 'seo' | 'analytics' | 'full_scale';
+export type ProjectScope = 'meta_ads' | 'sem' | 'seo' | 'analytics' | 'social_media' | 'full_scale';
 
 export interface ProjectStateFlags {
   strategy_validated: boolean;
@@ -165,7 +165,7 @@ export interface ProjectMetadata {
   target_audience?: string;
   businessGoal?: string; // Alias
   campaign_launch_date?: string;
-  brand_tone?: string;
+  brand_tone?: 'professional' | 'casual' | 'bold' | 'inspirational'; // Social Media Context
 }
 
 // Context Injection Rules for Agents

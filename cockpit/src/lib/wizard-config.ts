@@ -55,6 +55,13 @@ export const SCOPE_OPTIONS: ScopeOption[] = [
     color: '#EA4335',
   },
   {
+    value: 'social_media',
+    label: 'Social Media',
+    description: 'Gestion des Réseaux Sociaux',
+    icon: '📱',
+    color: '#10B981', // Emerald (couleur Doffy)
+  },
+  {
     value: 'full_scale',
     label: 'Full Scale',
     description: 'Lancement Complet (tous les leviers)',
@@ -235,6 +242,38 @@ export const ANALYTICS_CONTEXT_QUESTIONS: ContextQuestion[] = [
   },
 ];
 
+export const SOCIAL_MEDIA_CONTEXT_QUESTIONS: ContextQuestion[] = [
+  {
+    id: 'brand_tone',
+    question: 'Quel est le ton de votre marque sur les réseaux sociaux ?',
+    type: 'select',
+    options: [
+      { value: 'professional', label: 'Professionnel / Expert' },
+      { value: 'casual', label: 'Décontracté / Accessible' },
+      { value: 'bold', label: 'Audacieux / Provocant' },
+      { value: 'inspirational', label: 'Inspirant / Motivant' },
+    ],
+    injectTo: ['doffy', 'milo'],
+    scopes: ['social_media', 'full_scale'],
+  },
+  {
+    id: 'persona',
+    question: 'Quel est votre Avatar Client idéal (Persona) ?',
+    type: 'text',
+    placeholder: 'Ex: Entrepreneurs 30-45 ans, tech-savvy, LinkedIn actifs',
+    injectTo: ['doffy', 'milo', 'luna'],
+    scopes: ['social_media', 'full_scale'],
+  },
+  {
+    id: 'competitors',
+    question: 'Quels sont vos 3 concurrents les plus actifs sur les réseaux ?',
+    type: 'text',
+    placeholder: 'Ex: @concurrent1, @concurrent2, @concurrent3',
+    injectTo: ['doffy', 'luna'],
+    scopes: ['social_media', 'full_scale'],
+  },
+];
+
 // Helper to get context questions for a scope
 export function getContextQuestionsForScope(scope: ProjectScope): ContextQuestion[] {
   const questions = [...GLOBAL_CONTEXT_QUESTIONS];
@@ -250,6 +289,9 @@ export function getContextQuestionsForScope(scope: ProjectScope): ContextQuestio
   }
   if (scope === 'analytics' || scope === 'full_scale') {
     questions.push(...ANALYTICS_CONTEXT_QUESTIONS);
+  }
+  if (scope === 'social_media' || scope === 'full_scale') {
+    questions.push(...SOCIAL_MEDIA_CONTEXT_QUESTIONS);
   }
 
   // Deduplicate by id
@@ -384,11 +426,44 @@ export const ANALYTICS_QUESTIONS: WizardQuestion[] = [
   },
 ];
 
+export const SOCIAL_MEDIA_QUESTIONS: WizardQuestion[] = [
+  {
+    id: 'social_platforms',
+    question: 'Quelles plateformes voulez-vous gérer ?',
+    options: [
+      { value: 'all', label: 'Toutes (LinkedIn, Insta, X, TikTok, FB)', description: 'Couverture complète' },
+      { value: 'linkedin_instagram', label: 'LinkedIn + Instagram', description: 'B2B & B2C essentials' },
+      { value: 'instagram_tiktok', label: 'Instagram + TikTok', description: 'Visual & video-first' },
+      { value: 'linkedin_only', label: 'LinkedIn uniquement', description: 'Focus B2B / thought leadership' },
+    ],
+  },
+  {
+    id: 'social_content',
+    question: 'Quel type de contenu devons-nous produire ?',
+    options: [
+      { value: 'full', label: 'Tout (Textes + Visuels + Vidéos)', description: 'Production complète avec Milo' },
+      { value: 'text_visuals', label: 'Textes + Visuels', description: "J'ai mes vidéos" },
+      { value: 'text_only', label: 'Textes uniquement', description: "J'ai tous mes visuels et vidéos" },
+      { value: 'calendar_only', label: 'Calendrier éditorial uniquement', description: 'Stratégie & planning seulement' },
+    ],
+  },
+  {
+    id: 'social_existing',
+    question: "Quel est l'état actuel de votre présence social media ?",
+    options: [
+      { value: 'active', label: 'Comptes actifs avec audience', description: 'Déjà une communauté engagée' },
+      { value: 'dormant', label: 'Comptes existants mais inactifs', description: 'Faut réactiver la présence' },
+      { value: 'new', label: 'Pas encore de comptes', description: 'Tout est à créer' },
+    ],
+  },
+];
+
 export const WIZARD_FLOWS: Record<Exclude<ProjectScope, 'full_scale'>, WizardQuestion[]> = {
   meta_ads: META_ADS_QUESTIONS,
   sem: SEM_QUESTIONS,
   seo: SEO_QUESTIONS,
   analytics: ANALYTICS_QUESTIONS,
+  social_media: SOCIAL_MEDIA_QUESTIONS,
 };
 
 export function getQuestionsForScope(scope: ProjectScope): WizardQuestion[] {
@@ -398,6 +473,7 @@ export function getQuestionsForScope(scope: ProjectScope): WizardQuestion[] {
       ...SEO_QUESTIONS,
       ...META_ADS_QUESTIONS,
       ...SEM_QUESTIONS,
+      ...SOCIAL_MEDIA_QUESTIONS,
     ];
   }
   return WIZARD_FLOWS[scope];
@@ -541,6 +617,234 @@ export const SEO_TASKS: BaseTask[] = [
 ];
 
 // ═══════════════════════════════════════════════════════════════
+// SOCIAL MEDIA TASKS (15 tâches) - DOFFY
+// ═══════════════════════════════════════════════════════════════
+
+export const SOCIAL_MEDIA_TASKS: BaseTask[] = [
+  // ═══ AUDIT PHASE (4 tâches) ═══
+
+  {
+    title: '📱 Audit Présence Social Media Actuelle',
+    description: 'Analyser l\'état actuel de la présence sur les réseaux sociaux : 1) Audit de chaque compte (followers, taux engagement, fréquence publication, types de contenu qui performent), 2) Analyse du tone of voice actuel vs objectifs marque, 3) Identification des top posts des 3 derniers mois (engagement rate, reach, saves/shares), 4) Benchmark vs 3 concurrents directs (fréquence, formats, hashtags, heures de publication), 5) Analyse de l\'audience actuelle (demographics, heures actives, intérêts). Livrable : rapport d\'audit avec scores par plateforme et recommandations.',
+    assignee: 'doffy',
+    phase: 'Audit',
+    estimated_hours: 2,
+    category: 'strategy',
+    order: 1,
+    context_questions: [
+      'Quels sont vos comptes social media actuels (URLs) ?',
+      'Quel est votre taux d\'engagement actuel ?',
+      'Quels types de posts fonctionnent le mieux ?',
+    ],
+  },
+  {
+    title: '🎯 Définition Stratégie & Objectifs Social Media',
+    description: 'Définir la stratégie social media alignée avec les objectifs business : 1) Objectifs SMART par plateforme (croissance followers, engagement rate cible, leads générés, trafic site), 2) Choix des plateformes prioritaires selon audience et ressources, 3) Définition des piliers de contenu (3-5 thèmes récurrents), 4) Fréquence de publication par plateforme, 5) KPIs de suivi (engagement rate > X%, reach growth, conversion rate), 6) Budget temps et ressources nécessaires. Livrable : document stratégie avec objectifs chiffrés.',
+    assignee: 'doffy',
+    phase: 'Audit',
+    estimated_hours: 2,
+    category: 'strategy',
+    order: 2,
+    context_questions: [
+      'Quel est votre objectif business principal ?',
+      'Combien de temps par semaine pouvez-vous consacrer aux réseaux ?',
+      'Avez-vous un budget pub social media ?',
+    ],
+  },
+  {
+    title: '🔍 Analyse Concurrents & Benchmark Social',
+    description: 'Étude approfondie de la stratégie social media des 3 concurrents directs : 1) Analyse par plateforme (types de contenu, fréquence, engagement, croissance), 2) Identification des formats qui performent (carrousels vs vidéos vs images vs texte seul), 3) Analyse des hashtags utilisés et leur performance, 4) Horaires de publication et calendrier éditorial identifié, 5) Tone of voice et style visuel, 6) Points forts à reproduire et faiblesses à exploiter. Livrable : matrice concurrentielle avec opportunités.',
+    assignee: 'doffy',
+    phase: 'Audit',
+    estimated_hours: 1.5,
+    category: 'strategy',
+    order: 3,
+    context_questions: [
+      'Quels sont vos 3 concurrents sur les réseaux ?',
+      'Sur quelles plateformes sont-ils les plus actifs ?',
+      'Qu\'admirez-vous dans leur stratégie social ?',
+    ],
+  },
+  {
+    title: '👤 Définition Audiences & Personas par Plateforme',
+    description: 'Créer des personas détaillés par plateforme pour adapter le contenu : 1) LinkedIn : profil professionnel (poste, secteur, challenges), 2) Instagram : profil lifestyle (intérêts, esthétique, comportement), 3) Twitter/X : profil engagement (sujets de discussion, influenceurs suivis), 4) TikTok : profil découverte (trends, format préféré, durée attention), 5) Facebook : profil communauté (groupes, événements, partage). Pour chaque persona : demographics, pain points, contenus qui résonnent, CTA qui convertissent. Livrable : fiches personas par plateforme.',
+    assignee: 'doffy',
+    phase: 'Audit',
+    estimated_hours: 1.5,
+    category: 'strategy',
+    order: 4,
+    context_questions: [
+      'Qui est votre client idéal (âge, profession, intérêts) ?',
+      'Sur quelle plateforme votre audience est-elle la plus active ?',
+      'Quel type de contenu consomme votre audience ?',
+    ],
+  },
+
+  // ═══ SETUP PHASE (4 tâches) ═══
+
+  {
+    title: '🔗 Connexion Comptes Réseaux Sociaux',
+    description: 'Connecter tous les comptes social media via OAuth pour permettre la publication automatisée : 1) LinkedIn : connexion compte entreprise (Company Page admin), 2) Instagram : connexion compte professionnel via Meta Business Suite, 3) Twitter/X : connexion compte via API v2, 4) TikTok : connexion compte Business via TikTok for Business, 5) Facebook : connexion Page Facebook. Pour chaque plateforme : autoriser les permissions de publication, vérifier le statut de connexion, tester un brouillon de post. Livrable : tous les comptes connectés et fonctionnels.',
+    assignee: 'doffy',
+    phase: 'Setup',
+    estimated_hours: 1,
+    category: 'configuration',
+    order: 5,
+    context_questions: [
+      'Avez-vous les accès admin sur tous vos comptes ?',
+      'Quels comptes devons-nous connecter en priorité ?',
+      'Business Manager Meta est-il configuré ?',
+    ],
+  },
+  {
+    title: '📋 Création Calendrier Éditorial Mensuel',
+    description: 'Créer un calendrier éditorial détaillé pour le premier mois : 1) Répartition par plateforme selon stratégie (ex: 5 posts LinkedIn/sem, 7 posts Insta/sem, 3 tweets/jour, 3 TikTok/sem), 2) Thèmes hebdomadaires alignés avec les piliers de contenu, 3) Mix de formats (40% image, 30% vidéo/reel, 20% carrousel, 10% texte seul), 4) Horaires optimaux par plateforme (basés sur analyse audience), 5) Intégration des marronniers (événements sectoriels, fêtes, actualités), 6) Buffer pour contenu réactif/actualité. Livrable : calendrier interactif CONTENT_CALENDAR avec tous les posts planifiés.',
+    assignee: 'doffy',
+    phase: 'Setup',
+    estimated_hours: 3,
+    category: 'planning',
+    order: 6,
+    context_questions: [
+      'Combien de posts par semaine visez-vous ?',
+      'Y a-t-il des événements importants ce mois-ci ?',
+      'Avez-vous des thèmes de contenu préférés ?',
+    ],
+  },
+  {
+    title: '🎨 Création Templates & Assets Visuels',
+    description: 'Produire les templates visuels et assets créatifs pour tous les formats social media : 1) Templates feed Instagram (1080x1080, 1080x1350), 2) Templates Stories/Reels (1080x1920), 3) Templates LinkedIn (1200x627 pour articles, 1080x1080 pour posts), 4) Palette couleurs et typo brand-ready, 5) Pack icônes et éléments graphiques récurrents, 6) Bannières et couvertures de profil par plateforme. Collaboration directe avec les outils de génération d\'image. Livrable : pack complet de templates prêts à l\'emploi.',
+    assignee: 'milo',
+    phase: 'Setup',
+    estimated_hours: 4,
+    category: 'creative',
+    order: 7,
+    context_questions: [
+      'Avez-vous une charte graphique / brand guidelines ?',
+      'Quelles couleurs et polices représentent votre marque ?',
+      'Quel style visuel préférez-vous (photos, illustrations, mixte) ?',
+    ],
+  },
+  {
+    title: '✍️ Définition Piliers & Templates de Copywriting',
+    description: 'Créer les fondations du copywriting social media : 1) Définir 3-5 piliers de contenu (ex: expertise, behind-the-scenes, témoignages, éducation, promotion), 2) Templates de post par pilier et par plateforme (hook, corps, CTA, hashtags), 3) Bank de hooks (accroches) testées et validées, 4) Ton de voix par plateforme (LinkedIn=expert, Insta=inspirant, TikTok=authentique), 5) Bibliothèque de hashtags par catégorie (brand, niche, trending, local), 6) CTA adaptés par objectif (engagement, trafic, conversion). Livrable : guide copywriting social media complet.',
+    assignee: 'doffy',
+    phase: 'Setup',
+    estimated_hours: 2,
+    category: 'planning',
+    order: 8,
+    context_questions: [
+      'Quel ton utilisez-vous actuellement ?',
+      'Quels sujets maîtrisez-vous le mieux ?',
+      'Avez-vous des expressions ou tournures signatures ?',
+    ],
+  },
+
+  // ═══ PRODUCTION PHASE (4 tâches) ═══
+
+  {
+    title: '📝 Rédaction Batch de Posts (Semaine 1)',
+    description: 'Rédiger l\'ensemble des posts de la première semaine selon le calendrier éditorial : 1) Posts LinkedIn (articles courts, insights expertise, cas clients), 2) Posts Instagram (captions engageantes, hashtags recherchés, CTA stories), 3) Tweets/threads (contenu concis, punchlines, sondages), 4) Scripts TikTok (hooks 3 secondes, storytelling court, tendances), 5) Posts Facebook (communauté, partage, événements). Pour chaque post : texte + hashtags + CTA + timing recommandé + format media nécessaire. Adapter le même message fondamental en 5 versions plateforme-specific. Livrable : batch complet de posts prêts à publier.',
+    assignee: 'doffy',
+    phase: 'Production',
+    estimated_hours: 3,
+    category: 'content',
+    order: 9,
+    context_questions: [
+      'Avez-vous des messages clés à communiquer cette semaine ?',
+      'Y a-t-il des actualités à intégrer ?',
+      'Préférez-vous un ton plus formel ou décontracté ?',
+    ],
+  },
+  {
+    title: '🎬 Production Vidéos Courtes (Reels/TikTok/Stories)',
+    description: 'Produire les vidéos courtes pour les plateformes visuelles : 1) Reels Instagram (15-60s, 9:16, hooks visuels forts, texte overlay), 2) Vidéos TikTok (trends actuels, sons populaires, format authentique), 3) Stories animées (templates dynamiques, sondages, Q&A), 4) Shorts YouTube si pertinent. Pour chaque vidéo : script détaillé, storyboard, musique/son recommandé, texte overlay, CTA fin. Utiliser la génération vidéo IA pour les contenus automatisables (animations, motion graphics). Livrable : pack vidéos prêtes à publier.',
+    assignee: 'milo',
+    phase: 'Production',
+    estimated_hours: 4,
+    category: 'creative',
+    order: 10,
+    context_questions: [
+      'Avez-vous du contenu vidéo brut (behind the scenes, produit) ?',
+      'Quels types de vidéos fonctionnent dans votre secteur ?',
+      'Souhaitez-vous des voix off sur les vidéos ?',
+    ],
+  },
+  {
+    title: '📅 Programmation & Scheduling des Posts',
+    description: 'Programmer tous les posts de la semaine 1 aux horaires optimaux : 1) Utiliser les meilleurs horaires identifiés par l\'analyse d\'audience, 2) Espacement stratégique entre les posts (pas de spam, rythme régulier), 3) Programmer les posts cross-plateforme avec adaptation automatique (même message, format différent), 4) Configurer les rappels pour le contenu temps-réel (stories, lives), 5) Vérifier chaque post programmé (preview, liens, hashtags, media). Livrable : semaine 1 entièrement programmée avec preview de chaque post.',
+    assignee: 'doffy',
+    phase: 'Production',
+    estimated_hours: 1,
+    category: 'scheduling',
+    order: 11,
+    context_questions: [
+      'Fuseau horaire de votre audience principale ?',
+      'Préférez-vous publier le matin ou le soir ?',
+      'Y a-t-il des jours à éviter (week-end ?) ?',
+    ],
+  },
+  {
+    title: '🚀 Publication & Lancement Social Media',
+    description: 'Lancer la stratégie social media et publier les premiers posts : 1) Vérification finale de tous les posts programmés (orthographe, liens, media, hashtags), 2) Publication du premier post sur chaque plateforme, 3) Vérification que tous les posts sont en ligne et bien formatés, 4) Engagement initial (répondre aux premiers commentaires, liker les réponses), 5) Notification à l\'équipe que la stratégie est lancée. Livrable : tous les comptes actifs avec les premiers posts publiés.',
+    assignee: 'doffy',
+    phase: 'Production',
+    estimated_hours: 0.5,
+    category: 'launch',
+    order: 12,
+    context_questions: [
+      'Prêt à lancer ? Validation finale des contenus ?',
+      'Quelqu\'un gère les commentaires en interne ?',
+      'Alertes en cas de message sensible ?',
+    ],
+  },
+
+  // ═══ OPTIMIZATION PHASE (3 tâches) ═══
+
+  {
+    title: '📊 Analyse Performance & Engagement Semaine 1',
+    description: 'Analyser les métriques de la première semaine pour identifier ce qui fonctionne : 1) KPIs par plateforme (impressions, reach, engagement rate, followers gained, link clicks), 2) Top 3 posts par engagement (analyser pourquoi ils ont performé), 3) Bottom 3 posts (comprendre ce qui n\'a pas marché), 4) Analyse des horaires (quels créneaux ont généré le plus d\'engagement), 5) Analyse des formats (vidéo vs image vs texte vs carrousel), 6) Comparaison avec benchmark initial. Livrable : dashboard SOCIAL_ANALYTICS avec métriques et insights.',
+    assignee: 'doffy',
+    phase: 'Optimization',
+    estimated_hours: 2,
+    category: 'analytics',
+    order: 13,
+    context_questions: [
+      'Quels KPIs sont les plus importants pour vous ?',
+      'Objectif de croissance followers cette semaine ?',
+      'Souhaitez-vous un rapport détaillé ou synthétique ?',
+    ],
+  },
+  {
+    title: '🔄 Optimisation Contenu & Horaires de Publication',
+    description: 'Ajuster la stratégie basée sur les données de la semaine 1 : 1) Doubler les formats qui performent (plus de carrousels si haut engagement, plus de reels si bonne reach), 2) Ajuster les horaires de publication (décaler vers les créneaux à meilleur engagement), 3) Affiner les hashtags (supprimer ceux sans impact, tester de nouveaux), 4) Adapter le ton si nécessaire (plus informel si l\'audience réagit mieux), 5) Planifier du contenu A/B test pour la semaine 2 (2 versions du même post), 6) Mettre à jour le calendrier éditorial avec les learnings. Livrable : calendrier semaine 2 optimisé.',
+    assignee: 'doffy',
+    phase: 'Optimization',
+    estimated_hours: 1.5,
+    category: 'optimization',
+    order: 14,
+    context_questions: [
+      'Quels changements souhaitez-vous tester ?',
+      'Budget pour boost de posts organiques ?',
+      'Feedbacks de votre audience à intégrer ?',
+    ],
+  },
+  {
+    title: '📈 Rapport Social Media & Recommandations',
+    description: 'Produire le rapport de performance complet avec recommandations stratégiques : 1) Résumé exécutif (3-5 KPIs clés avec évolution), 2) Performance par plateforme (tableau comparatif), 3) Meilleurs posts du mois (top 5 par engagement), 4) Croissance audience (graphique évolution followers), 5) Recommandations pour le mois suivant (formats à privilégier, nouveaux piliers, tendances à surfer), 6) Si pertinent : recommandation à Marcus pour booster les top posts en pub payante. Livrable : rapport PDF complet + recommandations actionnables.',
+    assignee: 'doffy',
+    phase: 'Optimization',
+    estimated_hours: 1.5,
+    category: 'reporting',
+    order: 15,
+    context_questions: [
+      'À qui est destiné ce rapport ?',
+      'Format préféré (PDF, dashboard live) ?',
+      'Fréquence souhaitée des rapports ?',
+    ],
+  },
+];
+
+// ═══════════════════════════════════════════════════════════════
 // ANALYTICS TASKS (21 tâches)
 // ═══════════════════════════════════════════════════════════════
 
@@ -660,6 +964,23 @@ function filterTasksByAnswers(
     }
   }
 
+  if (scope === 'social_media' || scope === 'full_scale') {
+    const platformsAnswer = answers.find((a) => a.questionId === 'social_platforms')?.value;
+    const contentAnswer = answers.find((a) => a.questionId === 'social_content')?.value;
+    const videosAnswer = answers.find((a) => a.questionId === 'social_videos')?.value;
+
+    // Si aucune plateforme sélectionnée, garder toutes les tâches (défaut)
+    // La logique de filtrage peut être ajoutée ici selon les réponses
+
+    if (contentAnswer === 'ready') {
+      filtered = filtered.filter((t) => t.category !== 'planning' || !t.title.includes('Copywriting'));
+    }
+
+    if (videosAnswer === 'no') {
+      filtered = filtered.filter((t) => !t.title.includes('Vidéos Courtes'));
+    }
+  }
+
   return filtered;
 }
 
@@ -673,6 +994,8 @@ function getTasksForScope(scope: ProjectScope): BaseTask[] {
       return SEO_TASKS;
     case 'analytics':
       return ANALYTICS_TASKS;
+    case 'social_media':
+      return SOCIAL_MEDIA_TASKS;
     case 'full_scale':
       // Combine all tasks with intelligent ordering
       return [
@@ -680,6 +1003,7 @@ function getTasksForScope(scope: ProjectScope): BaseTask[] {
         ...SEO_TASKS.map((t) => ({ ...t, order: t.order + 100 })),
         ...META_ADS_TASKS.map((t) => ({ ...t, order: t.order + 200 })),
         ...SEM_TASKS.map((t) => ({ ...t, order: t.order + 300 })),
+        ...SOCIAL_MEDIA_TASKS.map((t) => ({ ...t, order: t.order + 400 })),
       ].sort((a, b) => {
         // Sort by phase first, then by order
         const phaseOrder = { Audit: 0, Setup: 1, Production: 2, Optimization: 3 };
