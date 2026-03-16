@@ -16,6 +16,7 @@ import type {
   ChatSession,
   ChatMessage,
   Notification,
+  PhaseTransitionProposal,
 } from '../types';
 // V5 - TypeScript Backend API (New)
 import {
@@ -69,6 +70,9 @@ interface HiveState {
     userInputs?: Record<string, string>;
   } | null;
 
+  // Phase 2.11 - Phase Transition
+  phaseTransitionProposal: PhaseTransitionProposal | null;
+
   // Actions - Data
   fetchProjects: () => Promise<void>;
   fetchProjectWithTasks: (projectId: string) => Promise<void>;
@@ -111,6 +115,10 @@ interface HiveState {
     taskId: string | null
   ) => Promise<void>;
   updateProjectStateFlags: (flags: Partial<Record<string, boolean>>) => Promise<void>;
+
+  // Actions - Phase Transition (Phase 2.11)
+  acceptPhaseTransition: () => Promise<void>;
+  dismissPhaseTransition: () => Promise<void>;
 
   // Realtime
   subscribeToProject: (projectId: string) => () => void;
@@ -269,6 +277,7 @@ export const useHiveStore = create<HiveState>()(
       showAgentHelp: null,
       isDeckCollapsed: false,
       taskContext: null,
+      phaseTransitionProposal: null,
 
       // ─────────────────────────────────────────────────────────────
       // Data Actions
@@ -991,6 +1000,91 @@ export const useHiveStore = create<HiveState>()(
       },
 
       // ─────────────────────────────────────────────────────────────
+      // Phase Transition Actions (Phase 2.11)
+      // ─────────────────────────────────────────────────────────────
+
+      acceptPhaseTransition: async () => {
+        const state = _get();
+        const projectId = state.currentProject?.id;
+
+        if (!projectId) {
+          console.warn('[HIVE] No current project for phase transition');
+          return;
+        }
+
+        try {
+          const BACKEND_API_URL = import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:3457';
+
+          const response = await fetch(`${BACKEND_API_URL}/api/phase-transition/accept`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ project_id: projectId }),
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+
+          const result = await response.json();
+
+          console.log('[HIVE] Phase transition accepted:', result);
+
+          // Clear proposal
+          set({ phaseTransitionProposal: null });
+
+          // Show success notification
+          state.addNotification({
+            type: 'success',
+            message: `Phase ${result.phase} lancée ! ${result.tasksCreated} tâches créées.`,
+            duration: 5000,
+          });
+
+          // Refresh project and tasks
+          await state.fetchProjectWithTasks(projectId);
+        } catch (error) {
+          console.error('[HIVE] Error accepting phase transition:', error);
+          set({ error: (error as Error).message });
+
+          state.addNotification({
+            type: 'error',
+            message: 'Erreur lors de la transition de phase',
+            duration: 5000,
+          });
+        }
+      },
+
+      dismissPhaseTransition: async () => {
+        const state = _get();
+        const projectId = state.currentProject?.id;
+
+        if (!projectId) {
+          console.warn('[HIVE] No current project for dismissing transition');
+          return;
+        }
+
+        try {
+          const BACKEND_API_URL = import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:3457';
+
+          const response = await fetch(`${BACKEND_API_URL}/api/phase-transition/dismiss`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ project_id: projectId }),
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+
+          console.log('[HIVE] Phase transition dismissed');
+
+          // Clear proposal from state
+          set({ phaseTransitionProposal: null });
+        } catch (error) {
+          console.error('[HIVE] Error dismissing phase transition:', error);
+        }
+      },
+
+      // ─────────────────────────────────────────────────────────────
       // Wizard Actions
       // ─────────────────────────────────────────────────────────────
 
@@ -1055,7 +1149,18 @@ export const useHiveStore = create<HiveState>()(
               filter: `id=eq.${projectId}`,
             },
             (payload) => {
-              set({ currentProject: payload.new as Project });
+              const newProject = payload.new as Project;
+
+              // Phase 2.11: Detect phase transition proposal
+              if (newProject.state_flags?.pending_phase_transition) {
+                console.log('[HIVE] Phase transition proposal detected!', newProject.state_flags.pending_phase_transition);
+                set({
+                  phaseTransitionProposal: newProject.state_flags.pending_phase_transition as PhaseTransitionProposal,
+                  currentProject: newProject,
+                });
+              } else {
+                set({ currentProject: newProject });
+              }
             }
           )
           .subscribe();
@@ -1111,3 +1216,6 @@ export const useShowAgentHelp = () => useHiveStore((state) => state.showAgentHel
 export const useNotifications = () => useHiveStore((state) => state.notifications);
 export const useIsDeckCollapsed = () => useHiveStore((state) => state.isDeckCollapsed);
 export const useTaskContext = () => useHiveStore((state) => state.taskContext);
+
+// Phase 2.11 - Phase Transition selector
+export const usePhaseTransitionProposal = () => useHiveStore((state) => state.phaseTransitionProposal);

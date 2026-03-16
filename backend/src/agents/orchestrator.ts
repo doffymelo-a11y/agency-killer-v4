@@ -4,7 +4,6 @@
  * Routes user messages to appropriate specialist agents
  */
 
-import { buildProjectContext } from '../shared/context-builder.js';
 import { buildMemoryContext } from '../shared/memory-injector.js';
 import { executeWriteBackCommands } from '../shared/write-back.processor.js';
 import { writeMemory } from '../services/memory.service.js';
@@ -141,6 +140,49 @@ const ROUTING_KEYWORDS: Record<AgentId, string[]> = {
     'couper',
     'augmenter',
   ],
+
+  doffy: [
+    // Social Media
+    'social media',
+    'reseaux sociaux',
+    'reseau social',
+    'réseaux sociaux',
+    'post',
+    'poster',
+    'publier',
+    'publication',
+    'publish',
+    // Platforms
+    'linkedin',
+    'tiktok',
+    'twitter',
+    'facebook page',
+    'facebook post',
+    // Calendar & Scheduling
+    'calendrier',
+    'planning',
+    'programmer',
+    'schedule',
+    'planifier',
+    'calendrier editorial',
+    'content calendar',
+    // Engagement
+    'engagement',
+    'followers',
+    'abonnes',
+    'hashtag',
+    'hashtags',
+    'trending',
+    'viral',
+    'feed',
+    'story',
+    'stories',
+    'reel',
+    'reels',
+    'caption',
+    'thread',
+    'carousel post',
+  ],
 };
 
 // ─────────────────────────────────────────────────────────────────
@@ -157,6 +199,8 @@ export async function processChat(
   try {
     console.log(`[Orchestrator] Processing chat for project ${request.project_id}`);
     console.log(`[Orchestrator] Active agent: ${request.activeAgentId}`);
+    console.log(`[Orchestrator] Active agent type: ${typeof request.activeAgentId}`);
+    console.log(`[Orchestrator] Active agent truthy: ${!!request.activeAgentId}`);
     console.log(`[Orchestrator] Message: "${request.chatInput}"`);
 
     // Step 1: Use provided shared_memory as context (frontend already sends complete context)
@@ -164,6 +208,7 @@ export async function processChat(
     const projectContext = request.shared_memory;
 
     // Step 2: Detect intent and route to agent
+    console.log(`[Orchestrator] BEFORE routeToAgent - activeAgentId: "${request.activeAgentId}"`);
     const targetAgent = routeToAgent(request.chatInput, request.activeAgentId);
     console.log(`[Orchestrator] Routing to agent: ${targetAgent}`);
 
@@ -213,18 +258,36 @@ export async function processChat(
 /**
  * Route to appropriate agent based on message intent
  */
-function routeToAgent(userMessage: string, activeAgentId: AgentId): AgentId {
-  // If user is already talking to a specific agent, continue with that agent
-  // unless they explicitly want to switch
-  const switchKeywords = ['autre', 'different', 'plutot', 'changer', 'switch'];
-  const wantsToSwitch = switchKeywords.some((kw) =>
-    userMessage.toLowerCase().includes(kw.toLowerCase())
-  );
+function routeToAgent(userMessage: string, activeAgentId?: AgentId): AgentId {
+  // CRITICAL: If activeAgentId is provided (e.g., from task assignment), ALWAYS use it
+  // This is for task launches where the agent is pre-assigned
 
-  if (activeAgentId && !wantsToSwitch) {
-    // Continue with active agent
+  // For task launches, the message starts with "# NOUVELLE TÂCHE:" or "# TASK LAUNCH:"
+  // In this case, we should ALWAYS respect activeAgentId
+  const isTaskLaunch = userMessage.includes('# NOUVELLE TÂCHE:') || userMessage.includes('# TASK LAUNCH:');
+
+  if (activeAgentId && isTaskLaunch) {
+    console.log(`[Orchestrator] Task launch detected - Using assigned agent: ${activeAgentId}`);
     return activeAgentId;
   }
+
+  // For regular chat messages, check if user wants to switch agents
+  const switchKeywords = ['autre', 'different', 'plutot', 'changer', 'switch'];
+  const matchedKeyword = switchKeywords.find((kw) =>
+    userMessage.toLowerCase().includes(kw.toLowerCase())
+  );
+  const wantsToSwitch = !!matchedKeyword;
+
+  if (matchedKeyword) {
+    console.log(`[Orchestrator] Switch keyword detected: "${matchedKeyword}"`);
+  }
+
+  if (activeAgentId && !wantsToSwitch) {
+    console.log(`[Orchestrator] Using assigned agent: ${activeAgentId}`);
+    return activeAgentId;
+  }
+
+  console.log('[Orchestrator] No assigned agent, detecting intent from message...');
 
   // Detect intent from keywords
   const messageLower = userMessage.toLowerCase();
@@ -241,6 +304,7 @@ function routeToAgent(userMessage: string, activeAgentId: AgentId): AgentId {
     'redige',
   ];
   if (creativeCreationKeywords.some((kw) => messageLower.includes(kw))) {
+    console.log('[Orchestrator] Creative keywords detected → milo');
     return 'milo';
   }
 
@@ -257,5 +321,6 @@ function routeToAgent(userMessage: string, activeAgentId: AgentId): AgentId {
     }
   }
 
+  console.log(`[Orchestrator] Best match from keywords: ${bestMatch} (${maxMatches} matches)`);
   return bestMatch;
 }

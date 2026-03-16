@@ -7,7 +7,7 @@
 // Common Types
 // ─────────────────────────────────────────────────────────────────
 
-export type AgentId = 'luna' | 'sora' | 'marcus' | 'milo';
+export type AgentId = 'luna' | 'sora' | 'marcus' | 'milo' | 'doffy';
 
 export type ChatMode = 'task_execution' | 'quick_research' | 'chat';
 
@@ -24,6 +24,9 @@ export type UIComponentType =
   | 'COMPETITOR_REPORT'
   | 'LANDING_PAGE_AUDIT'
   | 'PIXEL_VERIFICATION'
+  | 'SOCIAL_POST_PREVIEW'
+  | 'CONTENT_CALENDAR'
+  | 'SOCIAL_ANALYTICS'
   | 'ERROR'
   | 'LOADING';
 
@@ -305,4 +308,31 @@ export interface AnalyticsInsight {
   type: 'positive' | 'negative' | 'neutral';
   message: string;
   recommendation?: string;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Phase 2.11 - Phase Transition Types
+// ─────────────────────────────────────────────────────────────────
+
+/**
+ * Statistics for a completed phase
+ */
+export interface PhaseStatistics {
+  tasksCompleted: number;
+  totalHours: number;
+  deliverables: number;
+  phaseDuration: number; // in days
+}
+
+/**
+ * Phase transition proposal stored in project.state_flags
+ */
+export interface PhaseTransitionProposal {
+  currentPhase: string;
+  nextPhase: string;
+  statistics: PhaseStatistics;
+  agentSummary: string; // LLM-generated summary
+  keyAccomplishments: string[]; // 3-5 bullet points
+  nextPhasePreview: string; // 1-2 sentences
+  proposedAt: string; // ISO timestamp
 }

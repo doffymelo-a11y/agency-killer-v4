@@ -84,6 +84,7 @@ function getAgentName(agentId: AgentId): string {
     sora: 'Sora (Analytics)',
     marcus: 'Marcus (Ads)',
     milo: 'Milo (Créatif)',
+    doffy: 'Doffy (Social Media)',
   };
 
   return names[agentId] || agentId;

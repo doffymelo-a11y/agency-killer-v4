@@ -58,7 +58,7 @@ export function validate<T extends z.ZodTypeAny>(schema: T) {
 
 export const schemas = {
   // Shared schemas
-  agentId: z.enum(['luna', 'sora', 'marcus', 'milo']),
+  agentId: z.enum(['luna', 'sora', 'marcus', 'milo', 'doffy']),
   chatMode: z.enum(['task_execution', 'quick_research', 'chat']),
   projectScope: z.enum([
     'seo_campaign',
@@ -76,7 +76,7 @@ export const schemas = {
     chatInput: z.string().min(1, 'Chat input cannot be empty'),
     session_id: z.string().uuid('Invalid session ID'),
     project_id: z.string().uuid('Invalid project ID'),
-    activeAgentId: z.enum(['luna', 'sora', 'marcus', 'milo']),
+    activeAgentId: z.enum(['luna', 'sora', 'marcus', 'milo', 'doffy']),
     system_instruction: z.string().optional(),
     chat_mode: z.enum(['task_execution', 'quick_research', 'chat']),
     shared_memory: z.object({
@@ -103,7 +103,7 @@ export const schemas = {
         task_title: z.string(),
         task_description: z.string(),
         task_type: z.string(),
-        assigned_agent: z.enum(['luna', 'sora', 'marcus', 'milo']),
+        assigned_agent: z.enum(['luna', 'sora', 'marcus', 'milo', 'doffy']),
         dependencies: z.array(z.string()).optional(),
         user_inputs: z.record(z.string()).optional(),
       })
@@ -131,7 +131,7 @@ export const schemas = {
         description: z.string(),
         type: z.string(),
         status: z.enum(['pending', 'in_progress', 'blocked', 'completed', 'cancelled']),
-        assigned_agent: z.enum(['luna', 'sora', 'marcus', 'milo']),
+        assigned_agent: z.enum(['luna', 'sora', 'marcus', 'milo', 'doffy']),
         dependencies: z.array(z.string()).optional(),
       })
     ),

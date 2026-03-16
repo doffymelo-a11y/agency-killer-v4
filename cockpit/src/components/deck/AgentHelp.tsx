@@ -201,6 +201,49 @@ const AGENT_CAPABILITIES: Record<AgentRole, Capability[]> = {
     },
   ],
 
+  doffy: [
+    {
+      name: 'Calendrier Editorial',
+      description: 'Creation de planning de contenu multi-plateformes',
+      queries: [
+        'Cree un calendrier de contenu pour la semaine',
+        'Planifie mes posts LinkedIn et Instagram',
+        'Programme mes reseaux sociaux',
+      ],
+      status: 'active',
+    },
+    {
+      name: 'Redaction Posts',
+      description: 'Creation de posts optimises par plateforme avec hashtags',
+      queries: [
+        'Redige un post LinkedIn pour promouvoir [service]',
+        'Cree un post Instagram engageant',
+        'Ecris un tweet viral sur [sujet]',
+      ],
+      status: 'active',
+    },
+    {
+      name: 'Strategie Hashtags',
+      description: 'Recherche de hashtags tendance et optimisation engagement',
+      queries: [
+        'Quels hashtags utiliser pour toucher mon audience ?',
+        'Trouve des hashtags tendance dans [secteur]',
+        'Optimise mes hashtags LinkedIn',
+      ],
+      status: 'active',
+    },
+    {
+      name: 'Analyse Performance',
+      description: 'Metriques engagement et recommandations social media',
+      queries: [
+        'Analyse mes performances sur LinkedIn',
+        'Quels posts fonctionnent le mieux ?',
+        'Comment augmenter mon engagement ?',
+      ],
+      status: 'active',
+    },
+  ],
+
   orchestrator: [
     {
       name: 'Routing Intelligent',

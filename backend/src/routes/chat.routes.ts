@@ -4,7 +4,6 @@
  */
 
 import { Router } from 'express';
-import { authMiddleware } from '../middleware/auth.middleware.js';
 import { validate, schemas } from '../middleware/validation.middleware.js';
 import { asyncHandler } from '../middleware/error.middleware.js';
 import { chatRateLimiter } from '../middleware/rate-limit.middleware.js';

@@ -14,7 +14,7 @@ dotenv.config();
 // ─────────────────────────────────────────────────────────────────
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
-const DEFAULT_MODEL = 'claude-opus-4-20250514';
+const DEFAULT_MODEL = 'claude-sonnet-4-5-20250929'; // Switched from Opus (5x cheaper, same quality)
 const MAX_TOKENS = 8192;
 
 if (!ANTHROPIC_API_KEY) {
@@ -40,6 +40,7 @@ export interface ChatOptions {
   maxTokens?: number;
   temperature?: number;
   tools?: Anthropic.Tool[];
+  enableCache?: boolean; // Enable prompt caching (90% cost reduction on cached tokens)
 }
 
 /**
@@ -53,14 +54,27 @@ export async function chat(options: ChatOptions): Promise<ClaudeResponse> {
     maxTokens = MAX_TOKENS,
     temperature = 1.0,
     tools,
+    enableCache = true, // Enable caching by default for cost optimization
   } = options;
 
   try {
+    // Convert system prompt to cacheable format if enabled
+    // This reduces costs by 90% on cached tokens (1024+ tokens, 5min TTL)
+    const systemParam = enableCache
+      ? [
+          {
+            type: 'text' as const,
+            text: systemPrompt,
+            cache_control: { type: 'ephemeral' as const },
+          },
+        ]
+      : systemPrompt;
+
     const response = await anthropic.messages.create({
       model,
       max_tokens: maxTokens,
       temperature,
-      system: systemPrompt,
+      system: systemParam as any, // Type compatibility with SDK
       messages: messages as any, // Type compatibility
       ...(tools && { tools }),
     });

@@ -412,6 +412,11 @@ function getSuggestionsForAgent(agentId: AgentRole): string[] {
       "Redige un article de blog sur [sujet]",
       "Propose 3 angles creatifs pour ma campagne",
     ],
+    doffy: [
+      "Cree un calendrier de contenu pour la semaine",
+      "Redige un post LinkedIn pour promouvoir notre service",
+      "Quels hashtags utiliser pour toucher mon audience ?",
+    ],
     orchestrator: [
       "Je veux lancer une campagne Meta Ads",
       "Comment ameliorer mes performances ?",

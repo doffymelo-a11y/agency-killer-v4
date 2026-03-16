@@ -13,6 +13,8 @@ import chatRoutes from './routes/chat.routes.js';
 import genesisRoutes from './routes/genesis.routes.js';
 import analyticsRoutes from './routes/analytics.routes.js';
 import filesRoutes from './routes/files.routes.js';
+import phaseTransitionRoutes from './routes/phase-transition.routes.js';
+import taskExplainerRoutes from './routes/task-explainer.routes.js';
 
 // Middleware
 import { errorHandler } from './middleware/error.middleware.js';
@@ -90,6 +92,8 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/genesis', genesisRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/files', filesRoutes);
+app.use('/api/phase-transition', phaseTransitionRoutes);
+app.use('/api/task-explainer', taskExplainerRoutes);
 
 // Fallback 404
 app.use((req, res) => {

@@ -6,7 +6,7 @@
 // Agent Types
 // ─────────────────────────────────────────────────────────────────
 
-export type AgentRole = 'sora' | 'luna' | 'marcus' | 'milo' | 'orchestrator';
+export type AgentRole = 'sora' | 'luna' | 'marcus' | 'milo' | 'doffy' | 'orchestrator';
 
 export interface Agent {
   id: AgentRole;
@@ -78,6 +78,20 @@ export const AGENTS: Record<AgentRole, Agent> = {
       dark: '#BE185D',
       glow: 'rgba(236, 72, 153, 0.15)',
       bg: 'from-pink-50 via-rose-50/50 to-white',
+    },
+  },
+  doffy: {
+    id: 'doffy',
+    name: 'Doffy',
+    role: 'Social Media Manager',
+    expertise: ['Content Planning', 'Post Creation', 'Scheduling', 'Engagement', 'Hashtag Strategy'],
+    avatar: '/avatars/social-media.jpg',
+    color: {
+      light: '#D1FAE5',      // emerald-100
+      primary: '#10B981',     // emerald-500
+      dark: '#059669',        // emerald-600
+      glow: 'rgba(16, 185, 129, 0.15)',
+      bg: 'from-emerald-50 via-green-50/50 to-white',
     },
   },
   orchestrator: {
@@ -186,6 +200,12 @@ export const CONTEXT_INJECTION_RULES: ContextInjectionRule[] = [
     agent: 'sora',
     context_sources: ['website_url', 'cms_platform', 'tracking_events', 'conversion_goals'],
     prompt_template: 'Tu es Sora. Configure tracking sur [WEBSITE_URL] ([CMS_PLATFORM]). Events : [TRACKING_EVENTS]. Conversions : [CONVERSION_GOALS].',
+  },
+  {
+    task_type: 'SOCIAL_MEDIA_STRATEGY',
+    agent: 'doffy',
+    context_sources: ['persona', 'brand_tone', 'editorial_tone', 'competitors'],
+    prompt_template: 'Tu es Doffy. Planifie pour [PERSONA]. Ton : [BRAND_TONE]. Concurrents : [COMPETITORS].',
   },
 ];
 
@@ -306,7 +326,11 @@ export type UIComponentType =
   | 'WEB_SCREENSHOT'      // Screenshot multi-device avec download/preview
   | 'COMPETITOR_REPORT'   // Analyse concurrentielle (tech stack, SEO, pixels)
   | 'LANDING_PAGE_AUDIT'  // Audit landing page avec score et recommandations
-  | 'PIXEL_VERIFICATION'; // Vérification pixels tracking
+  | 'PIXEL_VERIFICATION'  // Vérification pixels tracking
+  // DOFFY - Social Media Manager
+  | 'SOCIAL_POST_PREVIEW'     // Preview multi-plateforme
+  | 'CONTENT_CALENDAR'        // Calendrier editorial
+  | 'SOCIAL_ANALYTICS';       // Dashboard engagement
 
 export interface UIComponent {
   type: UIComponentType | string;
@@ -418,6 +442,71 @@ export interface PixelVerificationData {
 }
 
 // ─────────────────────────────────────────────────────────────────
+// DOFFY - Social Media Manager Data Types
+// ─────────────────────────────────────────────────────────────────
+
+export type SocialPlatform = 'linkedin' | 'instagram' | 'twitter' | 'tiktok' | 'facebook';
+
+export interface SocialPostPreviewData {
+  platform: SocialPlatform;
+  content: {
+    text: string;
+    hashtags: string[];
+    mediaUrls?: string[];
+    mediaType?: 'image' | 'video' | 'carousel' | 'text';
+    linkUrl?: string;
+    callToAction?: string;
+  };
+  scheduling?: {
+    scheduledAt: string;
+    timezone: string;
+    optimalTimeReason?: string;
+  };
+  platformSpecific?: Record<string, unknown>;
+  status: 'draft' | 'scheduled' | 'published' | 'failed';
+  createdAt: string;
+}
+
+export interface ContentCalendarData {
+  period: { start: string; end: string; type: 'weekly' | 'monthly' };
+  posts: Array<{
+    id: string;
+    platform: SocialPlatform;
+    scheduledAt: string;
+    content: string;
+    mediaType?: 'image' | 'video' | 'carousel' | 'text';
+    status: 'draft' | 'scheduled' | 'published';
+    hashtags: string[];
+  }>;
+  statistics: {
+    totalPosts: number;
+    byPlatform: Record<SocialPlatform, number>;
+    byStatus: Record<string, number>;
+  };
+}
+
+export interface SocialAnalyticsData {
+  platform: SocialPlatform | 'all';
+  period: { start: string; end: string };
+  metrics: {
+    followers: { current: number; change: number; changePercent: number };
+    engagement: { rate: number; change: number };
+    impressions: { total: number; change: number };
+    reach: { total: number; change: number };
+    clicks: { total: number; change: number };
+  };
+  topPosts: Array<{
+    id: string;
+    platform: SocialPlatform;
+    content: string;
+    engagementRate: number;
+    impressions: number;
+    publishedAt: string;
+  }>;
+  recommendations: string[];
+}
+
+// ─────────────────────────────────────────────────────────────────
 // Notification Types
 // ─────────────────────────────────────────────────────────────────
 
@@ -507,6 +596,25 @@ export interface PMAgentRequest {
 export interface PMAgentResponse {
   project: Omit<Project, 'id' | 'created_at' | 'updated_at'>;
   tasks: Omit<Task, 'id' | 'project_id' | 'created_at'>[];
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Phase 2.11 - Phase Transition Types
+// ─────────────────────────────────────────────────────────────────
+
+export interface PhaseTransitionProposal {
+  currentPhase: TaskPhase;
+  nextPhase: TaskPhase;
+  statistics: {
+    tasksCompleted: number;
+    totalHours: number;
+    deliverables: number;
+    phaseDuration: number; // in days
+  };
+  agentSummary: string; // LLM-generated celebration summary
+  keyAccomplishments: string[]; // 3-5 bullet points
+  nextPhasePreview: string; // 1-2 sentences describing next phase
+  proposedAt: string; // ISO timestamp
 }
 
 // Database types are in ./database.ts

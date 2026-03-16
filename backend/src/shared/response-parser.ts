@@ -121,6 +121,9 @@ function isUIComponentType(type: string): boolean {
     'WEB_SCREENSHOT',
     'LANDING_PAGE_AUDIT',
     'PIXEL_VERIFICATION',
+    'SOCIAL_POST_PREVIEW',
+    'CONTENT_CALENDAR',
+    'SOCIAL_ANALYTICS',
   ];
 
   return validTypes.includes(type);
