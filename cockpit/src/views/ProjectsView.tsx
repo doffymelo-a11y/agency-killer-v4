@@ -53,25 +53,25 @@ export default function ProjectsView() {
         const role = await getUserRole(currentUser.id);
         setIsAdmin(role === 'admin' || role === 'super_admin');
 
-        let query = supabase
+        // TEMPORARY FIX: Load all projects without archived filter
+        // TODO: Re-enable archived filter after running migration 012_add_archived_column.sql
+        const { data, error } = await supabase
           .from('projects')
           .select('*')
           .eq('user_id', currentUser.id)
-          .order('updated_at', { ascending: false });
-
-        // Filter by archived status
-        if (showArchived) {
-          query = query.eq('archived', true);
-        } else {
-          query = query.or('archived.is.null,archived.eq.false');
-        }
-
-        const { data, error } = await query;
+          .order('updated_at', { ascending: false});
 
         if (error) {
           console.error('Error loading projects:', error);
         } else {
-          setProjects(data || []);
+          // Filter in-memory by archived status
+          let filteredData = data || [];
+          if (showArchived) {
+            filteredData = filteredData.filter((p: Project) => p.archived === true);
+          } else {
+            filteredData = filteredData.filter((p: Project) => !p.archived);
+          }
+          setProjects(filteredData);
         }
       }
     } catch (error) {

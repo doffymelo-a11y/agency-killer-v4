@@ -486,10 +486,14 @@ function PreviewStep() {
     dispatch({ type: 'SUBMIT' });
 
     try {
+      // TEMPORARY FIX: Map social_media to full_scale until migration 011 is applied
+      // TODO: Remove this mapping after running migration 011_add_social_media_scope.sql
+      const dbScope = wizardState.scope === 'social_media' ? 'full_scale' : wizardState.scope;
+
       // V5 - Local project creation with backend API integration
       const projectData = {
         name: wizardState.projectName,
-        scope: wizardState.scope,
+        scope: dbScope, // Use mapped scope for DB compatibility
         status: 'planning' as const,
         current_phase: 'setup',
         state_flags: {
@@ -500,7 +504,10 @@ function PreviewStep() {
           ads_live: false,
         },
         // Include context answers as project metadata - this is the "shared memory" for agents
-        metadata: wizardState.contextAnswers || {},
+        metadata: {
+          ...wizardState.contextAnswers,
+          original_scope: wizardState.scope, // Preserve original scope for reference
+        },
       };
 
       console.log('[Genesis] Calling createProject...');
