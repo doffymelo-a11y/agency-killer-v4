@@ -17,6 +17,19 @@ const OAUTH_CONFIG = {
     tokenUrl: 'https://graph.facebook.com/v21.0/oauth/access_token',
     scopes: ['ads_management', 'business_management', 'pages_read_engagement'],
   },
+  meta_business: {
+    clientId: import.meta.env.VITE_META_CLIENT_ID || '',
+    redirectUri: `${window.location.origin}/oauth/callback/meta-business`,
+    authUrl: 'https://www.facebook.com/v21.0/dialog/oauth',
+    tokenUrl: 'https://graph.facebook.com/v21.0/oauth/access_token',
+    scopes: [
+      'pages_manage_posts',
+      'pages_read_engagement',
+      'instagram_basic',
+      'instagram_content_publish',
+      'pages_show_list',
+    ],
+  },
   google: {
     clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
     redirectUri: `${window.location.origin}/oauth/callback/google`,
@@ -28,13 +41,34 @@ const OAUTH_CONFIG = {
       'https://www.googleapis.com/auth/business.manage',
     ],
   },
+  linkedin: {
+    clientId: import.meta.env.VITE_LINKEDIN_CLIENT_ID || '',
+    redirectUri: `${window.location.origin}/oauth/callback/linkedin`,
+    authUrl: 'https://www.linkedin.com/oauth/v2/authorization',
+    tokenUrl: 'https://www.linkedin.com/oauth/v2/accessToken',
+    scopes: ['w_organization_social', 'r_organization_social', 'rw_organization_admin'],
+  },
+  twitter: {
+    clientId: import.meta.env.VITE_TWITTER_CLIENT_ID || '',
+    redirectUri: `${window.location.origin}/oauth/callback/twitter`,
+    authUrl: 'https://twitter.com/i/oauth2/authorize',
+    tokenUrl: 'https://api.twitter.com/2/oauth2/token',
+    scopes: ['tweet.read', 'tweet.write', 'users.read', 'offline.access'],
+  },
+  tiktok: {
+    clientId: import.meta.env.VITE_TIKTOK_CLIENT_ID || '',
+    redirectUri: `${window.location.origin}/oauth/callback/tiktok`,
+    authUrl: 'https://www.tiktok.com/v2/auth/authorize/',
+    tokenUrl: 'https://open.tiktokapis.com/v2/oauth/token/',
+    scopes: ['user.info.basic', 'video.list', 'video.publish'],
+  },
 };
 
 // ─────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────
 
-export type OAuthProvider = 'meta' | 'google';
+export type OAuthProvider = 'meta' | 'meta_business' | 'google' | 'linkedin' | 'twitter' | 'tiktok';
 
 export interface OAuthTokens {
   accessToken: string;
@@ -193,7 +227,20 @@ export async function getIntegrationCredentials(
   if (data.expires_at && new Date(data.expires_at) < new Date()) {
     // Token expiré → Tenter un refresh
     try {
-      const provider = integrationType.includes('meta') ? 'meta' : 'google';
+      let provider: OAuthProvider;
+      if (integrationType.includes('meta') || integrationType === 'meta_business_suite') {
+        provider = integrationType === 'meta_business_suite' ? 'meta_business' : 'meta';
+      } else if (integrationType.includes('google')) {
+        provider = 'google';
+      } else if (integrationType.includes('linkedin')) {
+        provider = 'linkedin';
+      } else if (integrationType.includes('twitter')) {
+        provider = 'twitter';
+      } else if (integrationType.includes('tiktok')) {
+        provider = 'tiktok';
+      } else {
+        provider = 'google'; // default
+      }
       const newTokens = await refreshAccessToken(provider, decryptedCreds.refreshToken);
 
       // Sauvegarder les nouveaux tokens

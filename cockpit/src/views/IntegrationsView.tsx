@@ -22,6 +22,10 @@ import {
   MapPin,
   Tag,
   PieChart,
+  Linkedin,
+  Instagram,
+  Twitter,
+  Music2,
 } from 'lucide-react';
 import { useCurrentProject } from '../store/useHiveStore';
 import { supabase } from '../lib/supabase';
@@ -39,7 +43,11 @@ type IntegrationType =
   | 'google_tag_manager'
   | 'looker_studio'
   | 'woocommerce'
-  | 'webflow';
+  | 'webflow'
+  | 'meta_business_suite'
+  | 'linkedin_pages'
+  | 'twitter_x'
+  | 'tiktok_business';
 
 type IntegrationStatus = 'connected' | 'disconnected' | 'error' | 'expired';
 
@@ -201,6 +209,94 @@ const INTEGRATIONS_CONFIG: IntegrationConfig[] = [
       docsUrl: 'https://developers.google.com/looker-studio',
     },
   },
+  {
+    type: 'meta_business_suite',
+    name: 'Meta Business Suite',
+    title: 'Instagram & Facebook Organique',
+    description: 'Connectez vos comptes Instagram Business et Pages Facebook pour publier, programmer et analyser vos contenus organiques avec Doffy',
+    icon: Instagram,
+    color: 'text-pink-500',
+    bgColor: 'bg-pink-500/10',
+    requiredBy: ['Doffy'],
+    setupGuide: {
+      title: 'Connecter Meta Business Suite',
+      steps: [
+        'Vérifiez que votre compte Instagram est un compte Business (professionnel)',
+        'Liez votre Instagram Business à une Page Facebook dans Meta Business Suite',
+        'Assurez-vous d\'avoir les droits admin sur la Page Facebook',
+        'Cliquez sur Connecter ci-dessous pour autoriser l\'accès',
+        'Sélectionnez les Pages et comptes Instagram que vous souhaitez connecter',
+        'Accordez les permissions de publication et lecture lorsque demandé',
+      ],
+      docsUrl: 'https://developers.facebook.com/docs/instagram-api',
+    },
+  },
+  {
+    type: 'linkedin_pages',
+    name: 'LinkedIn Pages',
+    title: 'LinkedIn Company Pages',
+    description: 'Connectez vos Pages LinkedIn d\'entreprise pour publier des contenus professionnels, gérer votre présence B2B et analyser l\'engagement avec Doffy',
+    icon: Linkedin,
+    color: 'text-blue-600',
+    bgColor: 'bg-blue-600/10',
+    requiredBy: ['Doffy'],
+    setupGuide: {
+      title: 'Connecter LinkedIn Pages',
+      steps: [
+        'Créez ou accédez à votre Page Entreprise LinkedIn',
+        'Vérifiez que vous êtes Admin de la Page',
+        'Accédez au LinkedIn Developers Portal et créez une Application',
+        'Ajoutez l\'URI de redirection OAuth de cette application',
+        'Demandez les permissions "Share on LinkedIn" et "Sign In with LinkedIn"',
+        'Cliquez sur Connecter ci-dessous pour autoriser l\'accès',
+      ],
+      docsUrl: 'https://learn.microsoft.com/en-us/linkedin/marketing/community-management',
+    },
+  },
+  {
+    type: 'twitter_x',
+    name: 'Twitter (X)',
+    title: 'Twitter / X API',
+    description: 'Connectez votre compte Twitter/X pour publier des tweets, gérer les threads, analyser l\'engagement et suivre vos performances avec Doffy',
+    icon: Twitter,
+    color: 'text-slate-900',
+    bgColor: 'bg-slate-900/10',
+    requiredBy: ['Doffy'],
+    setupGuide: {
+      title: 'Connecter Twitter/X',
+      steps: [
+        'Accédez au Twitter Developer Portal (developer.twitter.com)',
+        'Créez un nouveau projet et une application',
+        'Configurez les OAuth 2.0 settings avec PKCE',
+        'Ajoutez l\'URI de redirection OAuth de cette application',
+        'Activez les scopes : tweet.read, tweet.write, users.read, offline.access',
+        'Cliquez sur Connecter ci-dessous pour autoriser l\'accès',
+      ],
+      docsUrl: 'https://developer.twitter.com/en/docs/twitter-api',
+    },
+  },
+  {
+    type: 'tiktok_business',
+    name: 'TikTok for Business',
+    title: 'TikTok Business Account',
+    description: 'Connectez votre compte TikTok Business pour publier des vidéos courtes, exploiter les tendances et analyser vos performances virales avec Doffy',
+    icon: Music2,
+    color: 'text-slate-900',
+    bgColor: 'bg-gradient-to-br from-cyan-500/10 to-pink-500/10',
+    requiredBy: ['Doffy'],
+    setupGuide: {
+      title: 'Connecter TikTok for Business',
+      steps: [
+        'Convertissez votre compte TikTok en compte Business (Paramètres > Gérer le compte)',
+        'Accédez à TikTok for Developers (developers.tiktok.com)',
+        'Créez une nouvelle application et configurez OAuth 2.0',
+        'Ajoutez l\'URI de redirection OAuth de cette application',
+        'Demandez les scopes : user.info.basic, video.list, video.publish',
+        'Cliquez sur Connecter ci-dessous pour autoriser l\'accès',
+      ],
+      docsUrl: 'https://developers.tiktok.com/doc/overview',
+    },
+  },
 ];
 
 // ─────────────────────────────────────────────────────────────────
@@ -259,21 +355,48 @@ export default function IntegrationsView() {
   const handleConnect = async (type: IntegrationType) => {
     if (!currentProject) return;
 
-    // OAuth flow pour Meta et Google
+    const state = Math.random().toString(36).substring(7);
+    sessionStorage.setItem('oauth_state', state);
+    sessionStorage.setItem('oauth_project_id', currentProject.id);
+
+    // OAuth flow pour Meta
     if (type === 'meta_ads') {
-      const state = Math.random().toString(36).substring(7);
-      sessionStorage.setItem('oauth_state', state);
-      sessionStorage.setItem('oauth_project_id', currentProject.id);
       const oauthUrl = getOAuthUrl('meta', state);
       window.location.href = oauthUrl;
       return;
     }
 
+    // OAuth flow pour Meta Business Suite (Instagram + Facebook organic)
+    if (type === 'meta_business_suite') {
+      const oauthUrl = getOAuthUrl('meta_business', state);
+      window.location.href = oauthUrl;
+      return;
+    }
+
+    // OAuth flow pour Google
     if (['google_analytics_4', 'google_search_console', 'google_business_profile', 'google_tag_manager', 'looker_studio'].includes(type)) {
-      const state = Math.random().toString(36).substring(7);
-      sessionStorage.setItem('oauth_state', state);
-      sessionStorage.setItem('oauth_project_id', currentProject.id);
       const oauthUrl = getOAuthUrl('google', state);
+      window.location.href = oauthUrl;
+      return;
+    }
+
+    // OAuth flow pour LinkedIn
+    if (type === 'linkedin_pages') {
+      const oauthUrl = getOAuthUrl('linkedin', state);
+      window.location.href = oauthUrl;
+      return;
+    }
+
+    // OAuth flow pour Twitter/X
+    if (type === 'twitter_x') {
+      const oauthUrl = getOAuthUrl('twitter', state);
+      window.location.href = oauthUrl;
+      return;
+    }
+
+    // OAuth flow pour TikTok
+    if (type === 'tiktok_business') {
+      const oauthUrl = getOAuthUrl('tiktok', state);
       window.location.href = oauthUrl;
       return;
     }
@@ -375,7 +498,7 @@ export default function IntegrationsView() {
           <StatCard
             label="Agents prêts"
             value={calculateReadyAgents(integrations)}
-            total={4}
+            total={5}
             icon={CheckCircle2}
             color="text-cyan-600"
           />
@@ -769,6 +892,16 @@ function calculateReadyAgents(integrations: Integration[]): number {
     connectedTypes.some((t) =>
       ['woocommerce', 'webflow'].includes(t)
     )
+  ) {
+    readyCount++;
+  }
+
+  // Doffy: needs at least one social media platform
+  if (
+    connectedTypes.includes('meta_business_suite') ||
+    connectedTypes.includes('linkedin_pages') ||
+    connectedTypes.includes('twitter_x') ||
+    connectedTypes.includes('tiktok_business')
   ) {
     readyCount++;
   }
