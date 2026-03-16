@@ -10,9 +10,9 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Download, Image, Video, FileText, BarChart3, TrendingUp, ExternalLink, AlertCircle, XCircle, Target, DollarSign, Activity, PlayCircle, Clock, CheckCircle, Shield, Monitor, Smartphone, Tablet, Award, Gauge, Check, X, Globe, Code, Eye, Share2 } from 'lucide-react';
+import { Download, Image, Video, FileText, BarChart3, TrendingUp, ExternalLink, AlertCircle, XCircle, Target, DollarSign, Activity, PlayCircle, Clock, CheckCircle, Shield, Monitor, Smartphone, Tablet, Award, Gauge, Check, X, Globe, Code, Eye, Share2, Calendar, Hash, MessageCircle, Heart, Users, ThumbsUp } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
-import type { UIComponent, WebScreenshotData, CompetitorAnalysisData, LandingPageAuditData, PixelVerificationData } from '../../types';
+import type { UIComponent, WebScreenshotData, CompetitorAnalysisData, LandingPageAuditData, PixelVerificationData, SocialPostPreviewData, ContentCalendarData, SocialAnalyticsData } from '../../types';
 import { approveRequest, rejectRequest } from '../../services/approvals';
 import { useHiveStore } from '../../store/useHiveStore';
 
@@ -135,6 +135,12 @@ function RenderComponent({ component }: { component: UIComponent }) {
       return <LandingPageAuditComponent data={data} />;
     case 'PIXEL_VERIFICATION':
       return <PixelVerificationComponent data={data} />;
+    case 'SOCIAL_POST_PREVIEW':
+      return <SocialPostPreviewComponent data={data} />;
+    case 'CONTENT_CALENDAR':
+      return <ContentCalendarComponent data={data} />;
+    case 'SOCIAL_ANALYTICS':
+      return <SocialAnalyticsComponent data={data} />;
     default:
       return <GenericComponent component={component} />;
   }
@@ -1820,6 +1826,354 @@ function PixelVerificationComponent({ data }: { data: ComponentData }) {
           Visit
         </button>
       </div>
+    </motion.div>
+  );
+}
+
+// ============================================
+// DOFFY - Social Post Preview Component
+// ============================================
+function SocialPostPreviewComponent({ data }: { data: ComponentData }) {
+  const post = data as unknown as SocialPostPreviewData;
+
+  const platformConfig = {
+    linkedin: { color: 'blue', name: 'LinkedIn', bgColor: 'from-blue-50 to-white', borderColor: 'border-blue-100' },
+    instagram: { color: 'pink', name: 'Instagram', bgColor: 'from-pink-50 to-white', borderColor: 'border-pink-100' },
+    twitter: { color: 'sky', name: 'Twitter/X', bgColor: 'from-sky-50 to-white', borderColor: 'border-sky-100' },
+    tiktok: { color: 'slate', name: 'TikTok', bgColor: 'from-slate-50 to-white', borderColor: 'border-slate-100' },
+    facebook: { color: 'indigo', name: 'Facebook', bgColor: 'from-indigo-50 to-white', borderColor: 'border-indigo-100' },
+  };
+
+  const config = platformConfig[post.platform];
+
+  const statusConfig = {
+    draft: { color: 'slate', icon: FileText, label: 'Brouillon' },
+    scheduled: { color: 'amber', icon: Clock, label: 'Programmé' },
+    published: { color: 'green', icon: CheckCircle, label: 'Publié' },
+    failed: { color: 'red', icon: XCircle, label: 'Échec' },
+  };
+
+  const status = statusConfig[post.status];
+  const StatusIcon = status.icon;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={`rounded-xl border ${config.borderColor} bg-gradient-to-br ${config.bgColor} p-4`}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Share2 className={`w-5 h-5 text-${config.color}-600`} />
+          <h3 className="font-semibold text-slate-800">{config.name} Post</h3>
+        </div>
+        <div className={`flex items-center gap-1 px-2 py-1 bg-${status.color}-100 text-${status.color}-700 rounded-lg text-xs font-medium`}>
+          <StatusIcon className="w-3 h-3" />
+          {status.label}
+        </div>
+      </div>
+
+      {/* Media Preview */}
+      {post.content.mediaUrls && post.content.mediaUrls.length > 0 && (
+        <div className="mb-4 rounded-lg overflow-hidden border border-slate-200">
+          {post.content.mediaType === 'video' ? (
+            <video src={post.content.mediaUrls[0]} controls className="w-full max-h-64 object-cover" />
+          ) : (
+            <img src={post.content.mediaUrls[0]} alt="Post media" className="w-full max-h-64 object-cover" />
+          )}
+        </div>
+      )}
+
+      {/* Content */}
+      <div className="mb-4 p-3 bg-white rounded-lg border border-slate-100">
+        <p className="text-sm text-slate-700 whitespace-pre-wrap">{post.content.text}</p>
+
+        {/* Hashtags */}
+        {post.content.hashtags && post.content.hashtags.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-3">
+            {post.content.hashtags.map((tag, i) => (
+              <span key={i} className={`text-xs text-${config.color}-600 font-medium`}>
+                #{tag}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Link Preview */}
+        {post.content.linkUrl && (
+          <div className="mt-3 p-2 bg-slate-50 rounded border border-slate-200 flex items-center gap-2">
+            <Globe className="w-4 h-4 text-slate-400" />
+            <span className="text-xs text-slate-600 truncate">{post.content.linkUrl}</span>
+          </div>
+        )}
+
+        {/* CTA */}
+        {post.content.callToAction && (
+          <div className={`mt-3 p-2 bg-${config.color}-50 rounded border border-${config.color}-200`}>
+            <span className={`text-xs font-medium text-${config.color}-700`}>{post.content.callToAction}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Scheduling Info */}
+      {post.scheduling && (
+        <div className="mb-4 p-3 bg-amber-50 rounded-lg border border-amber-200">
+          <div className="flex items-center gap-2 mb-1">
+            <Clock className="w-4 h-4 text-amber-600" />
+            <span className="text-sm font-medium text-amber-900">Programmé</span>
+          </div>
+          <p className="text-xs text-amber-700">
+            {new Date(post.scheduling.scheduledAt).toLocaleString('fr-FR', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+          </p>
+          {post.scheduling.optimalTimeReason && (
+            <p className="text-xs text-amber-600 mt-1">✨ {post.scheduling.optimalTimeReason}</p>
+          )}
+        </div>
+      )}
+
+      {/* Footer */}
+      <div className="flex items-center justify-between text-xs text-slate-400 pt-3 border-t border-slate-100">
+        <span>Créé le {new Date(post.createdAt).toLocaleDateString('fr-FR')}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-slate-500">{post.content.mediaType || 'text'}</span>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// ============================================
+// DOFFY - Content Calendar Component
+// ============================================
+function ContentCalendarComponent({ data }: { data: ComponentData }) {
+  const calendar = data as unknown as ContentCalendarData;
+
+  const platformColors = {
+    linkedin: 'blue',
+    instagram: 'pink',
+    twitter: 'sky',
+    tiktok: 'slate',
+    facebook: 'indigo',
+  };
+
+  const statusConfig = {
+    draft: { color: 'slate', label: 'Brouillon' },
+    scheduled: { color: 'amber', label: 'Programmé' },
+    published: { color: 'green', label: 'Publié' },
+  };
+
+  // Group posts by date
+  const postsByDate = calendar.posts.reduce((acc, post) => {
+    const date = new Date(post.scheduledAt).toLocaleDateString('fr-FR');
+    if (!acc[date]) acc[date] = [];
+    acc[date].push(post);
+    return acc;
+  }, {} as Record<string, typeof calendar.posts>);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="rounded-xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-white p-4"
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Calendar className="w-5 h-5 text-emerald-600" />
+          <h3 className="font-semibold text-slate-800">Calendrier Editorial</h3>
+        </div>
+        <span className="text-xs text-slate-500">
+          {new Date(calendar.period.start).toLocaleDateString('fr-FR')} - {new Date(calendar.period.end).toLocaleDateString('fr-FR')}
+        </span>
+      </div>
+
+      {/* Statistics */}
+      <div className="grid grid-cols-3 gap-3 mb-4">
+        <div className="p-3 bg-white rounded-lg border border-slate-100 text-center">
+          <div className="text-2xl font-bold text-slate-800">{calendar.statistics.totalPosts}</div>
+          <div className="text-xs text-slate-500">Posts total</div>
+        </div>
+        <div className="p-3 bg-white rounded-lg border border-slate-100 text-center">
+          <div className="text-2xl font-bold text-emerald-600">{calendar.statistics.byStatus.scheduled || 0}</div>
+          <div className="text-xs text-slate-500">Programmés</div>
+        </div>
+        <div className="p-3 bg-white rounded-lg border border-slate-100 text-center">
+          <div className="text-2xl font-bold text-green-600">{calendar.statistics.byStatus.published || 0}</div>
+          <div className="text-xs text-slate-500">Publiés</div>
+        </div>
+      </div>
+
+      {/* Posts by Date */}
+      <div className="space-y-3">
+        {Object.entries(postsByDate).map(([date, posts]) => (
+          <div key={date} className="p-3 bg-white rounded-lg border border-slate-100">
+            <div className="text-sm font-semibold text-slate-700 mb-2">{date}</div>
+            <div className="space-y-2">
+              {posts.map((post) => {
+                const platformColor = platformColors[post.platform];
+                const status = statusConfig[post.status];
+                return (
+                  <div key={post.id} className="flex items-center gap-2 p-2 bg-slate-50 rounded">
+                    <span className="text-xs text-slate-500 font-mono">
+                      {new Date(post.scheduledAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                    <span className={`px-2 py-0.5 bg-${platformColor}-100 text-${platformColor}-700 rounded text-xs font-medium`}>
+                      {post.platform}
+                    </span>
+                    <span className="text-xs text-slate-700 flex-1 truncate">{post.content}</span>
+                    <span className={`px-2 py-0.5 bg-${status.color}-100 text-${status.color}-700 rounded text-xs`}>
+                      {status.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Platform Distribution */}
+      <div className="mt-4 p-3 bg-white rounded-lg border border-slate-100">
+        <div className="text-sm font-medium text-slate-700 mb-2">Distribution par plateforme</div>
+        <div className="flex flex-wrap gap-2">
+          {Object.entries(calendar.statistics.byPlatform).map(([platform, count]) => {
+            const color = platformColors[platform as keyof typeof platformColors];
+            return (
+              <div key={platform} className={`px-3 py-1 bg-${color}-100 text-${color}-700 rounded-lg text-xs font-medium`}>
+                {platform}: {count}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// ============================================
+// DOFFY - Social Analytics Component
+// ============================================
+function SocialAnalyticsComponent({ data }: { data: ComponentData }) {
+  const analytics = data as unknown as SocialAnalyticsData;
+
+  const platformConfig = {
+    all: { color: 'purple', name: 'Toutes plateformes' },
+    linkedin: { color: 'blue', name: 'LinkedIn' },
+    instagram: { color: 'pink', name: 'Instagram' },
+    twitter: { color: 'sky', name: 'Twitter/X' },
+    tiktok: { color: 'slate', name: 'TikTok' },
+    facebook: { color: 'indigo', name: 'Facebook' },
+  };
+
+  const config = platformConfig[analytics.platform];
+
+  const MetricCard = ({ icon: Icon, label, value, change, changePercent }: any) => {
+    const isPositive = change >= 0;
+    return (
+      <div className="p-3 bg-white rounded-lg border border-slate-100">
+        <div className="flex items-center gap-2 mb-2">
+          <Icon className={`w-4 h-4 text-${config.color}-600`} />
+          <span className="text-xs text-slate-500">{label}</span>
+        </div>
+        <div className="text-2xl font-bold text-slate-800">{value.toLocaleString()}</div>
+        <div className={`flex items-center gap-1 mt-1 text-xs ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+          <TrendingUp className={`w-3 h-3 ${!isPositive && 'rotate-180'}`} />
+          <span>{isPositive ? '+' : ''}{change.toLocaleString()} ({changePercent.toFixed(1)}%)</span>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={`rounded-xl border border-${config.color}-100 bg-gradient-to-br from-${config.color}-50 to-white p-4`}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <BarChart3 className={`w-5 h-5 text-${config.color}-600`} />
+          <h3 className="font-semibold text-slate-800">Analytics - {config.name}</h3>
+        </div>
+        <span className="text-xs text-slate-500">
+          {new Date(analytics.period.start).toLocaleDateString('fr-FR')} - {new Date(analytics.period.end).toLocaleDateString('fr-FR')}
+        </span>
+      </div>
+
+      {/* Metrics Grid */}
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <MetricCard
+          icon={Users}
+          label="Followers"
+          value={analytics.metrics.followers.current}
+          change={analytics.metrics.followers.change}
+          changePercent={analytics.metrics.followers.changePercent}
+        />
+        <MetricCard
+          icon={Heart}
+          label="Engagement"
+          value={`${analytics.metrics.engagement.rate.toFixed(1)}%`}
+          change={analytics.metrics.engagement.change}
+          changePercent={(analytics.metrics.engagement.change / analytics.metrics.engagement.rate) * 100}
+        />
+        <MetricCard
+          icon={Eye}
+          label="Impressions"
+          value={analytics.metrics.impressions.total}
+          change={analytics.metrics.impressions.change}
+          changePercent={(analytics.metrics.impressions.change / analytics.metrics.impressions.total) * 100}
+        />
+        <MetricCard
+          icon={Activity}
+          label="Reach"
+          value={analytics.metrics.reach.total}
+          change={analytics.metrics.reach.change}
+          changePercent={(analytics.metrics.reach.change / analytics.metrics.reach.total) * 100}
+        />
+      </div>
+
+      {/* Top Posts */}
+      {analytics.topPosts && analytics.topPosts.length > 0 && (
+        <div className="p-3 bg-white rounded-lg border border-slate-100">
+          <div className="text-sm font-semibold text-slate-700 mb-3">Posts les plus performants</div>
+          <div className="space-y-2">
+            {analytics.topPosts.slice(0, 3).map((post, i) => (
+              <div key={i} className="flex items-center gap-2 p-2 bg-slate-50 rounded">
+                <span className={`text-lg font-bold text-${config.color}-600`}>#{i + 1}</span>
+                <div className="flex-1">
+                  <p className="text-xs text-slate-700 truncate">{post.content}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="flex items-center gap-1 text-xs text-slate-500">
+                      <Heart className="w-3 h-3" />
+                      {post.likes}
+                    </span>
+                    <span className="flex items-center gap-1 text-xs text-slate-500">
+                      <MessageCircle className="w-3 h-3" />
+                      {post.comments}
+                    </span>
+                    <span className="flex items-center gap-1 text-xs text-slate-500">
+                      <Share2 className="w-3 h-3" />
+                      {post.shares}
+                    </span>
+                  </div>
+                </div>
+                <span className={`px-2 py-1 bg-${config.color}-100 text-${config.color}-700 rounded text-xs font-medium`}>
+                  {post.engagementRate.toFixed(1)}%
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 }
