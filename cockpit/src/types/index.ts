@@ -85,7 +85,7 @@ export const AGENTS: Record<AgentRole, Agent> = {
     name: 'Doffy',
     role: 'Social Media Manager',
     expertise: ['Content Planning', 'Post Creation', 'Scheduling', 'Engagement', 'Hashtag Strategy'],
-    avatar: '/avatars/social-media.jpg',
+    avatar: '/avatars/social-media.png',
     color: {
       light: '#D1FAE5',      // emerald-100
       primary: '#10B981',     // emerald-500
