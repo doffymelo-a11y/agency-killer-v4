@@ -2122,7 +2122,19 @@ export const AGENT_CONFIGS: Record<AgentId, AgentConfig> = {
     name: 'Doffy',
     role: 'Social Media Manager',
     systemPromptTemplate: DOFFY_SYSTEM_PROMPT,
-    mcpTools: [], // Phase 1: Empty, will be filled in Phase 2
+    mcpTools: [
+      // Phase 2: Social Media Management Tools (10 tools)
+      'social-media__create_post',
+      'social-media__schedule_post',
+      'social-media__get_post_performance',
+      'social-media__create_content_calendar',
+      'social-media__suggest_hashtags',
+      'social-media__analyze_best_times',
+      'social-media__get_trending_topics',
+      'social-media__analyze_competitors_content',
+      'social-media__get_engagement_metrics',
+      'social-media__reply_to_comments',
+    ],
     color: '#10B981', // Emerald green
     temperature: 0.7,
   },

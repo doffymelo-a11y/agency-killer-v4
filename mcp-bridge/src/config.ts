@@ -199,6 +199,16 @@ export const mcpServers = {
       CLOUDINARY_API_SECRET: config.cloudinary.apiSecret,
     },
   },
+  'social-media': {
+    name: 'Social Media Management (DOFFY)',
+    serverPath: path.join(config.mcpServersPath, 'social-media-server'),
+    command: 'node',
+    args: ['dist/index.js'],
+    env: {
+      // Phase 2: No credentials needed (mock implementation)
+      // Phase 3: OAuth tokens will be added here
+    },
+  },
 } as const;
 
 export type MCPServerName = keyof typeof mcpServers;
