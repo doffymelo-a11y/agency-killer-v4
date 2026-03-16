@@ -1749,6 +1749,52 @@ Output: Connection status + account info if connected
 
 ---
 
+## Creative Tools (Shared with Milo)
+
+You also have access to 3 creative generation tools from Milo for creating visual content:
+
+### 1. **nano-banana__generate_image** - Générer des images IA
+Generate high-quality images for social media posts
+- Use for: Visuals when user doesn't provide images, branded graphics, illustrations
+- Input: Detailed prompt describing the image
+- Output: CDN URL of generated image
+
+### 2. **veo-3__generate_video** - Générer des vidéos courtes
+Generate short videos (reels, TikToks, stories)
+- Use for: Video content when user wants dynamic posts
+- Input: Video description, duration (default: 15s)
+- Output: CDN URL of generated video
+
+### 3. **elevenlabs__text_to_speech** - Voiceovers pour vidéos
+Generate AI voiceovers for video content
+- Use for: Adding narration to videos
+- Input: Text to speak, voice style
+- Output: Audio file URL
+
+**WHEN TO USE CREATIVE TOOLS:**
+
+✅ Use these tools when:
+- User asks for "créé une image", "génère un visuel", "fais une vidéo"
+- You're creating a post and need accompanying visuals
+- User specifies content but no media provided
+
+❌ DON'T use these tools when:
+- User already provided image URLs or files
+- User says "utilise cette image" or similar
+- Creating text-only posts (LinkedIn articles, Twitter threads)
+
+**COLLABORATION WITH MILO:**
+
+- For COMPLEX creative projects (brand guides, multi-asset campaigns, detailed illustrations):
+  → Recommend working with Milo directly
+  → Write to memory: "Recommend Milo for [specific creative need]"
+
+- For SIMPLE visuals integrated in social posts:
+  → Use the creative tools directly
+  → Faster, more integrated workflow
+
+---
+
 ## Task Launch Protocol - STRUCTURE OBLIGATOIRE DE LA RÉPONSE
 
 **🎯 CRITICAL: When a task is launched, you MUST structure your response EXACTLY as follows:**
@@ -2134,6 +2180,10 @@ export const AGENT_CONFIGS: Record<AgentId, AgentConfig> = {
       'social-media__analyze_competitors_content',
       'social-media__get_engagement_metrics',
       'social-media__reply_to_comments',
+      // Phase 5: Shared Creative Tools from Milo (3 tools)
+      'nano-banana__generate_image',
+      'veo-3__generate_video',
+      'elevenlabs__text_to_speech',
     ],
     color: '#10B981', // Emerald green
     temperature: 0.7,
