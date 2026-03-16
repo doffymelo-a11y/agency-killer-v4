@@ -372,7 +372,9 @@ export const useHiveStore = create<HiveState>()(
         console.log('[HIVE] createProject: Starting...', { projectData, tasksCount: tasksData.length });
         set({ isLoading: true, error: null });
         try {
-          // Check usage limits BEFORE creating project
+          // TEMPORARILY DISABLED: Check usage limits (function RPC not configured yet)
+          // TODO: Re-enable when Supabase RPC function 'check_usage_limit' is created
+          /*
           console.log('[HIVE] createProject: Checking usage limits...');
           const limitCheck = await checkUsageLimit('projects');
 
@@ -382,6 +384,7 @@ export const useHiveStore = create<HiveState>()(
             set({ error: errorMsg, isLoading: false });
             throw new Error(errorMsg);
           }
+          */
 
           // Insert project
           console.log('[HIVE] createProject: Inserting project...');
@@ -446,10 +449,13 @@ export const useHiveStore = create<HiveState>()(
             isLoading: false,
           }));
 
-          // Increment usage for tasks created
+          // TEMPORARILY DISABLED: Increment usage (RPC function not configured)
+          // TODO: Re-enable when Supabase RPC function is created
+          /*
           if (tasks && tasks.length > 0) {
             await incrementUsage('tasks', tasks.length);
           }
+          */
 
           console.log('[HIVE] createProject: Success! Project ID:', project.id);
           return project.id;
@@ -723,13 +729,16 @@ export const useHiveStore = create<HiveState>()(
         }));
 
         try {
-          // Check usage limits BEFORE sending message
+          // TEMPORARILY DISABLED: Check usage limits (RPC function not configured)
+          // TODO: Re-enable when Supabase RPC function 'check_usage_limit' is created
+          /*
           const limitCheck = await checkUsageLimit('chat_messages');
 
           if (!limitCheck.allowed) {
             const errorMsg = `Limite atteinte: Vous avez envoyé ${limitCheck.current_usage}/${limitCheck.limit_value} messages ce mois-ci avec votre plan ${limitCheck.plan}. Passez à un plan supérieur pour continuer.`;
             throw new Error(errorMsg);
           }
+          */
 
           // Generate session ID (V5: must be a valid UUID for backend validation)
           const sessionId = crypto.randomUUID();
