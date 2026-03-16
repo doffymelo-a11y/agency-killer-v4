@@ -580,6 +580,7 @@ export type WizardEvent =
   | { type: 'BACK' }
   | { type: 'SUBMIT' }
   | { type: 'GENERATION_COMPLETE'; projectId: string }
+  | { type: 'GENERATION_FAILED'; error: string }
   | { type: 'RESET' };
 
 // ─────────────────────────────────────────────────────────────────

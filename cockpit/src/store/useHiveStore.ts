@@ -238,6 +238,20 @@ function wizardReducer(state: WizardState, event: WizardEvent): WizardState {
         projectId: event.projectId,
       };
 
+    case 'GENERATION_FAILED':
+      // Return to preview with error state
+      if (state.status === 'generating') {
+        return {
+          status: 'preview',
+          scope: state.scope || 'meta_ads',
+          answers: state.answers || [],
+          contextAnswers: state.contextAnswers || {},
+          projectName: state.projectName || '',
+          deadline: state.deadline || new Date().toISOString().split('T')[0],
+        };
+      }
+      return state;
+
     case 'RESET':
       return { status: 'scope_selection' };
 

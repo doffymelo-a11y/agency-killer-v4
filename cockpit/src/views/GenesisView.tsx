@@ -448,6 +448,7 @@ function PreviewStep() {
   const wizardState = useWizardState();
   const dispatch = useHiveStore((state) => state.dispatchWizard);
   const createProject = useHiveStore((state) => state.createProject);
+  const addNotification = useHiveStore((state) => state.addNotification);
   const navigate = useNavigate();
 
   if (wizardState.status !== 'preview') return null;
@@ -459,6 +460,8 @@ function PreviewStep() {
     wizardState.deadline,
     wizardState.answers
   );
+
+  console.log(`[Genesis] Generated ${tasksToCreate.length} tasks for scope: ${wizardState.scope}`);
 
   // Group tasks by category/phase for display
   const tasksByPhase = tasksToCreate.reduce((acc, task) => {
@@ -473,6 +476,13 @@ function PreviewStep() {
   };
 
   const handleSubmit = async () => {
+    console.log('[Genesis] Starting project creation...', {
+      scope: wizardState.scope,
+      tasksCount: tasksToCreate.length,
+      projectName: wizardState.projectName,
+      deadline: wizardState.deadline
+    });
+
     dispatch({ type: 'SUBMIT' });
 
     try {
@@ -493,7 +503,9 @@ function PreviewStep() {
         metadata: wizardState.contextAnswers || {},
       };
 
+      console.log('[Genesis] Calling createProject...');
       const projectId = await createProject(projectData, tasksToCreate);
+      console.log('[Genesis] Project created successfully!', projectId);
 
       dispatch({ type: 'GENERATION_COMPLETE', projectId });
 
@@ -502,7 +514,20 @@ function PreviewStep() {
         navigate(`/board/${projectId}`);
       }, 1500);
     } catch (error) {
-      console.error('Failed to create project:', error);
+      console.error('[Genesis] Failed to create project:', error);
+
+      // Dispatch error to return to preview
+      dispatch({
+        type: 'GENERATION_FAILED',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+
+      // Show error notification
+      addNotification({
+        type: 'error',
+        message: `Erreur lors de la création du projet: ${error instanceof Error ? error.message : 'Erreur inconnue'}`,
+        duration: 8000,
+      });
     }
   };
 
