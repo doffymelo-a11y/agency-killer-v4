@@ -166,6 +166,7 @@ function transformSharedMemory(context: SharedProjectContext) {
     'sem': 'paid_ads_launch',
     'seo': 'seo_campaign',
     'analytics': 'website_audit',
+    'social_media': 'social_media_campaign',
     'full_scale': 'brand_strategy',
   };
 
