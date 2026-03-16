@@ -711,12 +711,15 @@ function CompleteStep() {
 export default function GenesisView() {
   const wizardState = useWizardState();
 
-  // Reset wizard on mount ONLY if not generating or complete
-  // This prevents resetting during project creation
+  // Reset wizard on mount ONLY if project creation is complete
+  // This allows starting a new project after finishing one
   useEffect(() => {
     const currentStatus = useHiveStore.getState().wizardState.status;
-    if (currentStatus !== 'generating' && currentStatus !== 'complete') {
+    if (currentStatus === 'complete') {
+      console.log('[Genesis] Previous project complete, resetting wizard for new project');
       useHiveStore.getState().resetWizard();
+    } else {
+      console.log('[Genesis] Preserving wizard state:', currentStatus);
     }
   }, []);
 
