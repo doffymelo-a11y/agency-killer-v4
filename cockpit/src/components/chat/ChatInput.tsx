@@ -170,7 +170,12 @@ export default function ChatInput({ activeAgent, isThinking, onSendMessage }: Ch
                 style={{ backgroundColor: agent.color.primary, animationDelay: '300ms' }}
               />
             </div>
-            <span className="text-xs text-slate-500">{agent.name} ecrit...</span>
+            <span className="text-xs text-slate-500">
+              {activeAgent === 'luna' && '🎯 Luna prépare votre analyse stratégique...'}
+              {activeAgent === 'sora' && '📊 Sora lance l\'analyse et prépare votre session...'}
+              {activeAgent === 'marcus' && '💰 Marcus prépare votre stratégie publicitaire...'}
+              {activeAgent === 'milo' && '🎨 Milo prépare vos créations...'}
+            </span>
           </motion.div>
         )}
       </AnimatePresence>

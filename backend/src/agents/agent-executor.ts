@@ -164,7 +164,17 @@ function buildSystemPrompt(context: AgentExecutionContext): string {
     timeline: context.projectContext.timeline || '',
     memory_context: context.memoryContext,
     task_context: context.userMessage,
+    state_flags: formatStateFlags(context.projectContext.state_flags || {}), // CRITICAL: Tool connection status
   };
+
+  function formatStateFlags(flags: Record<string, boolean>): string {
+    if (!flags || Object.keys(flags).length === 0) {
+      return '⚠️ NO STATE FLAGS SET - Assume ALL tools are NOT connected';
+    }
+    return Object.entries(flags)
+      .map(([key, value]) => `- ${key}: ${value ? '✓ Connected' : '✗ NOT Connected'}`)
+      .join('\n');
+  }
 
   for (const [key, value] of Object.entries(replacements)) {
     const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');

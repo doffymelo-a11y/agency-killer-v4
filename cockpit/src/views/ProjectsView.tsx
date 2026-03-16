@@ -69,6 +69,32 @@ export default function ProjectsView() {
     navigate(`/board/${projectId}`);
   }
 
+  async function handleDeleteProject(projectId: string, projectName: string, event: React.MouseEvent) {
+    event.stopPropagation(); // Prevent opening the project
+
+    const confirmed = window.confirm(
+      `Êtes-vous sûr de vouloir supprimer le projet "${projectName}" ?\n\nCette action est irréversible et supprimera toutes les tâches associées.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      // Delete project (tasks will be deleted via CASCADE in database)
+      const { error } = await supabase
+        .from('projects')
+        .delete()
+        .eq('id', projectId);
+
+      if (error) throw error;
+
+      // Refresh projects list
+      setProjects(projects.filter(p => p.id !== projectId));
+    } catch (error) {
+      console.error('Error deleting project:', error);
+      alert('Erreur lors de la suppression du projet. Veuillez réessayer.');
+    }
+  }
+
   function getScopeLabel(scope: string) {
     const labels: Record<string, string> = {
       meta_ads: 'Meta Ads',
@@ -207,6 +233,17 @@ export default function ProjectsView() {
                     <span>Last updated</span>
                     <span>{new Date(project.updated_at).toLocaleDateString()}</span>
                   </div>
+
+                  {/* Delete Button (top-left corner) */}
+                  <button
+                    onClick={(e) => handleDeleteProject(project.id, project.name, e)}
+                    className="absolute top-6 left-6 w-8 h-8 bg-red-500/10 hover:bg-red-500 border border-red-500/30 hover:border-red-500 rounded-lg flex items-center justify-center transition opacity-0 group-hover:opacity-100 z-10"
+                    title="Supprimer le projet"
+                  >
+                    <svg className="w-4 h-4 text-red-400 group-hover:text-white transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
 
                   {/* Hover Arrow */}
                   <div className="absolute top-6 right-6 w-8 h-8 bg-slate-700 group-hover:bg-cyan-500 rounded-lg flex items-center justify-center transition opacity-0 group-hover:opacity-100">

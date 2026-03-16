@@ -64,6 +64,7 @@ export async function buildProjectContext(
       timeline: metadata?.timeline || '',
       active_tasks: tasks || [],
       deliverables: deliverables || [],
+      state_flags: project.state_flags || {}, // CRITICAL: Add state_flags for tool connection detection
     };
 
     return context;

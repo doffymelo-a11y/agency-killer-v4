@@ -91,9 +91,9 @@ export default function ChatPanel({
         {/* Task Badge + Complete Button (when in task mode) */}
         {taskContext && (
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 rounded-lg">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 rounded-lg max-w-md">
               <span className="text-xs text-slate-500">Tâche:</span>
-              <span className="text-xs font-medium text-slate-700 max-w-[200px] truncate">
+              <span className="text-xs font-medium text-slate-700 line-clamp-1" title={taskContext.title}>
                 {taskContext.title}
               </span>
             </div>
@@ -132,8 +132,10 @@ export default function ChatPanel({
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-6 space-y-4 scrollbar-premium">
-        {isEmpty ? (
-          <EmptyState agent={agent} />
+        {isEmpty && !isThinking ? (
+          <EmptyState agent={agent} taskContext={taskContext} />
+        ) : isEmpty && isThinking ? (
+          <LoadingState agent={agent} taskContext={taskContext} />
         ) : (
           <AnimatePresence>
             {messages.map((message) => (
@@ -157,13 +159,177 @@ export default function ChatPanel({
 }
 
 // ============================================
+// Loading State Component (When thinking at launch)
+// ============================================
+interface LoadingStateProps {
+  agent: typeof AGENTS[AgentRole];
+  taskContext?: TaskContext | null;
+}
+
+function LoadingState({ agent, taskContext }: LoadingStateProps) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="flex flex-col items-center justify-center h-full text-center px-8"
+    >
+      {/* Animated Agent Avatar */}
+      <motion.div
+        animate={{
+          scale: [1, 1.05, 1],
+          rotate: [0, 2, -2, 0],
+        }}
+        transition={{
+          duration: 2,
+          repeat: Infinity,
+          ease: "easeInOut"
+        }}
+        className="w-24 h-24 rounded-2xl overflow-hidden ring-4 ring-offset-4 mb-6 shadow-2xl"
+        style={{ ringColor: agent.color.light }}
+      >
+        <img
+          src={agent.avatar}
+          alt={agent.name}
+          className="w-full h-full object-cover"
+        />
+      </motion.div>
+
+      {/* Loading Message */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="space-y-4"
+      >
+        <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2 justify-center">
+          <span>{agent.name} lance la tâche</span>
+          <motion.span
+            animate={{ opacity: [0, 1, 0] }}
+            transition={{ duration: 1.5, repeat: Infinity }}
+          >
+            ✨
+          </motion.span>
+        </h3>
+
+        {taskContext && (
+          <div className="inline-block px-4 py-2 bg-slate-100 rounded-xl border border-slate-200">
+            <p className="text-sm font-medium text-slate-700">
+              {taskContext.title}
+            </p>
+          </div>
+        )}
+
+        <p className="text-sm text-slate-600 max-w-md">
+          {agent.name} prépare votre session et analyse le contexte du projet
+          <motion.span
+            animate={{ opacity: [0, 1, 0] }}
+            transition={{ duration: 1, repeat: Infinity, delay: 0 }}
+          >.</motion.span>
+          <motion.span
+            animate={{ opacity: [0, 1, 0] }}
+            transition={{ duration: 1, repeat: Infinity, delay: 0.3 }}
+          >.</motion.span>
+          <motion.span
+            animate={{ opacity: [0, 1, 0] }}
+            transition={{ duration: 1, repeat: Infinity, delay: 0.6 }}
+          >.</motion.span>
+        </p>
+
+        {/* Progress Indicator */}
+        <div className="flex gap-2 justify-center pt-2">
+          {[0, 1, 2].map((index) => (
+            <motion.div
+              key={index}
+              className="w-2 h-2 rounded-full"
+              style={{ backgroundColor: agent.color.primary }}
+              animate={{
+                scale: [1, 1.5, 1],
+                opacity: [0.5, 1, 0.5],
+              }}
+              transition={{
+                duration: 1.5,
+                repeat: Infinity,
+                delay: index * 0.2,
+              }}
+            />
+          ))}
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ============================================
 // Empty State Component
 // ============================================
 interface EmptyStateProps {
   agent: typeof AGENTS[AgentRole];
+  taskContext?: TaskContext | null;
 }
 
-function EmptyState({ agent }: EmptyStateProps) {
+function EmptyState({ agent, taskContext }: EmptyStateProps) {
+  // If in task mode, show task-specific empty state
+  if (taskContext) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex flex-col items-center justify-center h-full text-center px-8"
+      >
+        <div
+          className="w-20 h-20 rounded-2xl overflow-hidden ring-4 ring-offset-4 mb-6 shadow-lg"
+          style={{ ringColor: agent.color.light }}
+        >
+          <img
+            src={agent.avatar}
+            alt={agent.name}
+            className="w-full h-full object-cover"
+          />
+        </div>
+
+        <h3 className="text-lg font-semibold text-slate-800 mb-2">
+          {taskContext.title}
+        </h3>
+
+        {taskContext.description && (
+          <p className="text-sm text-slate-600 max-w-2xl mb-6">
+            {taskContext.description}
+          </p>
+        )}
+
+        <div className="space-y-2 w-full max-w-2xl mb-6">
+          <p className="text-xs text-slate-400 uppercase tracking-wide mb-3 flex items-center justify-center gap-2">
+            <MessageSquare className="w-3 h-3" />
+            {agent.name} attend votre réponse...
+          </p>
+
+          {/* Task Context Questions as Suggested Prompts */}
+          {taskContext.contextQuestions && taskContext.contextQuestions.length > 0 ? (
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-slate-600 mb-2">
+                Questions clés pour cette tâche :
+              </p>
+              {taskContext.contextQuestions.map((question, index) => (
+                <div
+                  key={index}
+                  className="p-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 text-left"
+                >
+                  <span className="text-slate-400 mr-2">•</span>
+                  {question}
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+
+        <p className="text-xs text-slate-500 max-w-md">
+          💡 Répondez aux questions ci-dessus ou décrivez ce que vous souhaitez faire pour cette tâche.
+        </p>
+      </motion.div>
+    );
+  }
+
+  // Default empty state (no task)
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}

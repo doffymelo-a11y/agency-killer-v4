@@ -15,8 +15,10 @@ import {
   useBoardView,
   useProjectProgress,
   useIsLoading,
+  usePhaseTransitionProposal,
 } from '../store/useHiveStore';
 import type { Task, TaskStatus } from '../types';
+import { AGENTS } from '../types';
 
 // Import extracted components
 import TopBar from '../components/layout/TopBar';
@@ -27,6 +29,7 @@ import TableView from '../components/board/TableView';
 import KanbanView from '../components/board/KanbanView';
 import CalendarView from '../components/board/CalendarView';
 import TaskDetailModal from '../components/board/TaskDetailModal';
+import PhaseTransitionModal from '../components/board/PhaseTransitionModal';
 
 // ─────────────────────────────────────────────────────────────────
 // Main Component
@@ -44,6 +47,11 @@ export default function BoardView() {
   const error = useHiveStore((state) => state.error);
 
   const updateTaskStatus = useHiveStore((state) => state.updateTaskStatus);
+
+  // Phase 2.11 - Phase Transition
+  const phaseTransitionProposal = usePhaseTransitionProposal();
+  const acceptPhaseTransition = useHiveStore((state) => state.acceptPhaseTransition);
+  const dismissPhaseTransition = useHiveStore((state) => state.dismissPhaseTransition);
 
   // State for task detail modal
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -88,17 +96,29 @@ export default function BoardView() {
         userInputs: task.user_inputs,
       };
 
-      // Set task context and agent, clear messages
+      // Get current state to check if this is a new task or resuming the same task
+      const currentState = useHiveStore.getState();
+      const isNewTask = currentState.activeTaskId !== taskId;
+
+      // Set task context and agent
+      // CRITICAL: Only clear messages if launching a DIFFERENT task
       useHiveStore.setState({
         activeAgent: task.assignee,
         activeTaskId: taskId,
         taskContext,
-        chatMessages: [],
+        chatMessages: isNewTask ? [] : currentState.chatMessages, // Preserve messages if resuming same task
         isChatOpen: true,
+        isThinking: true, // CRITICAL: Show LoadingState animation while backend processes
       });
 
       // Navigate to chat immediately (agent will greet user intelligently)
       navigate(`/chat/${projectId}/${taskId}`);
+
+      // If resuming same task with existing messages, don't call backend again
+      if (!isNewTask && currentState.chatMessages.length > 0) {
+        console.log('[Board] Resuming existing task with conversation, skipping backend call');
+        return;
+      }
 
       // Prepare shared project context for Backend V5
       const sharedContext = {
@@ -123,37 +143,98 @@ export default function BoardView() {
         context: sharedContext,
       });
 
+      // V5.1 - PHASE 2.12: Get contextual explanation from task explainer
+      console.log('[Board] Calling Task Explainer for contextual explanation...');
+
+      let taskExplanation = null;
+      try {
+        const explainerResponse = await fetch('http://localhost:3457/api/task-explainer/explain', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            task_id: taskId,
+            project_id: projectId,
+            agent_id: task.assignee,
+          }),
+        });
+
+        if (explainerResponse.ok) {
+          const explainerData = await explainerResponse.json();
+          taskExplanation = explainerData.explanation;
+          console.log('[Board] ✅ Got contextual explanation:', taskExplanation);
+        } else {
+          console.warn('[Board] ⚠️ Explainer failed, falling back to description');
+        }
+      } catch (explainerError) {
+        console.error('[Board] ❌ Error calling task explainer:', explainerError);
+      }
+
       // V5 - Call TypeScript Backend API (NOT n8n)
       const { sendChatMessage } = await import('../services/api');
 
       console.log('[Board] Calling Backend V5 API for task execution...');
 
-      // V5 - Build intelligent task prompt with context and instructions
-      const taskPrompt = `# TASK LAUNCH: ${task.title}
+      // V5.1 - Build intelligent task prompt with CONTEXTUAL EXPLANATION
+      const taskPrompt = taskExplanation ? `# NOUVELLE TÂCHE: ${task.title}
 
-## Your Mission
-${task.description}
+## 🎯 CONTEXTE INTELLIGENT (généré par le système)
 
-## Context Questions to Ask
+Voici le contexte complet de cette tâche basé sur tout ce qui s'est passé avant dans le projet :
+
+**📋 Ce que cette tâche implique concrètement:**
+${taskExplanation.explanation}
+
+**⏰ Pourquoi cette tâche MAINTENANT:**
+${taskExplanation.whyNow}
+
+**✅ Ce qui a été accompli AVANT par les autres agents:**
+${taskExplanation.whatWasDoneBefore.length > 0
+  ? taskExplanation.whatWasDoneBefore.map((item: string) => `- ${item}`).join('\n')
+  : '- C\'est le début du projet'}
+
+**🚀 Ce que cette tâche va PERMETTRE ensuite:**
+${taskExplanation.whatThisEnables}
+
+**💡 TON rôle spécifique sur cette tâche:**
+${taskExplanation.agentRole}
+
+---
+
+## 📝 Questions clés à poser à l'utilisateur
+
 ${task.context_questions?.length > 0
   ? task.context_questions.map((q: string) => `- ${q}`).join('\n')
-  : '- Prerequisites needed?\n- Access/connections required?\n- Information to gather?'
-}
+  : '- Quels sont les prérequis nécessaires ?\n- Quels accès/connexions sont disponibles ?\n- Quelles informations devons-nous rassembler ?'}
 
-## INSTRUCTIONS
-🎯 **START BY ENGAGING THE USER - DO NOT execute anything yet!**
+---
 
-1. **Greet professionally** and acknowledge the task launch
-2. **Assess what's needed**: Based on the context questions above, identify what information, connections, or prerequisites are required
-3. **Ask proactive questions**: Engage the user by asking about:
-   - What connections/access they have (GA4, GSC, CMS, etc.)
-   - What information is available or missing
-   - Their goals and constraints for this specific task
-4. **Propose an action plan**: Once you understand the situation, propose concrete next steps
+## ⚡ INSTRUCTIONS POUR TOI
 
-**Remember:** You have powerful MCP tools at your disposal. Be specific about what you can do and what you need from the user to proceed.
+**CRITICAL:** Tu DOIS utiliser le contexte intelligent ci-dessus pour engager l'utilisateur de façon pertinente et contextuelle.
 
-Let's start! 🚀`;
+**❌ INTERDIT:**
+- Répéter ou "cracher" la description brute de la tâche
+- Dire des généralités comme "Je suis là pour vous aider"
+- Ignorer ce qui a été fait avant
+
+**✅ OBLIGATOIRE:**
+1. **Salue** et reconnais explicitement CE QUI A ÉTÉ FAIT AVANT par les autres agents (cite-les par leur nom)
+2. **Explique pourquoi cette tâche est importante MAINTENANT** dans la séquence du projet
+3. **Pose des questions précises** basées sur les "Questions clés" ci-dessus
+4. **Propose des actions concrètes** que tu peux faire avec tes outils MCP
+
+**Ton objectif:** Montrer que tu COMPRENDS le contexte du projet et que tu sais POURQUOI cette tâche arrive maintenant.
+
+Commence ! 🚀` : `# NOUVELLE TÂCHE: ${task.title}
+
+${task.description}
+
+## Questions à poser:
+${task.context_questions?.length > 0
+  ? task.context_questions.map((q: string) => `- ${q}`).join('\n')
+  : '- Quels sont les prérequis ?'}
+
+Engage l'utilisateur et pose des questions précises avant d'exécuter quoi que ce soit.`;
 
       const response = await sendChatMessage(
         taskPrompt,
@@ -167,14 +248,12 @@ Let's start! 🚀`;
       console.log('[Board] Response success:', response?.success);
       console.log('[Board] Response agent_response:', response?.agent_response);
 
-      // Replace loading message with PM response
+      // Add agent's proactive response to chat
       if (response.success) {
-        // Handle both response formats:
-        // - New format: { agent_response: { message, agent_used, ui_components } }
-        // - Legacy format: { chat_message, ui_components, action }
-        const message = response.agent_response?.message || (response as any).chat_message;
-        const agentUsed = response.agent_response?.agent_used || task.assignee;
-        const uiComponents = response.agent_response?.ui_components || (response as any).ui_components;
+        // Backend V5 returns: { success, agent, message, ui_components, ... }
+        const message = (response as any).message;
+        const agentUsed = (response as any).agent || (response as any).agent_id || task.assignee;
+        const uiComponents = (response as any).ui_components;
 
         console.log('[Board] Extracted message:', message);
         console.log('[Board] Extracted agent:', agentUsed);
@@ -182,9 +261,10 @@ Let's start! 🚀`;
         if (message) {
           console.log('[Board] Extracted uiComponents:', uiComponents);
 
-          // Clear the loading message and add the real response
-          useHiveStore.setState({
+          // Add the agent's proactive response
+          useHiveStore.setState((s) => ({
             chatMessages: [
+              ...s.chatMessages,
               {
                 id: uuidv4(),
                 role: 'assistant',
@@ -195,17 +275,43 @@ Let's start! 🚀`;
                 created_at: new Date().toISOString(),
               },
             ],
+            isThinking: false,
+          }));
+
+          console.log('[Board] ✅ Agent message added to chat:', {
+            messageLength: message.length,
+            agent: agentUsed,
+            hasUI: !!uiComponents,
           });
         } else {
-          console.error('[Board] No message in response!', response);
+          console.error('[Board] ❌ No message in response!', response);
+
+          // Add fallback message
+          useHiveStore.setState((s) => ({
+            chatMessages: [
+              ...s.chatMessages,
+              {
+                id: uuidv4(),
+                role: 'assistant',
+                content: `Bonjour ! Je suis ${AGENTS[task.assignee].name}.\n\nJe vais vous aider avec cette tâche. Que souhaitez-vous faire ?`,
+                agent_id: task.assignee,
+                timestamp: new Date(),
+                created_at: new Date().toISOString(),
+              },
+            ],
+            isThinking: false,
+          }));
         }
+      } else {
+        console.error('[Board] ❌ Backend returned error:', response);
       }
     } catch (error) {
-      console.error('[Board] Error launching task:', error);
+      console.error('[Board] ❌ Error launching task:', error);
 
-      // Replace loading with error message
-      useHiveStore.setState({
+      // Add error message to chat
+      useHiveStore.setState((s) => ({
         chatMessages: [
+          ...s.chatMessages,
           {
             id: uuidv4(),
             role: 'assistant',
@@ -215,7 +321,8 @@ Let's start! 🚀`;
             created_at: new Date().toISOString(),
           },
         ],
-      });
+        isThinking: false,
+      }));
     }
   };
 
@@ -353,6 +460,17 @@ Let's start! 🚀`;
               handleLaunchTask(selectedTask.id);
               setSelectedTask(null);
             }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Phase 2.11 - Phase Transition Modal */}
+      <AnimatePresence>
+        {phaseTransitionProposal && (
+          <PhaseTransitionModal
+            proposal={phaseTransitionProposal}
+            onAccept={acceptPhaseTransition}
+            onDismiss={dismissPhaseTransition}
           />
         )}
       </AnimatePresence>
