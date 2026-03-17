@@ -158,8 +158,9 @@ function parseError(error: unknown): { message: string; technical: string; type:
 
 /**
  * Transform frontend SharedProjectContext to backend shared_memory format
+ * CRITICAL: Extract metadata fields so agents can access Genesis answers
  */
-function transformSharedMemory(context: SharedProjectContext) {
+function transformSharedMemory(context: any) {
   // Map frontend scope values to backend project_scope enum
   const scopeMapping: Record<string, string> = {
     'meta_ads': 'paid_ads_launch',
@@ -170,13 +171,39 @@ function transformSharedMemory(context: SharedProjectContext) {
     'full_scale': 'brand_strategy',
   };
 
+  // CRITICAL FIX: Read from 'metadata' (frontend) OR 'project_metadata' (backend type)
+  // Frontend sends as 'metadata', backend type expects 'project_metadata'
+  const metadata = context.metadata || context.project_metadata || {};
+
+  console.log('[API] transformSharedMemory - metadata received:', {
+    has_metadata: !!context.metadata,
+    has_project_metadata: !!context.project_metadata,
+    metadata_keys: Object.keys(metadata),
+    industry: metadata.industry,
+    target_audience: metadata.target_audience,
+    brand_tone: metadata.brand_tone,
+  });
+
+  // Extract Genesis answers from metadata for agent system prompts
+  // Agents expect these fields at root level (not nested in metadata)
   return {
     project_id: context.project_id,
     project_name: context.project_name,
-    project_scope: scopeMapping[context.scope] || 'brand_strategy', // Fallback to brand_strategy
-    project_metadata: context.metadata || {},
+    project_scope: scopeMapping[context.scope] || 'brand_strategy',
     current_phase: context.current_phase,
     state_flags: context.state_flags || {},
+
+    // Genesis context extracted from metadata
+    industry: metadata.industry || '',
+    target_audience: metadata.target_audience || metadata.persona || '',
+    brand_voice: metadata.brand_tone || metadata.editorial_tone || '',
+    budget: metadata.budget_monthly || 0,
+    goals: metadata.businessGoal ? [metadata.businessGoal] : [],
+    kpis: metadata.conversion_goals || [],
+    timeline: metadata.campaign_launch_date || '',
+
+    // Keep full metadata for reference
+    project_metadata: metadata,
   };
 }
 

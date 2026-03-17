@@ -204,8 +204,35 @@ export async function processChat(
     console.log(`[Orchestrator] Message: "${request.chatInput}"`);
 
     // Step 1: Use provided shared_memory as context (frontend already sends complete context)
-    // In production, we could augment with fresh DB data, but for now use what's provided
-    const projectContext = request.shared_memory;
+    // CRITICAL FIX: Extract Genesis answers from project_metadata if root-level fields are empty
+    let projectContext = request.shared_memory;
+
+    // If industry/target_audience/etc are empty BUT project_metadata exists, extract them
+    const metadata = projectContext.project_metadata || {};
+    if (!projectContext.industry && metadata.industry) {
+      console.log('[Orchestrator] Extracting Genesis context from project_metadata...');
+      projectContext = {
+        ...projectContext,
+        industry: metadata.industry || '',
+        target_audience: metadata.target_audience || metadata.persona || '',
+        brand_voice: metadata.brand_tone || metadata.editorial_tone || '',
+        budget: metadata.budget_monthly || 0,
+        goals: metadata.businessGoal ? [metadata.businessGoal] : [],
+        kpis: metadata.conversion_goals || [],
+        timeline: metadata.campaign_launch_date || '',
+      };
+    }
+
+    // DEBUGGING: Log Genesis context received from frontend
+    console.log(`[Orchestrator] Genesis context received:`, {
+      project_name: projectContext.project_name,
+      industry: projectContext.industry || '(empty)',
+      target_audience: projectContext.target_audience || '(empty)',
+      brand_voice: projectContext.brand_voice || '(empty)',
+      budget: projectContext.budget || 0,
+      has_metadata: !!projectContext.project_metadata,
+      metadata_keys: projectContext.project_metadata ? Object.keys(projectContext.project_metadata) : [],
+    });
 
     // Step 2: Detect intent and route to agent
     console.log(`[Orchestrator] BEFORE routeToAgent - activeAgentId: "${request.activeAgentId}"`);

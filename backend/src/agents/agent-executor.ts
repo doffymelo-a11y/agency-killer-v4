@@ -167,6 +167,18 @@ function buildSystemPrompt(context: AgentExecutionContext): string {
     state_flags: formatStateFlags(context.projectContext.state_flags || {}), // CRITICAL: Tool connection status
   };
 
+  // DEBUGGING: Log extracted context to verify Genesis answers are injected
+  console.log('[Agent Executor] Context injected into system prompt:', {
+    project_name: replacements.project_name,
+    industry: replacements.industry || '(empty)',
+    target_audience: replacements.target_audience || '(empty)',
+    brand_voice: replacements.brand_voice || '(empty)',
+    budget: replacements.budget,
+    goals: replacements.goals || '(empty)',
+    kpis: replacements.kpis || '(empty)',
+    timeline: replacements.timeline || '(empty)',
+  });
+
   function formatStateFlags(flags: Record<string, boolean>): string {
     if (!flags || Object.keys(flags).length === 0) {
       return '⚠️ NO STATE FLAGS SET - Assume ALL tools are NOT connected';
