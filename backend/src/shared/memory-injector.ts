@@ -13,14 +13,16 @@ import type { AgentId, ProjectMemoryEntry, Recommendation } from '../types/api.t
 export async function buildMemoryContext(
   projectId: string,
   targetAgent: AgentId,
-  limit: number = 20
+  limit: number = 15 // Reduced from 20 to 15 for faster queries
 ): Promise<string> {
   try {
-    // Get recent memory entries
-    const recentMemory = await getRecentMemory(projectId, limit);
+    // OPTIMIZATION: Fetch memory once with higher limit, then filter locally
+    // This avoids 2 sequential Supabase queries (old: getRecentMemory + getRecommendationsForAgent)
+    const allMemory = await getRecentMemory(projectId, 50); // Single query
 
-    // Get recommendations targeted at this agent
-    const recommendations = await getRecommendationsForAgent(projectId, targetAgent, 5);
+    // Split into recent memory (for display) and recommendations (for this agent)
+    const recentMemory = allMemory.slice(0, limit);
+    const recommendations = extractRecommendationsForAgent(allMemory, targetAgent, 5);
 
     // Build formatted context
     let context = '';
@@ -88,6 +90,33 @@ function getAgentName(agentId: AgentId): string {
   };
 
   return names[agentId] || agentId;
+}
+
+/**
+ * Extract recommendations for a specific agent from memory entries (local filter)
+ * OPTIMIZATION: This avoids a second Supabase query by filtering in-memory
+ */
+function extractRecommendationsForAgent(
+  memoryEntries: ProjectMemoryEntry[],
+  targetAgent: AgentId,
+  limit: number = 5
+): Recommendation[] {
+  const recommendations: Recommendation[] = [];
+
+  for (const entry of memoryEntries) {
+    if (entry.recommendations && Array.isArray(entry.recommendations)) {
+      const relevantRecs = entry.recommendations.filter(
+        (rec: any) => rec.for_agent === targetAgent
+      );
+      recommendations.push(...relevantRecs);
+    }
+
+    if (recommendations.length >= limit) {
+      break;
+    }
+  }
+
+  return recommendations.slice(0, limit);
 }
 
 /**
