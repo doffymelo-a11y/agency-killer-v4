@@ -102,6 +102,72 @@ export const GLOBAL_CONTEXT_QUESTIONS: ContextQuestion[] = [
     injectTo: ['luna', 'milo'],
     scopes: 'all',
   },
+  // ═══ NEW: Global Identity Questions ═══
+  {
+    id: 'industry',
+    question: "Quel est votre secteur d'activité ?",
+    type: 'select',
+    options: [
+      { value: 'ecommerce', label: 'E-commerce / Retail' },
+      { value: 'saas', label: 'SaaS / Tech' },
+      { value: 'services_b2b', label: 'Services B2B / Consulting' },
+      { value: 'services_b2c', label: 'Services B2C' },
+      { value: 'health', label: 'Santé / Bien-être' },
+      { value: 'real_estate', label: 'Immobilier' },
+      { value: 'education', label: 'Education / Formation' },
+      { value: 'hospitality', label: 'Restauration / Hôtellerie' },
+      { value: 'fashion', label: 'Mode / Beauté' },
+      { value: 'finance', label: 'Finance / Assurance' },
+      { value: 'other', label: 'Autre' },
+    ],
+    injectTo: ['luna', 'sora', 'marcus', 'milo', 'doffy'],
+    scopes: 'all',
+  },
+  {
+    id: 'business_goal',
+    question: 'Quel est votre objectif business principal ?',
+    type: 'select',
+    options: [
+      { value: 'increase_sales', label: 'Augmenter les ventes en ligne' },
+      { value: 'generate_leads', label: 'Générer des leads qualifiés' },
+      { value: 'brand_awareness', label: 'Développer la notoriété de marque' },
+      { value: 'retain_customers', label: 'Fidéliser les clients existants' },
+      { value: 'launch_product', label: 'Lancer un nouveau produit/service' },
+      { value: 'grow_audience', label: 'Développer une audience/communauté' },
+    ],
+    injectTo: ['luna', 'sora', 'marcus', 'milo', 'doffy'],
+    scopes: 'all',
+  },
+  {
+    id: 'persona',
+    question: 'Décrivez votre client idéal en une phrase',
+    type: 'text',
+    placeholder: 'Ex: Femmes 25-40 ans, urbaines, sensibles au bien-être',
+    injectTo: ['luna', 'sora', 'marcus', 'milo', 'doffy'],
+    scopes: 'all',
+  },
+  {
+    id: 'competitors',
+    question: 'Quels sont vos 3 concurrents principaux ?',
+    type: 'text',
+    placeholder: 'Ex: concurrent1.com, concurrent2.com, concurrent3.com',
+    injectTo: ['luna', 'sora', 'marcus', 'milo', 'doffy'],
+    scopes: 'all',
+  },
+  {
+    id: 'brand_voice',
+    question: 'Quel est le ton de communication de votre marque ?',
+    type: 'select',
+    options: [
+      { value: 'expert', label: 'Expert / Didactique' },
+      { value: 'friendly', label: 'Amical / Décontracté' },
+      { value: 'bold', label: 'Audacieux / Provocant' },
+      { value: 'inspirational', label: 'Inspirant / Motivant' },
+      { value: 'corporate', label: 'Corporate / Professionnel' },
+    ],
+    injectTo: ['luna', 'sora', 'marcus', 'milo', 'doffy'],
+    scopes: 'all',
+  },
 ];
 
 // ─────────────────────────────────────────────────────────────────
@@ -273,6 +339,32 @@ export const SOCIAL_MEDIA_CONTEXT_QUESTIONS: ContextQuestion[] = [
     scopes: ['social_media', 'full_scale'],
   },
 ];
+
+// ─────────────────────────────────────────────────────────────────
+// SCALE QUESTION (Universal - filters task count)
+// ─────────────────────────────────────────────────────────────────
+
+export const SCALE_QUESTION: WizardQuestion = {
+  id: 'project_scale',
+  question: "Quelle est l'envergure de ce projet ?",
+  options: [
+    {
+      value: 'sprint',
+      label: 'Action ciblée (1-2 semaines)',
+      description: 'Un objectif précis : lancer une campagne, créer des posts, auditer un site',
+    },
+    {
+      value: 'campaign',
+      label: 'Campagne structurée (1-2 mois)',
+      description: 'Projet avec setup et exécution, audit léger',
+    },
+    {
+      value: 'strategy',
+      label: 'Stratégie complète (3+ mois)',
+      description: 'Accompagnement de A à Z, toutes les phases',
+    },
+  ],
+};
 
 // Helper to get context questions for a scope
 export function getContextQuestionsForScope(scope: ProjectScope): ContextQuestion[] {
@@ -468,6 +560,7 @@ export const WIZARD_FLOWS: Record<Exclude<ProjectScope, 'full_scale'>, WizardQue
 
 export function getQuestionsForScope(scope: ProjectScope): WizardQuestion[] {
   if (scope === 'full_scale') {
+    // Full scale = toujours strategy, pas besoin de demander l'envergure
     return [
       ...ANALYTICS_QUESTIONS,
       ...SEO_QUESTIONS,
@@ -476,7 +569,8 @@ export function getQuestionsForScope(scope: ProjectScope): WizardQuestion[] {
       ...SOCIAL_MEDIA_QUESTIONS,
     ];
   }
-  return WIZARD_FLOWS[scope];
+  // Ajouter SCALE_QUESTION en premier pour les scopes individuels
+  return [SCALE_QUESTION, ...WIZARD_FLOWS[scope]];
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -898,6 +992,36 @@ function filterTasksByAnswers(
 ): BaseTask[] {
   let filtered = [...tasks];
 
+  // ═══ SCALE FILTER (universel, s'applique à tous les scopes) ═══
+  const scaleAnswer = answers.find((a) => a.questionId === 'project_scale')?.value;
+
+  if (scaleAnswer === 'sprint') {
+    // Sprint = seulement Production + premiers Setup essentiels
+    // Garde: les tâches Setup de type 'configuration' + 'technical' (nécessaires pour exécuter)
+    // Garde: les tâches Production
+    // Supprime: Audit complet + Optimization
+    filtered = filtered.filter((t) => {
+      if (t.phase === 'Audit') return false;
+      if (t.phase === 'Optimization') return false;
+      // En Setup, garder uniquement technique/config (pas strategy/planning)
+      if (t.phase === 'Setup' && ['strategy', 'planning', 'semantic'].includes(t.category))
+        return false;
+      return true;
+    });
+  } else if (scaleAnswer === 'campaign') {
+    // Campaign = Setup + Production + 1 tâche Optimization (reporting)
+    // Supprime: Audit stratégique profond (garder seulement les prérequis)
+    filtered = filtered.filter((t) => {
+      if (t.phase === 'Audit' && t.category === 'strategy') return false;
+      // Garder les prérequis d'audit (accès, technique)
+      if (t.phase === 'Audit' && ['prerequisites', 'technical'].includes(t.category)) return true;
+      if (t.phase === 'Audit') return false;
+      return true;
+    });
+  }
+  // 'strategy' = pas de filtre scale, toutes les tâches
+
+  // ═══ SCOPE-SPECIFIC FILTERS (existants, inchangés) ═══
   if (scope === 'meta_ads' || scope === 'full_scale') {
     const assetsAnswer = answers.find((a) => a.questionId === 'meta_assets')?.value;
     const trackingAnswer = answers.find((a) => a.questionId === 'meta_tracking')?.value;

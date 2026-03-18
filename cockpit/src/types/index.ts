@@ -131,41 +131,43 @@ export interface ProjectStateFlags {
 // ─────────────────────────────────────────────────────────────────
 
 export interface ProjectMetadata {
-  // Global Identity (Step 0 - All Projects)
+  // ═══ Global Identity (NEW/Enriched - All Projects) ═══
   website_url?: string;
   websiteUrl?: string; // Alias
   usp?: string; // Unique Selling Proposition
-
-  // Meta Ads Context
-  persona?: string; // Avatar client ideal
+  industry?: string; // NEW: Secteur d'activité (toujours collecté maintenant)
+  business_goal?: string; // NEW: Objectif business principal
+  persona?: string; // PROMOTED: Avatar client (désormais global)
   targetPersona?: string; // Alias
+  competitors?: string[] | string; // PROMOTED: Concurrents (désormais global)
+  brand_voice?: string; // NEW: Ton unifié de communication (global)
+
+  // Meta Ads Context (Scope-specific)
   pain_point?: string; // Douleur principale resolue
   mainPainPoint?: string; // Alias
   offer_hook?: string; // Offre irresistible
   visual_tone?: 'minimalist' | 'colorful' | 'tech' | 'corporate';
 
-  // SEO Context
-  competitors?: string[] | string; // 3 concurrents directs (peut etre string ou array)
+  // SEO Context (Scope-specific)
   geo_target?: 'local' | 'national' | 'international';
   editorial_tone?: 'expert' | 'friendly' | 'journalistic';
 
-  // SEM Context
+  // SEM Context (Scope-specific)
   budget_monthly?: number;
   monthlyBudget?: string; // Alias (string pour formulaire)
   negative_keywords?: string[];
   competitive_advantage?: string;
 
-  // Analytics Context
+  // Analytics Context (Scope-specific)
   cms_platform?: string;
   tracking_events?: string[];
   conversion_goals?: string[];
 
-  // Legacy / General
-  industry?: string;
-  target_audience?: string;
-  businessGoal?: string; // Alias
+  // Legacy / Aliases
+  target_audience?: string; // Alias pour persona
+  businessGoal?: string; // Alias pour business_goal
   campaign_launch_date?: string;
-  brand_tone?: 'professional' | 'casual' | 'bold' | 'inspirational'; // Social Media Context
+  brand_tone?: 'professional' | 'casual' | 'bold' | 'inspirational'; // Social Media (scope-specific)
 }
 
 // Context Injection Rules for Agents

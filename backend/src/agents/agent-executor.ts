@@ -160,6 +160,7 @@ function buildSystemPrompt(context: AgentExecutionContext): string {
 
   // Replace template variables
   const replacements: Record<string, string> = {
+    // EXISTANTS (inchangés)
     project_name: context.projectContext.project_name || 'Projet sans nom',
     project_scope: String(context.projectContext.project_scope || ''),
     industry: context.projectContext.industry || '',
@@ -171,7 +172,19 @@ function buildSystemPrompt(context: AgentExecutionContext): string {
     timeline: context.projectContext.timeline || '',
     memory_context: context.memoryContext,
     task_context: context.userMessage,
-    state_flags: formatStateFlags(context.projectContext.state_flags || {}), // CRITICAL: Tool connection status
+    state_flags: formatStateFlags(context.projectContext.state_flags || {}),
+
+    // NEW - Genesis enriched context (variables individuelles)
+    business_goal: context.projectContext.business_goal || '',
+    pain_point: context.projectContext.pain_point || '',
+    offer_hook: context.projectContext.offer_hook || '',
+    visual_tone: context.projectContext.visual_tone || '',
+    competitors: context.projectContext.competitors_list || '',
+    negative_keywords: context.projectContext.negative_keywords_list || '',
+    tracking_events: context.projectContext.tracking_events_list || '',
+
+    // GENESIS CONTEXT BLOCK (injection globale - affiche tous les champs disponibles)
+    genesis_context: buildGenesisContextBlock(context.projectContext),
   };
 
   // DEBUGGING: Log extracted context to verify Genesis answers are injected
@@ -206,6 +219,30 @@ function buildSystemPrompt(context: AgentExecutionContext): string {
   }
 
   return prompt;
+}
+
+/**
+ * Build Genesis Context Block - affiche tous les champs disponibles
+ * Utilisé dans {{genesis_context}} template variable
+ */
+function buildGenesisContextBlock(ctx: SharedProjectContext): string {
+  const lines: string[] = [];
+
+  if (ctx.industry) lines.push(`Secteur: ${ctx.industry}`);
+  if (ctx.business_goal) lines.push(`Objectif: ${ctx.business_goal}`);
+  if (ctx.target_audience) lines.push(`Audience: ${ctx.target_audience}`);
+  if (ctx.brand_voice) lines.push(`Ton: ${ctx.brand_voice}`);
+  if (ctx.budget) lines.push(`Budget: ${ctx.budget}€/mois`);
+  if (ctx.pain_point) lines.push(`Pain Point: ${ctx.pain_point}`);
+  if (ctx.offer_hook) lines.push(`Offre: ${ctx.offer_hook}`);
+  if (ctx.visual_tone) lines.push(`Style Visuel: ${ctx.visual_tone}`);
+  if (ctx.competitors_list) lines.push(`Concurrents: ${ctx.competitors_list}`);
+  if (ctx.goals?.length) lines.push(`Goals: ${ctx.goals.join(', ')}`);
+  if (ctx.kpis?.length) lines.push(`KPIs: ${ctx.kpis.join(', ')}`);
+
+  return lines.length > 0
+    ? `=== CONTEXTE PROJET ===\n${lines.join('\n')}`
+    : '(Aucun contexte Genesis disponible)';
 }
 
 // ─────────────────────────────────────────────────────────────────

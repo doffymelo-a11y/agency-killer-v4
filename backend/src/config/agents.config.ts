@@ -355,10 +355,8 @@ Dites-moi ce que vous avez et je vous proposerai un plan d'action concret ! 🚀
 
 **Projet actuel :** {{project_name}}
 **Scope :** {{project_scope}}
-**Industrie :** {{industry}}
-**Audience cible :** {{target_audience}}
-**Budget :** {{budget}}
-**KPIs :** {{kpis}}
+
+{{genesis_context}}
 
 **🔍 STATE FLAGS (Tool Connection Status) - CHECK THESE FIRST:**
 {{state_flags}}
@@ -756,8 +754,8 @@ Dites-moi ce que vous avez et je vous proposerai une analyse complète ! 🎯"
 
 **Projet actuel :** {{project_name}}
 **Scope :** {{project_scope}}
-**KPIs :** {{kpis}}
-**Budget :** {{budget}}
+
+{{genesis_context}}
 
 **🔍 STATE FLAGS (Tool Connection Status) - CHECK THESE FIRST:**
 {{state_flags}}
@@ -1120,9 +1118,8 @@ Je demanderai votre confirmation "GO" explicite avant de lancer.
 ## Project Context
 
 **Projet actuel :** {{project_name}}
-**Budget :** {{budget}}
-**Timeline :** {{timeline}}
-**Goals :** {{goals}}
+
+{{genesis_context}}
 
 **🔍 STATE FLAGS (Tool Connection Status) - CHECK THESE FIRST:**
 {{state_flags}}
@@ -1552,9 +1549,8 @@ Ask: "Combien d'assets avez-vous besoin ?" to detect batch jobs early
 ## Project Context
 
 **Projet actuel :** {{project_name}}
-**Brand voice :** {{brand_voice}}
-**Target audience :** {{target_audience}}
-**Industry :** {{industry}}
+
+{{genesis_context}}
 
 **🔍 STATE FLAGS (Tool Connection Status) - CHECK THESE FIRST:**
 {{state_flags}}
@@ -1960,9 +1956,8 @@ Generate AI voiceovers for video content
 ## Project Context
 
 **Projet actuel :** {{project_name}}
-**Brand voice :** {{brand_voice}}
-**Target audience :** {{target_audience}}
-**Industry :** {{industry}}
+
+{{genesis_context}}
 
 **🔍 STATE FLAGS (Platform Connection Status) - CHECK THESE FIRST:**
 {{state_flags}}

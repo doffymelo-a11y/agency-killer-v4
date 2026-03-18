@@ -193,14 +193,29 @@ function transformSharedMemory(context: any) {
     current_phase: context.current_phase,
     state_flags: context.state_flags || {},
 
-    // Genesis context extracted from metadata
+    // Genesis context extracted from metadata (EXISTANT)
     industry: metadata.industry || '',
     target_audience: metadata.target_audience || metadata.persona || '',
-    brand_voice: metadata.brand_tone || metadata.editorial_tone || '',
+    brand_voice: metadata.brand_voice || metadata.brand_tone || metadata.editorial_tone || '',
     budget: metadata.budget_monthly || 0,
-    goals: metadata.businessGoal ? [metadata.businessGoal] : [],
+    goals: metadata.business_goal ? [metadata.business_goal] : metadata.businessGoal ? [metadata.businessGoal] : [],
     kpis: metadata.conversion_goals || [],
     timeline: metadata.campaign_launch_date || '',
+
+    // NEW - Enriched Genesis fields (passés aux agents via system prompts)
+    business_goal: metadata.business_goal || metadata.businessGoal || '',
+    pain_point: metadata.pain_point || '',
+    offer_hook: metadata.offer_hook || '',
+    visual_tone: metadata.visual_tone || '',
+    competitors_list: Array.isArray(metadata.competitors)
+      ? metadata.competitors.join(', ')
+      : metadata.competitors || '',
+    negative_keywords_list: Array.isArray(metadata.negative_keywords)
+      ? metadata.negative_keywords.join(', ')
+      : '',
+    tracking_events_list: Array.isArray(metadata.tracking_events)
+      ? metadata.tracking_events.join(', ')
+      : '',
 
     // Keep full metadata for reference
     project_metadata: metadata,

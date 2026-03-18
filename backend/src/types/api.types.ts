@@ -195,6 +195,15 @@ export interface SharedProjectContext {
   state_flags?: Record<string, boolean>;
   deliverables?: Deliverable[];
   recent_activity?: string[];
+
+  // NEW - Enriched Genesis fields (passés depuis frontend via transformSharedMemory)
+  business_goal?: string;
+  pain_point?: string;
+  offer_hook?: string;
+  visual_tone?: string;
+  competitors_list?: string;
+  negative_keywords_list?: string;
+  tracking_events_list?: string;
 }
 
 export interface TaskExecutionContext {
