@@ -6,6 +6,7 @@
 import { chat } from '../services/claude.service.js';
 import { mcpBridge } from '../services/mcp-bridge.service.js';
 import { parseAgentResponse } from '../shared/response-parser.js';
+import { detectComplexity, logComplexityDecision } from '../services/complexity-detector.js';
 import type { AgentConfig } from '../types/agent.types.js';
 import type { AgentId, SharedProjectContext } from '../types/api.types.js';
 import type { Anthropic } from '@anthropic-ai/sdk';
@@ -64,12 +65,18 @@ export async function executeAgent(context: AgentExecutionContext) {
     ];
   }
 
-  // Step 4: Call Claude API
+  // Step 4: Detect question complexity and adjust parameters dynamically
+  const complexity = detectComplexity(context.userMessage);
+  logComplexityDecision(context.userMessage, complexity);
+
+  // Step 5: Call Claude API with dynamic parameters
   let response = await chat({
     systemPrompt,
     messages,
     tools,
     temperature: 1.0,
+    maxTokens: complexity.maxTokens,
+    timeout: complexity.timeout, // Custom timeout based on complexity
   });
 
   console.log(`[Agent Executor] Claude response received, stop_reason: ${response.stop_reason}`);

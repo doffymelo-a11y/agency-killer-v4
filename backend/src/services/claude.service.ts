@@ -42,6 +42,7 @@ export interface ChatOptions {
   temperature?: number;
   tools?: Anthropic.Tool[];
   enableCache?: boolean; // Enable prompt caching (90% cost reduction on cached tokens)
+  timeout?: number; // Custom timeout in ms (overrides default)
 }
 
 /**
@@ -56,6 +57,7 @@ async function chatInternal(options: ChatOptions): Promise<ClaudeResponse> {
     temperature = 1.0,
     tools,
     enableCache = true, // Enable caching by default for cost optimization
+    timeout = CLAUDE_API_TIMEOUT, // Use custom timeout or default
   } = options;
 
   // Convert system prompt to cacheable format if enabled
@@ -81,7 +83,7 @@ async function chatInternal(options: ChatOptions): Promise<ClaudeResponse> {
   });
 
   const timeoutPromise = new Promise<never>((_, reject) =>
-    setTimeout(() => reject(new Error(`Claude API timeout after ${CLAUDE_API_TIMEOUT / 1000}s`)), CLAUDE_API_TIMEOUT)
+    setTimeout(() => reject(new Error(`Claude API timeout after ${timeout / 1000}s`)), timeout)
   );
 
   const response = await Promise.race([apiCall, timeoutPromise]);
@@ -108,9 +110,11 @@ export async function chat(options: ChatOptions): Promise<ClaudeResponse> {
         // Wait 500ms before retry to give server time to recover
         await new Promise((resolve) => setTimeout(resolve, 500));
 
+        // Retry with reduced tokens BUT keep same timeout (question complexity doesn't change)
         return await chatInternal({
           ...options,
           maxTokens: Math.floor((options.maxTokens || MAX_TOKENS) * 0.8), // Reduce by 20%
+          timeout: options.timeout, // Keep same timeout on retry
         });
       } catch (retryError: any) {
         console.error('[Claude Service] Retry failed:', retryError);

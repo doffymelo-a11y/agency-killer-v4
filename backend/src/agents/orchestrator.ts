@@ -208,18 +208,18 @@ export async function processChat(
     let projectContext = request.shared_memory;
 
     // If industry/target_audience/etc are empty BUT project_metadata exists, extract them
-    const metadata = projectContext.project_metadata || {};
+    const metadata: any = projectContext.project_metadata || {};
     if (!projectContext.industry && metadata.industry) {
       console.log('[Orchestrator] Extracting Genesis context from project_metadata...');
       projectContext = {
         ...projectContext,
-        industry: metadata.industry || '',
-        target_audience: metadata.target_audience || metadata.persona || '',
-        brand_voice: metadata.brand_tone || metadata.editorial_tone || '',
-        budget: metadata.budget_monthly || 0,
-        goals: metadata.businessGoal ? [metadata.businessGoal] : [],
-        kpis: metadata.conversion_goals || [],
-        timeline: metadata.campaign_launch_date || '',
+        industry: (metadata.industry as string) || '',
+        target_audience: (metadata.target_audience || metadata.persona) as string || '',
+        brand_voice: (metadata.brand_tone || metadata.editorial_tone) as string || '',
+        budget: (metadata.budget_monthly as number) || 0,
+        goals: metadata.businessGoal ? [metadata.businessGoal as string] : [],
+        kpis: (metadata.conversion_goals as string[]) || [],
+        timeline: (metadata.campaign_launch_date as string) || '',
       };
     }
 

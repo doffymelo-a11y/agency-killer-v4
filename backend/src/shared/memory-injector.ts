@@ -3,7 +3,7 @@
  * Reads project_memory and formats it for agent system prompts
  */
 
-import { getRecentMemory, getRecommendationsForAgent } from '../services/memory.service.js';
+import { getRecentMemory } from '../services/memory.service.js';
 import type { AgentId, ProjectMemoryEntry, Recommendation } from '../types/api.types.js';
 
 /**
