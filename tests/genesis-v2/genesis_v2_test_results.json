@@ -1,0 +1,231 @@
+{
+  "total_tests": 16,
+  "total_success": 16,
+  "success_rate": 100.0,
+  "context_detection_rate": 100.0,
+  "results_by_scope": {
+    "meta_ads": {
+      "tests": [
+        {
+          "scale": "sprint",
+          "success": true,
+          "context_fields": 2,
+          "fields_found": [
+            "business_goal",
+            "persona"
+          ],
+          "duration": 16.39069890975952,
+          "response_length": 1653,
+          "expected_tasks": 8
+        },
+        {
+          "scale": "campaign",
+          "success": true,
+          "context_fields": 3,
+          "fields_found": [
+            "industry",
+            "business_goal",
+            "persona"
+          ],
+          "duration": 19.41603994369507,
+          "response_length": 2121,
+          "expected_tasks": 14
+        },
+        {
+          "scale": "strategy",
+          "success": true,
+          "context_fields": 2,
+          "fields_found": [
+            "business_goal",
+            "persona"
+          ],
+          "duration": 16.041052103042603,
+          "response_length": 1895,
+          "expected_tasks": 19
+        }
+      ]
+    },
+    "sem": {
+      "tests": [
+        {
+          "scale": "sprint",
+          "success": true,
+          "context_fields": 3,
+          "fields_found": [
+            "industry",
+            "persona",
+            "budget"
+          ],
+          "duration": 28.022475957870483,
+          "response_length": 2770,
+          "expected_tasks": 10
+        },
+        {
+          "scale": "campaign",
+          "success": true,
+          "context_fields": 2,
+          "fields_found": [
+            "industry",
+            "persona"
+          ],
+          "duration": 25.258437156677246,
+          "response_length": 2645,
+          "expected_tasks": 16
+        },
+        {
+          "scale": "strategy",
+          "success": true,
+          "context_fields": 3,
+          "fields_found": [
+            "industry",
+            "business_goal",
+            "persona"
+          ],
+          "duration": 28.641368865966797,
+          "response_length": 2529,
+          "expected_tasks": 21
+        }
+      ]
+    },
+    "seo": {
+      "tests": [
+        {
+          "scale": "sprint",
+          "success": true,
+          "context_fields": 3,
+          "fields_found": [
+            "industry",
+            "persona",
+            "brand_voice"
+          ],
+          "duration": 10.60996389389038,
+          "response_length": 1474,
+          "expected_tasks": 12
+        },
+        {
+          "scale": "campaign",
+          "success": true,
+          "context_fields": 3,
+          "fields_found": [
+            "industry",
+            "persona",
+            "brand_voice"
+          ],
+          "duration": 13.655962944030762,
+          "response_length": 1459,
+          "expected_tasks": 19
+        },
+        {
+          "scale": "strategy",
+          "success": true,
+          "context_fields": 3,
+          "fields_found": [
+            "industry",
+            "persona",
+            "brand_voice"
+          ],
+          "duration": 11.26573920249939,
+          "response_length": 1448,
+          "expected_tasks": 26
+        }
+      ]
+    },
+    "analytics": {
+      "tests": [
+        {
+          "scale": "sprint",
+          "success": true,
+          "context_fields": 1,
+          "fields_found": [
+            "persona"
+          ],
+          "duration": 23.114840745925903,
+          "response_length": 3144,
+          "expected_tasks": 8
+        },
+        {
+          "scale": "campaign",
+          "success": true,
+          "context_fields": 1,
+          "fields_found": [
+            "persona"
+          ],
+          "duration": 20.818139791488647,
+          "response_length": 2701,
+          "expected_tasks": 15
+        },
+        {
+          "scale": "strategy",
+          "success": true,
+          "context_fields": 1,
+          "fields_found": [
+            "persona"
+          ],
+          "duration": 23.8372859954834,
+          "response_length": 3292,
+          "expected_tasks": 21
+        }
+      ]
+    },
+    "social_media": {
+      "tests": [
+        {
+          "scale": "sprint",
+          "success": true,
+          "context_fields": 3,
+          "fields_found": [
+            "industry",
+            "persona",
+            "brand_voice"
+          ],
+          "duration": 26.615095853805542,
+          "response_length": 3181,
+          "expected_tasks": 6
+        },
+        {
+          "scale": "campaign",
+          "success": true,
+          "context_fields": 3,
+          "fields_found": [
+            "industry",
+            "persona",
+            "brand_voice"
+          ],
+          "duration": 27.611863136291504,
+          "response_length": 3476,
+          "expected_tasks": 10
+        },
+        {
+          "scale": "strategy",
+          "success": true,
+          "context_fields": 3,
+          "fields_found": [
+            "industry",
+            "persona",
+            "brand_voice"
+          ],
+          "duration": 21.57383394241333,
+          "response_length": 3025,
+          "expected_tasks": 15
+        }
+      ]
+    },
+    "full_scale": {
+      "tests": [
+        {
+          "scale": "strategy",
+          "success": true,
+          "context_fields": 3,
+          "fields_found": [
+            "industry",
+            "business_goal",
+            "persona"
+          ],
+          "duration": 35.151673793792725,
+          "response_length": 1911,
+          "expected_tasks": 82
+        }
+      ]
+    }
+  }
+}
