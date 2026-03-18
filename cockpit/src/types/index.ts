@@ -504,6 +504,9 @@ export interface SocialAnalyticsData {
     engagementRate: number;
     impressions: number;
     publishedAt: string;
+    likes?: number;
+    comments?: number;
+    shares?: number;
   }>;
   recommendations: string[];
 }

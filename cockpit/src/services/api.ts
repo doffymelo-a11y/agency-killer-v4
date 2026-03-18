@@ -6,7 +6,6 @@
 import axios, { AxiosError } from 'axios';
 import type {
   AgentRole,
-  TaskStatus,
 } from '../types';
 
 // Backend API URL (TypeScript Express server)

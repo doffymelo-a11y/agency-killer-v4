@@ -326,7 +326,7 @@ export default function AgentHelp({ agentId, onClose }: AgentHelpProps) {
         <div className="flex items-center gap-3">
           <div
             className="w-12 h-12 rounded-xl overflow-hidden shadow-lg ring-2"
-            style={{ ringColor: agent.color.primary }}
+            style={{ '--tw-ring-color': agent.color.primary } as React.CSSProperties}
           >
             <img
               src={agent.avatar}

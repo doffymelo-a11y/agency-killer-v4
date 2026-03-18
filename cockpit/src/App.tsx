@@ -4,7 +4,7 @@
 
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useHiveStore, useProjects, useIsLoading } from './store/useHiveStore';
+import { useHiveStore, useIsLoading } from './store/useHiveStore';
 
 // Auth Views
 import LoginView from './views/LoginView';
@@ -33,7 +33,6 @@ import ProtectedRoute from './components/auth/ProtectedRoute';
 import LoadingScreen from './components/ui/LoadingScreen';
 
 function AppRoutes() {
-  const projects = useProjects();
   const isLoading = useIsLoading();
   const error = useHiveStore((state) => state.error);
 
@@ -51,9 +50,6 @@ function AppRoutes() {
   if (error) {
     console.error('Supabase error:', error);
   }
-
-  // If no projects, redirect to Genesis
-  const hasProjects = projects.length > 0;
 
   return (
     <Routes>

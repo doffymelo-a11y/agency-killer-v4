@@ -9,7 +9,6 @@ import type {
   AgentRole,
   ProjectMetadata,
   ProjectStateFlags,
-  Task,
   TaskStatus,
 } from '../types';
 
@@ -20,7 +19,7 @@ import type {
 const PM_WEBHOOK_URL = "https://n8n.srv1234539.hstgr.cloud/webhook/pm-v4-entry";
 
 // Legacy URL for direct orchestrator access (if needed)
-const ORCHESTRATOR_WEBHOOK_URL = "https://n8n.srv1234539.hstgr.cloud/webhook/orchestrator-v4-entry";
+// const ORCHESTRATOR_WEBHOOK_URL = "https://n8n.srv1234539.hstgr.cloud/webhook/orchestrator-v4-entry";
 
 // Action types for PM routing
 export type PMAction = 'genesis' | 'task_launch' | 'quick_action' | 'write_back';
@@ -250,7 +249,7 @@ function parseError(error: unknown): { message: string; technical: string; type:
     if (status === 404) {
       return {
         message: "Le webhook n'a pas ete trouve. Verifiez l'URL.",
-        technical: `404 Not Found: ${WEBHOOK_URL}`,
+        technical: `404 Not Found: ${PM_WEBHOOK_URL}`,
         type: 'not_found',
       };
     }

@@ -5,7 +5,7 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { supabase, getCurrentUser } from '../lib/supabase';
+import { getCurrentUser } from '../lib/supabase';
 import {
   getUserSubscription,
   getCurrentUsage,

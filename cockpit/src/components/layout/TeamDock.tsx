@@ -47,9 +47,9 @@ export default function TeamDock({
                     : 'opacity-70 hover:opacity-100'
                 }`}
                 style={{
-                  ringColor: isActive ? agent.color.primary : undefined,
+                  '--tw-ring-color': isActive ? agent.color.primary : undefined,
                   boxShadow: isActive ? `0 0 20px ${agent.color.glow}` : undefined,
-                }}
+                } as React.CSSProperties}
               >
                 <img
                   src={agent.avatar}

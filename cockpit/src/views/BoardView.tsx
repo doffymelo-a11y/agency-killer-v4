@@ -246,7 +246,7 @@ Engage l'utilisateur et pose des questions précises avant d'exécuter quoi que 
 
       console.log('[Board] ✅ PM Response received:', response);
       console.log('[Board] Response success:', response?.success);
-      console.log('[Board] Response agent_response:', response?.agent_response);
+      console.log('[Board] Response agent_response:', (response as any)?.agent_response);
 
       // Add agent's proactive response to chat
       if (response.success) {

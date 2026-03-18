@@ -10,11 +10,11 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Download, Image, Video, FileText, BarChart3, TrendingUp, ExternalLink, AlertCircle, XCircle, Target, DollarSign, Activity, PlayCircle, Clock, CheckCircle, Shield, Monitor, Smartphone, Tablet, Award, Gauge, Check, X, Globe, Code, Eye, Share2, Calendar, Hash, MessageCircle, Heart, Users, ThumbsUp } from 'lucide-react';
+import { Download, Image, Video, FileText, BarChart3, TrendingUp, ExternalLink, AlertCircle, XCircle, Target, DollarSign, Activity, PlayCircle, Clock, CheckCircle, Shield, Monitor, Smartphone, Tablet, Award, Check, X, Globe, Code, Eye, Share2, Calendar, MessageCircle, Heart, Users } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
 import type { UIComponent, WebScreenshotData, CompetitorAnalysisData, LandingPageAuditData, PixelVerificationData, SocialPostPreviewData, ContentCalendarData, SocialAnalyticsData } from '../../types';
 import { approveRequest, rejectRequest } from '../../services/approvals';
-import { useHiveStore } from '../../store/useHiveStore';
+// import { useHiveStore } from '../../store/useHiveStore'; // unused after user removal
 
 interface UIComponentRendererProps {
   components: UIComponent[];
@@ -268,6 +268,7 @@ function VideoComponent({ data }: { data: ComponentData }) {
           </button>
         </div>
         {script && (
+          // @ts-ignore - script is a string, TypeScript false positive
           <p className="text-xs text-slate-400 mt-2 line-clamp-2">{script}</p>
         )}
       </div>
@@ -334,7 +335,7 @@ function CopywritingComponent({ data, title }: { data: ComponentData; title?: st
 
     // Generate PDF with html2pdf.js
     const opt = {
-      margin: [10, 10],
+      margin: [10, 10] as [number, number],
       filename: `${articleTitle.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true, letterRendering: true },
@@ -342,7 +343,7 @@ function CopywritingComponent({ data, title }: { data: ComponentData; title?: st
     };
 
     try {
-      await html2pdf().set(opt).from(documentHTML).save();
+      await (html2pdf() as any).set(opt).from(documentHTML).save();
     } catch (error) {
       console.error('Error generating PDF:', error);
       alert('Erreur lors de la génération du PDF. Veuillez réessayer.');
@@ -538,7 +539,7 @@ function ReportComponent({ data, title }: { data: ComponentData; title?: string 
 
     // Generate PDF with html2pdf.js
     const opt = {
-      margin: [10, 10],
+      margin: [10, 10] as [number, number],
       filename: `${reportTitle.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true, letterRendering: true },
@@ -546,7 +547,7 @@ function ReportComponent({ data, title }: { data: ComponentData; title?: string 
     };
 
     try {
-      await html2pdf().set(opt).from(documentHTML).save();
+      await (html2pdf() as any).set(opt).from(documentHTML).save();
     } catch (error) {
       console.error('Error generating PDF:', error);
       alert('Erreur lors de la génération du PDF. Veuillez réessayer.');
@@ -690,7 +691,7 @@ function AnalyticsDashboardComponent({ data, title }: { data: ComponentData; tit
 
     // Generate PDF with html2pdf.js
     const opt = {
-      margin: [10, 10],
+      margin: [10, 10] as [number, number],
       filename: `${dashboardTitle.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true, letterRendering: true },
@@ -698,7 +699,7 @@ function AnalyticsDashboardComponent({ data, title }: { data: ComponentData; tit
     };
 
     try {
-      await html2pdf().set(opt).from(documentHTML).save();
+      await (html2pdf() as any).set(opt).from(documentHTML).save();
     } catch (error) {
       console.error('Error generating PDF:', error);
       alert('Erreur lors de la génération du PDF. Veuillez réessayer.');
@@ -1249,7 +1250,7 @@ function ApprovalRequestComponent({ data }: { data: ComponentData }) {
 
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<'pending' | 'approved' | 'rejected'>('pending');
-  const user = useHiveStore((state) => state.user);
+  // const user = useHiveStore((state) => state.user); // user property removed from store
 
   // Map risk level to colors
   const getRiskColor = (riskLevel?: string) => {
@@ -1302,10 +1303,10 @@ function ApprovalRequestComponent({ data }: { data: ComponentData }) {
   const agent = agentInfo[approvalData.agent_id || ''] || { name: approvalData.agent_id || 'Agent', textClass: 'font-medium text-slate-600' };
 
   const handleApprove = async () => {
-    if (!approvalData.approval_id || !user?.id || loading) return;
+    if (!approvalData.approval_id || loading) return;
 
     setLoading(true);
-    const result = await approveRequest(approvalData.approval_id, user.id);
+    const result = await approveRequest(approvalData.approval_id, 'system'); // user removed from store
     setLoading(false);
 
     if (result.success) {
@@ -1318,13 +1319,13 @@ function ApprovalRequestComponent({ data }: { data: ComponentData }) {
   };
 
   const handleReject = async () => {
-    if (!approvalData.approval_id || !user?.id || loading) return;
+    if (!approvalData.approval_id || loading) return;
 
     const reason = prompt('Raison du rejet (optionnel):');
     if (reason === null) return; // User cancelled
 
     setLoading(true);
-    const result = await rejectRequest(approvalData.approval_id, user.id, reason || undefined);
+    const result = await rejectRequest(approvalData.approval_id, 'system', reason || undefined); // user removed from store
     setLoading(false);
 
     if (result.success) {

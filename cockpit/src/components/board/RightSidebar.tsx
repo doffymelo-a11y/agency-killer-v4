@@ -41,8 +41,8 @@ export default function RightSidebar({ project, tasks }: RightSidebarProps) {
       // Prioriser les tâches in_progress
       if (a.status === 'in_progress' && b.status !== 'in_progress') return -1;
       if (b.status === 'in_progress' && a.status !== 'in_progress') return 1;
-      // Ensuite trier par deadline
-      return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+      // Ensuite trier par due_date
+      return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
     })
     .slice(0, 3);
 

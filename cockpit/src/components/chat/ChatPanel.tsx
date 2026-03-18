@@ -64,7 +64,7 @@ export default function ChatPanel({
           </button>
           <div
             className="w-10 h-10 rounded-xl overflow-hidden ring-2 ring-offset-2"
-            style={{ ringColor: agent.color.primary }}
+            style={{ '--tw-ring-color': agent.color.primary } as React.CSSProperties}
           >
             <img
               src={agent.avatar}
@@ -185,7 +185,7 @@ function LoadingState({ agent, taskContext }: LoadingStateProps) {
           ease: "easeInOut"
         }}
         className="w-24 h-24 rounded-2xl overflow-hidden ring-4 ring-offset-4 mb-6 shadow-2xl"
-        style={{ ringColor: agent.color.light }}
+        style={{ '--tw-ring-color': agent.color.light } as React.CSSProperties}
       >
         <img
           src={agent.avatar}
@@ -278,7 +278,7 @@ function EmptyState({ agent, taskContext }: EmptyStateProps) {
       >
         <div
           className="w-20 h-20 rounded-2xl overflow-hidden ring-4 ring-offset-4 mb-6 shadow-lg"
-          style={{ ringColor: agent.color.light }}
+          style={{ '--tw-ring-color': agent.color.light } as React.CSSProperties}
         >
           <img
             src={agent.avatar}
@@ -338,7 +338,7 @@ function EmptyState({ agent, taskContext }: EmptyStateProps) {
     >
       <div
         className="w-20 h-20 rounded-2xl overflow-hidden ring-4 ring-offset-4 mb-6 shadow-lg"
-        style={{ ringColor: agent.color.light }}
+        style={{ '--tw-ring-color': agent.color.light } as React.CSSProperties}
       >
         <img
           src={agent.avatar}

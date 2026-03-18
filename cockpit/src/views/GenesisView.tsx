@@ -10,7 +10,7 @@ import { ArrowLeft, ArrowRight, Rocket, CheckCircle2 } from 'lucide-react';
 
 import { useHiveStore, useWizardState } from '../store/useHiveStore';
 import { SCOPE_OPTIONS, getQuestionsForScope, generateTasksForScope, getContextQuestionsForScope } from '../lib/wizard-config';
-import type { ProjectScope, WizardAnswer, ProjectMetadata } from '../types';
+import type { ProjectScope, WizardAnswer, ProjectMetadata, Project } from '../types';
 import { AGENTS } from '../types';
 
 // ─────────────────────────────────────────────────────────────────
@@ -510,7 +510,7 @@ function PreviewStep() {
         name: wizardState.projectName,
         scope: wizardState.scope, // Migration 011 applied - social_media is now valid
         status: 'planning' as const,
-        current_phase: 'setup',
+        current_phase: 'Setup',
         state_flags: {
           ...baseStateFlags,
           ...socialMediaFlags,
@@ -523,7 +523,7 @@ function PreviewStep() {
       };
 
       console.log('[Genesis] Calling createProject...');
-      const projectId = await createProject(projectData, tasksToCreate);
+      const projectId = await createProject(projectData as Omit<Project, 'id' | 'created_at' | 'updated_at'>, tasksToCreate);
       console.log('[Genesis] Project created successfully!', projectId);
 
       dispatch({ type: 'GENERATION_COMPLETE', projectId });

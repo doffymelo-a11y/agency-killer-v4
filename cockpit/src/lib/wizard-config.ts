@@ -1089,7 +1089,8 @@ function filterTasksByAnswers(
   }
 
   if (scope === 'social_media' || scope === 'full_scale') {
-    const platformsAnswer = answers.find((a) => a.questionId === 'social_platforms')?.value;
+    // platformsAnswer reserved for future filtering logic
+    // const platformsAnswer = answers.find((a) => a.questionId === 'social_platforms')?.value;
     const contentAnswer = answers.find((a) => a.questionId === 'social_content')?.value;
     const videosAnswer = answers.find((a) => a.questionId === 'social_videos')?.value;
 

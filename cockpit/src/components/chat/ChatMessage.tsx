@@ -7,7 +7,7 @@ import { motion } from 'framer-motion';
 import { User } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import DOMPurify from 'dompurify';
-import { AGENTS, type ChatMessage as ChatMessageType, type AgentRole } from '../../types';
+import { AGENTS, type ChatMessage as ChatMessageType } from '../../types';
 import UIComponentRenderer from './UIComponentRenderer';
 
 interface ChatMessageProps {
@@ -45,9 +45,9 @@ export default function ChatMessage({ message }: ChatMessageProps) {
           <div
             className="w-9 h-9 rounded-xl overflow-hidden ring-2 ring-offset-2"
             style={{
-              ringColor: agent.color.primary,
+              '--tw-ring-color': agent.color.primary,
               backgroundColor: agent.color.light
-            }}
+            } as React.CSSProperties}
           >
             <img
               src={agent.avatar}

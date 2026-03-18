@@ -100,7 +100,7 @@ export default function CalendarView({ tasks, onLaunchTask, onTaskDateChange }: 
           eventContent={(eventInfo) => {
             const agent = eventInfo.event.extendedProps.agent;
             const task = eventInfo.event.extendedProps.task;
-            const statusColors = {
+            const statusColors: Record<string, string> = {
               todo: 'bg-slate-500',
               in_progress: 'bg-blue-500',
               blocked: 'bg-amber-500',

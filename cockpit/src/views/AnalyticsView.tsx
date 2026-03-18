@@ -1,4 +1,4 @@
-import TopBar from '../components/layout/TopBar';
+// TopBar import removed - unused
 // ═══════════════════════════════════════════════════════════════
 // THE HIVE OS V4 - Analytics Hub (THE DATA OBSERVER)
 // Dashboard temps réel avec interprétation IA
@@ -18,7 +18,6 @@ import {
   Target,
   Calendar,
   ArrowUpRight,
-  ArrowDownRight,
   MessageSquare,
   RefreshCw,
   AlertTriangle,
@@ -323,7 +322,6 @@ export default function AnalyticsView() {
 
   // Calculate KPIs
   const kpis = useMemo<KPICard[]>(() => {
-    const totalTasks = tasks.length;
     const completedTasks = tasks.filter((t) => t.status === 'done').length;
     const inProgressTasks = tasks.filter((t) => t.status === 'in_progress').length;
     const blockedTasks = tasks.filter((t) => t.status === 'blocked').length;

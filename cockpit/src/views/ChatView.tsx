@@ -1,4 +1,4 @@
-import TopBar from '../components/layout/TopBar';
+// TopBar import removed - unused
 // ═══════════════════════════════════════════════════════════════
 // THE HIVE OS V4 - Chat View (Full Chat Interface)
 // 3-column layout: TeamDock | ChatPanel | TheDeck

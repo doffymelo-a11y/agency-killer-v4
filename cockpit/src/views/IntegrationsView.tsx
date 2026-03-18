@@ -1,4 +1,4 @@
-import TopBar from '../components/layout/TopBar';
+// TopBar import removed - unused
 // ═══════════════════════════════════════════════════════════════
 // THE HIVE OS V4 - Integrations Hub
 // Gestion des connexions OAuth (Meta, GA4, GSC, CMS, GBP)
@@ -6,7 +6,7 @@ import TopBar from '../components/layout/TopBar';
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
   Plug,
   CheckCircle2,
@@ -306,9 +306,8 @@ const INTEGRATIONS_CONFIG: IntegrationConfig[] = [
 export default function IntegrationsView() {
   const currentProject = useCurrentProject();
   const navigate = useNavigate();
-  const { projectId } = useParams();
   const [integrations, setIntegrations] = useState<Integration[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [_loading, setLoading] = useState(true);
   const [selectedIntegration, setSelectedIntegration] = useState<IntegrationConfig | null>(null);
   const [showSetupGuide, setShowSetupGuide] = useState(false);
 

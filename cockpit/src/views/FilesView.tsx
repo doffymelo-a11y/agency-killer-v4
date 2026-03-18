@@ -1,4 +1,4 @@
-import TopBar from '../components/layout/TopBar';
+// TopBar import removed - unused
 // ═══════════════════════════════════════════════════════════════
 // THE HIVE OS V4 - Files & Assets View (THE LIBRARIAN)
 // Drive intelligent - Fichiers classés automatiquement par projet
@@ -20,7 +20,6 @@ import {
   Download,
   Eye,
   Calendar,
-  User,
   Tag,
   X,
   MessageSquare,
@@ -31,7 +30,7 @@ import {
   useCurrentProject,
   useTasks,
 } from '../store/useHiveStore';
-import { AGENTS, type AgentRole, type DeliverableType, type Task } from '../types';
+import { AGENTS, type AgentRole, type DeliverableType } from '../types';
 
 // ─────────────────────────────────────────────────────────────────
 // Types
@@ -57,7 +56,7 @@ type FilterType = DeliverableType | 'all';
 // File Type Icon
 // ─────────────────────────────────────────────────────────────────
 
-function FileTypeIcon({ type, className = '' }: { type: DeliverableType; className?: string }) {
+function FileTypeIcon({ type, className = '', style }: { type: DeliverableType; className?: string; style?: React.CSSProperties }) {
   const icons: Record<DeliverableType, typeof Image> = {
     image: Image,
     video: Video,
@@ -66,7 +65,7 @@ function FileTypeIcon({ type, className = '' }: { type: DeliverableType; classNa
     report: FileText,
   };
   const Icon = icons[type] || File;
-  return <Icon className={className} />;
+  return <Icon className={className} style={style} />;
 }
 
 // ─────────────────────────────────────────────────────────────────
