@@ -1,0 +1,32 @@
+{
+  "name": "@hive-os/cms-connector-server",
+  "version": "1.0.0",
+  "description": "MCP server for WordPress/Shopify/Webflow CMS integration - Read & write content with approval flow",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js"
+  },
+  "keywords": [
+    "mcp",
+    "wordpress",
+    "shopify",
+    "webflow",
+    "cms",
+    "seo",
+    "content-management"
+  ],
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "axios": "^1.7.9",
+    "sanitize-html": "^2.13.1",
+    "form-data": "^4.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/sanitize-html": "^2.13.0",
+    "typescript": "^5.7.2"
+  }
+}
