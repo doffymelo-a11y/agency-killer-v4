@@ -5,17 +5,21 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { LifeBuoy } from 'lucide-react';
 import { getCurrentUser, signOut, getUserRole } from '../../lib/supabase';
+import { getUnreadMessageCount } from '../../services/support.service';
 
 export default function TopBar() {
   const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadUser();
+    loadUnreadCount();
 
     // Close menu on click outside
     function handleClickOutside(event: MouseEvent) {
@@ -35,6 +39,16 @@ export default function TopBar() {
     if (currentUser) {
       const role = await getUserRole(currentUser.id);
       setIsAdmin(role === 'admin' || role === 'super_admin');
+    }
+  }
+
+  async function loadUnreadCount() {
+    try {
+      const count = await getUnreadMessageCount();
+      setUnreadCount(count);
+    } catch (error) {
+      // Silent fail
+      setUnreadCount(0);
     }
   }
 
@@ -132,6 +146,22 @@ export default function TopBar() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                   </svg>
                   Billing
+                </button>
+
+                <button
+                  onClick={() => {
+                    navigate('/support');
+                    setMenuOpen(false);
+                  }}
+                  className="w-full px-4 py-2 text-left text-slate-300 hover:bg-slate-750 hover:text-white transition flex items-center gap-3 relative"
+                >
+                  <LifeBuoy className="w-4 h-4" />
+                  Support
+                  {unreadCount > 0 && (
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full">
+                      {unreadCount}
+                    </span>
+                  )}
                 </button>
 
                 {isAdmin && (

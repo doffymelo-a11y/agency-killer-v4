@@ -19,6 +19,8 @@ import TermsOfServiceView from './views/TermsOfServiceView';
 import ProjectsView from './views/ProjectsView';
 import AccountSettingsView from './views/AccountSettingsView';
 import BillingView from './views/BillingView';
+import SupportView from './views/SupportView';
+import SupportTicketDetailView from './views/SupportTicketDetailView';
 import AdminDashboardView from './views/AdminDashboardView';
 import GenesisView from './views/GenesisView';
 import BoardView from './views/BoardView';
@@ -82,6 +84,10 @@ function AppRoutes() {
 
         {/* Billing */}
         <Route path="/billing" element={<BillingView />} />
+
+        {/* Support */}
+        <Route path="/support" element={<SupportView />} />
+        <Route path="/support/:ticketId" element={<SupportTicketDetailView />} />
 
         {/* Admin Dashboard */}
         <Route path="/admin" element={<AdminDashboardView />} />
