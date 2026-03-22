@@ -5,6 +5,7 @@
 
 import { chat } from '../services/claude.service.js';
 import { mcpBridge } from '../services/mcp-bridge.service.js';
+import { recordCMSChange } from '../services/cms.service.js';
 import { parseAgentResponse } from '../shared/response-parser.js';
 import { detectComplexity, logComplexityDecision } from '../services/complexity-detector.js';
 import type { AgentConfig } from '../types/agent.types.js';
@@ -24,6 +25,7 @@ export interface AgentExecutionContext {
   sessionId: string;
   images?: string[];
   systemInstruction?: string;
+  userId?: string; // Phase 3.3: For CMS change tracking
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -97,7 +99,7 @@ export async function executeAgent(context: AgentExecutionContext) {
     }
 
     // Execute all tool calls via MCP Bridge
-    const toolResults = await executeMCPToolCalls(toolCalls);
+    const toolResults = await executeMCPToolCalls(toolCalls, context);
 
     // Build tool result messages for Claude
     const toolResultMessages = toolResults.map((result: any) => ({
@@ -282,7 +284,7 @@ function buildMCPToolsDefinitions(mcpToolNames: string[]): Anthropic.Tool[] {
 /**
  * Execute MCP tool calls from Claude
  */
-async function executeMCPToolCalls(toolCalls: any[]) {
+async function executeMCPToolCalls(toolCalls: any[], context: AgentExecutionContext) {
   const results = [];
 
   for (const toolCall of toolCalls) {
@@ -293,6 +295,11 @@ async function executeMCPToolCalls(toolCalls: any[]) {
 
     try {
       const result = await mcpBridge.call(server, tool, toolCall.input);
+
+      // Phase 3.3: Record CMS changes for approval workflow
+      if (server === 'cms-connector' && result.success && result.data) {
+        await recordCMSChangeIfNeeded(tool, result.data, context);
+      }
 
       results.push({
         tool_use_id: toolCall.id,
@@ -308,4 +315,71 @@ async function executeMCPToolCalls(toolCalls: any[]) {
   }
 
   return results;
+}
+
+/**
+ * Phase 3.3: Record CMS changes for approval workflow
+ * Detects CMS write operations and saves them to cms_change_log
+ */
+async function recordCMSChangeIfNeeded(
+  toolName: string,
+  toolResult: any,
+  context: AgentExecutionContext
+): Promise<void> {
+  // List of CMS write tools that require recording
+  const CMS_WRITE_TOOLS = [
+    'create_cms_post',
+    'update_cms_post',
+    'delete_cms_post',
+    'update_cms_page',
+    'upload_cms_media',
+    'update_cms_seo_meta',
+    'manage_cms_category',
+    'update_cms_product',
+    'bulk_update_cms_seo',
+  ];
+
+  // Only record write operations
+  if (!CMS_WRITE_TOOLS.includes(toolName)) {
+    return;
+  }
+
+  // Check if result contains change tracking data
+  if (!toolResult.change_id || !toolResult.requires_approval === undefined) {
+    console.log(`[Agent Executor] CMS tool ${toolName} did not return change tracking data`);
+    return;
+  }
+
+  try {
+    // Get user_id from context
+    const userId = context.userId;
+
+    if (!userId) {
+      console.warn('[Agent Executor] Cannot record CMS change: user_id not found in context');
+      return;
+    }
+
+    // Record the change
+    await recordCMSChange({
+      user_id: userId,
+      project_id: context.projectContext.project_id,
+      change_id: toolResult.change_id,
+      cms_type: toolResult.cms_type || 'wordpress',
+      site_url: toolResult.site_url || '',
+      content_type: toolResult.content_type || 'post',
+      content_id: toolResult.content_id || '',
+      action: toolResult.action || 'update',
+      previous_state: toolResult.previous_state || {},
+      new_state: toolResult.new_state || {},
+      change_summary: toolResult.change_summary || {},
+      requires_approval: toolResult.requires_approval,
+      executed_by_agent: context.agentId,
+      mcp_tool_name: `cms-connector__${toolName}`,
+    });
+
+    console.log(`[Agent Executor] Recorded CMS change: ${toolResult.change_id}`);
+  } catch (error) {
+    console.error('[Agent Executor] Error recording CMS change:', error);
+    // Don't throw - we don't want to fail the entire execution if recording fails
+  }
 }

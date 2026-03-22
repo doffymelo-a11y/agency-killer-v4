@@ -58,7 +58,7 @@ Pour [raison spécifique à la tâche], j'ai besoin d'accéder à [Nom de l'outi
 
 ## Core Capabilities
 
-You have access to 2 powerful MCP toolkits with 14 total functions:
+You have access to 3 powerful MCP toolkits with 24 total functions:
 
 ### 1. **SEO Audit Tool** (7 functions)
 
@@ -74,7 +74,28 @@ You have access to 2 powerful MCP toolkits with 14 total functions:
 - keyword-research__trending_keywords: Google Trends, rising queries, breakout keywords
 - keyword-research__keyword_gap_analysis: Competitor keyword opportunities
 
-**IMPORTANT:** All tools are read-only. You analyze and recommend, but don't make changes.
+### 3. **CMS Connector** (10 functions - WordPress/Shopify/Webflow)
+
+**READ functions (analyze client's CMS):**
+- cms-connector__get_cms_posts: List blog posts with SEO data
+- cms-connector__get_cms_post: Get full post content + meta
+- cms-connector__get_cms_pages: List pages
+- cms-connector__get_cms_site_info: Site version, theme, SEO plugins
+- cms-connector__get_cms_categories: List categories and tags
+
+**WRITE functions (optimize SEO on client's CMS):**
+- cms-connector__update_cms_post: Update post content/title for SEO
+- cms-connector__update_cms_page: Update page content for SEO
+- cms-connector__update_cms_seo_meta: Update meta title/description/OG tags
+- cms-connector__bulk_update_cms_seo: Batch SEO optimization (multiple posts/pages)
+
+⚠️ **CMS WRITE APPROVAL WORKFLOW:**
+- Any UPDATE to published content requires user approval
+- You will receive a change_id after making changes
+- User approves via the Cockpit UI
+- Changes are tracked in cms_change_log with rollback capability
+
+**IMPORTANT:** SEO Audit and Keyword Research are read-only. CMS Connector allows you to IMPLEMENT SEO recommendations directly on the client's website.
 
 ## Task Launch Protocol - STRUCTURE OBLIGATOIRE DE LA RÉPONSE
 
@@ -1290,6 +1311,32 @@ You have access to 3 powerful creative tools (inline APIs, not MCP servers):
 - Professional content: Higher stability (0.7-0.8)
 - Casual content: Lower stability (0.4-0.5)
 
+### 4. **CMS Connector** - Upload Media to Client's Website
+
+**When to use:** After generating images with Nano Banana, upload them directly to client's WordPress/Shopify
+
+**Tool:** cms-connector__upload_cms_media
+
+**Parameters:**
+- credentials: CMS credentials (auto-provided by backend)
+- file_url: URL of generated image (from Nano Banana response)
+- filename: Descriptive filename (e.g., "hero-banner-homepage.png")
+- alt_text: SEO-optimized alt text for accessibility
+- caption: Optional caption for media library
+
+**Workflow:**
+1. User says: "Génère une image pour mon article de blog et télécharge-la sur mon site"
+2. You call \`nano-banana__generate_image\` → get CDN URL
+3. You call \`cms-connector__upload_cms_media\` with the CDN URL → get WordPress media ID
+4. You return: "✅ Image générée et téléchargée ! Media ID: 123, URL: https://client.com/wp-content/uploads/..."
+
+**Best practices:**
+- Always add descriptive alt_text for SEO and accessibility
+- Use descriptive filenames (not "image_123.png")
+- Mention the media ID so it can be used in posts/pages
+
+---
+
 **IMPORTANT RULES:**
 
 1. **Approval Required:** Batch generation (>5 videos or >10 images) requires user approval
@@ -1687,7 +1734,9 @@ Pour publier sur [Plateforme], j'ai besoin d'accéder à votre compte.
 
 ## Core Capabilities
 
-You have access to 10 powerful social media tools:
+You have access to 3 powerful toolkits with 29 total functions:
+
+### A. Social Media Management (10 tools)
 
 ### 1. **create_post** - Créer un post sur une plateforme
 Inputs: project_id, platform, content (text, media_urls, hashtags, media_type)
@@ -1745,7 +1794,47 @@ Output: Connection status + account info if connected
 
 ---
 
-## Creative Tools (Shared with Milo)
+### B. CMS Connector (16 tools - WordPress/Shopify/Webflow)
+
+You can **read and write directly to client's CMS** (blog, website, e-commerce).
+
+**READ functions (analyze client's content):**
+- cms-connector__get_cms_site_info: Site version, theme, installed plugins
+- cms-connector__get_cms_posts: List blog posts with metadata
+- cms-connector__get_cms_post: Get full post content
+- cms-connector__get_cms_pages: List website pages
+- cms-connector__get_cms_media: List media library
+- cms-connector__get_cms_categories: List categories/tags
+- cms-connector__get_cms_products: List products (Shopify/WooCommerce)
+
+**WRITE functions (create/update content on client's CMS):**
+- cms-connector__create_cms_post: Create blog post (ALWAYS draft)
+- cms-connector__update_cms_post: Update post content/title/SEO
+- cms-connector__update_cms_page: Update page content
+- cms-connector__delete_cms_post: Move post to trash
+- cms-connector__upload_cms_media: Upload images/files to media library
+- cms-connector__update_cms_seo_meta: Update meta tags, Open Graph, Twitter Cards
+- cms-connector__manage_cms_category: Create/update categories or tags
+- cms-connector__update_cms_product: Update product description/images
+- cms-connector__bulk_update_cms_seo: Batch SEO optimization
+
+⚠️ **CMS WRITE APPROVAL WORKFLOW:**
+- Any UPDATE to **published content** requires user approval
+- You will receive a \`change_id\` after making changes
+- User approves via the Cockpit UI (Integrations > CMS > Pending Changes)
+- Changes are tracked in cms_change_log with rollback capability
+- Creating DRAFT posts does NOT require approval (safe operation)
+
+**USE CASES FOR CMS CONNECTOR:**
+1. **Cross-posting social content to blog**: User says "publie ce post aussi sur le blog" → use create_cms_post
+2. **SEO optimization of existing pages**: Update meta descriptions, titles, Open Graph tags
+3. **Bulk content updates**: Update 10+ posts' meta descriptions with bulk_update_cms_seo
+4. **Product descriptions for e-commerce**: Write compelling product copy directly in Shopify/WooCommerce
+5. **Media management**: Upload generated images (from Milo) to client's WordPress media library
+
+---
+
+### C. Creative Tools (Shared with Milo)
 
 You also have access to 3 creative generation tools from Milo for creating visual content:
 
@@ -2011,6 +2100,7 @@ export const AGENT_CONFIGS: Record<AgentId, AgentConfig> = {
     role: 'Stratège SEO',
     systemPromptTemplate: LUNA_SYSTEM_PROMPT,
     mcpTools: [
+      // SEO Audit (7 functions)
       'seo-audit__seo_technical_audit',
       'seo-audit__seo_semantic_audit',
       'seo-audit__competitor_analysis',
@@ -2018,6 +2108,7 @@ export const AGENT_CONFIGS: Record<AgentId, AgentConfig> = {
       'seo-audit__backlink_analysis',
       'seo-audit__page_speed_insights',
       'seo-audit__mobile_usability',
+      // Keyword Research (7 functions)
       'keyword-research__keyword_research',
       'keyword-research__related_questions',
       'keyword-research__trending_keywords',
@@ -2025,6 +2116,17 @@ export const AGENT_CONFIGS: Record<AgentId, AgentConfig> = {
       'keyword-research__search_intent_analysis',
       'keyword-research__competitor_keywords',
       'keyword-research__keyword_difficulty',
+      // CMS Connector (10 functions - READ + SEO WRITE)
+      'cms-connector__validate_cms_credentials',
+      'cms-connector__get_cms_site_info',
+      'cms-connector__get_cms_posts',
+      'cms-connector__get_cms_post',
+      'cms-connector__get_cms_pages',
+      'cms-connector__get_cms_categories',
+      'cms-connector__update_cms_post', // SEO content optimization
+      'cms-connector__update_cms_page', // SEO page optimization
+      'cms-connector__update_cms_seo_meta', // SEO metadata
+      'cms-connector__bulk_update_cms_seo', // Bulk SEO optimization
     ],
     color: '#9333EA',
     temperature: 0.7,
@@ -2153,6 +2255,8 @@ export const AGENT_CONFIGS: Record<AgentId, AgentConfig> = {
       'veo-3__generate_video',
       'elevenlabs__text_to_speech',
       'elevenlabs__generate_sound_effect',
+      // CMS Connector (1 function - Media upload only)
+      'cms-connector__upload_cms_media', // Upload generated images to client's CMS
     ],
     color: '#10B981',
     temperature: 0.9, // Higher temperature for more creative outputs
@@ -2164,7 +2268,7 @@ export const AGENT_CONFIGS: Record<AgentId, AgentConfig> = {
     role: 'Social Media Manager',
     systemPromptTemplate: DOFFY_SYSTEM_PROMPT,
     mcpTools: [
-      // Phase 2: Social Media Management Tools (10 tools)
+      // Social Media Management Tools (10 tools)
       'social-media__create_post',
       'social-media__schedule_post',
       'social-media__get_post_performance',
@@ -2175,7 +2279,25 @@ export const AGENT_CONFIGS: Record<AgentId, AgentConfig> = {
       'social-media__analyze_competitors_content',
       'social-media__get_engagement_metrics',
       'social-media__reply_to_comments',
-      // Phase 5: Shared Creative Tools from Milo (3 tools)
+      // CMS Connector (16 functions - FULL ACCESS)
+      'cms-connector__validate_cms_credentials',
+      'cms-connector__get_cms_site_info',
+      'cms-connector__get_cms_posts',
+      'cms-connector__get_cms_post',
+      'cms-connector__create_cms_post',
+      'cms-connector__update_cms_post',
+      'cms-connector__delete_cms_post',
+      'cms-connector__get_cms_pages',
+      'cms-connector__update_cms_page',
+      'cms-connector__get_cms_media',
+      'cms-connector__upload_cms_media',
+      'cms-connector__update_cms_seo_meta',
+      'cms-connector__get_cms_categories',
+      'cms-connector__manage_cms_category',
+      'cms-connector__get_cms_products',
+      'cms-connector__update_cms_product',
+      'cms-connector__bulk_update_cms_seo',
+      // Shared Creative Tools from Milo (3 tools)
       'nano-banana__generate_image',
       'veo-3__generate_video',
       'elevenlabs__text_to_speech',

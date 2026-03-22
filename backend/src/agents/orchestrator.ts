@@ -194,7 +194,7 @@ const ROUTING_KEYWORDS: Record<AgentId, string[]> = {
  */
 export async function processChat(
   request: ChatRequest,
-  _userId: string
+  userId: string
 ): Promise<ChatResponse> {
   try {
     console.log(`[Orchestrator] Processing chat for project ${request.project_id}`);
@@ -254,6 +254,7 @@ export async function processChat(
       memoryContext,
       sessionId: request.session_id,
       images: request.image ? [request.image] : undefined,
+      userId, // Phase 3.3: Pass userId for CMS change tracking
     });
 
     // Step 5: Write memory contribution
