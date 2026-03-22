@@ -26,10 +26,15 @@ import {
   Instagram,
   Twitter,
   Music2,
+  Globe,
+  ShoppingBag,
+  Layout,
 } from 'lucide-react';
 import { useCurrentProject } from '../store/useHiveStore';
 import { supabase } from '../lib/supabase';
 import { getOAuthUrl } from '../lib/oauth';
+import CMSConnectionModal from '../components/modals/CMSConnectionModal';
+import type { CMSType } from '../types/cms.types';
 
 // ─────────────────────────────────────────────────────────────────
 // Types
@@ -47,7 +52,9 @@ type IntegrationType =
   | 'meta_business_suite'
   | 'linkedin_pages'
   | 'twitter_x'
-  | 'tiktok_business';
+  | 'tiktok_business'
+  | 'wordpress'
+  | 'shopify';
 
 type IntegrationStatus = 'connected' | 'disconnected' | 'error' | 'expired';
 
@@ -297,6 +304,71 @@ const INTEGRATIONS_CONFIG: IntegrationConfig[] = [
       docsUrl: 'https://developers.tiktok.com/doc/overview',
     },
   },
+  {
+    type: 'wordpress',
+    name: 'WordPress',
+    title: 'Blog & Site Web WordPress',
+    description: 'Connectez votre site WordPress pour publier des articles, optimiser le SEO et gérer le contenu avec Luna et Doffy',
+    icon: Globe,
+    color: 'text-blue-600',
+    bgColor: 'bg-blue-600/10',
+    requiredBy: ['Luna', 'Doffy'],
+    setupGuide: {
+      title: 'Connecter WordPress',
+      steps: [
+        'Accédez à votre admin WordPress (votre-site.com/wp-admin)',
+        'Allez dans Utilisateurs → Profil',
+        'Descendez jusqu\'à "Application Passwords"',
+        'Créez un nouveau Application Password avec le nom "The Hive OS"',
+        'Copiez le mot de passe généré (format: xxxx xxxx xxxx xxxx)',
+        'Cliquez sur Connecter ci-dessous pour entrer vos informations',
+      ],
+      docsUrl: 'https://wordpress.org/support/article/application-passwords/',
+    },
+  },
+  {
+    type: 'shopify',
+    name: 'Shopify',
+    title: 'E-commerce Shopify',
+    description: 'Connectez votre boutique Shopify pour gérer les produits, optimiser les descriptions et suivre les ventes avec Luna et Doffy',
+    icon: ShoppingBag,
+    color: 'text-green-600',
+    bgColor: 'bg-green-600/10',
+    requiredBy: ['Luna', 'Doffy'],
+    setupGuide: {
+      title: 'Connecter Shopify',
+      steps: [
+        'Accédez à votre admin Shopify',
+        'Allez dans Apps → Develop apps',
+        'Créez une nouvelle application "The Hive OS"',
+        'Configurez les Admin API scopes : read_products, write_products, read_content, write_content',
+        'Générez une API key et copiez-la',
+        'Cliquez sur Connecter ci-dessous pour entrer votre API key',
+      ],
+      docsUrl: 'https://shopify.dev/docs/api/admin-rest',
+    },
+  },
+  {
+    type: 'webflow',
+    name: 'Webflow',
+    title: 'Design & CMS Webflow',
+    description: 'Connectez votre site Webflow pour gérer le contenu CMS, publier des articles et optimiser le design avec Luna et Doffy',
+    icon: Layout,
+    color: 'text-purple-600',
+    bgColor: 'bg-purple-600/10',
+    requiredBy: ['Luna', 'Doffy'],
+    setupGuide: {
+      title: 'Connecter Webflow',
+      steps: [
+        'Accédez à Webflow workspace settings',
+        'Allez dans Integrations → API Access',
+        'Générez une nouvelle API key avec le nom "The Hive OS"',
+        'Copiez l\'API key et votre Site ID (dans Site Settings → General)',
+        'Cliquez sur Connecter ci-dessous pour entrer vos informations',
+      ],
+      docsUrl: 'https://developers.webflow.com/',
+    },
+  },
 ];
 
 // ─────────────────────────────────────────────────────────────────
@@ -310,6 +382,8 @@ export default function IntegrationsView() {
   const [_loading, setLoading] = useState(true);
   const [selectedIntegration, setSelectedIntegration] = useState<IntegrationConfig | null>(null);
   const [showSetupGuide, setShowSetupGuide] = useState(false);
+  const [showCMSModal, setShowCMSModal] = useState(false);
+  const [selectedCMSType, setSelectedCMSType] = useState<CMSType>('wordpress');
 
   // ─────────────────────────────────────────────────────────────────
   // Charger les intégrations depuis Supabase
@@ -353,6 +427,13 @@ export default function IntegrationsView() {
 
   const handleConnect = async (type: IntegrationType) => {
     if (!currentProject) return;
+
+    // CMS integrations → open CMSConnectionModal
+    if (['wordpress', 'shopify', 'webflow'].includes(type)) {
+      setSelectedCMSType(type as CMSType);
+      setShowCMSModal(true);
+      return;
+    }
 
     const state = Math.random().toString(36).substring(7);
     sessionStorage.setItem('oauth_state', state);
@@ -540,6 +621,19 @@ export default function IntegrationsView() {
             loadIntegrations();
             setShowSetupGuide(false);
             setSelectedIntegration(null);
+          }}
+        />
+      )}
+
+      {/* Modal CMS Connection */}
+      {showCMSModal && (
+        <CMSConnectionModal
+          isOpen={showCMSModal}
+          onClose={() => setShowCMSModal(false)}
+          initialCMSType={selectedCMSType}
+          onConnectionSuccess={() => {
+            loadIntegrations();
+            setShowCMSModal(false);
           }}
         />
       )}
