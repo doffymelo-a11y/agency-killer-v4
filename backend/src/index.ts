@@ -15,6 +15,7 @@ import analyticsRoutes from './routes/analytics.routes.js';
 import filesRoutes from './routes/files.routes.js';
 import phaseTransitionRoutes from './routes/phase-transition.routes.js';
 import taskExplainerRoutes from './routes/task-explainer.routes.js';
+import cmsRoutes from './routes/cms.routes.js';
 
 // Middleware
 import { errorHandler } from './middleware/error.middleware.js';
@@ -94,6 +95,7 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/files', filesRoutes);
 app.use('/api/phase-transition', phaseTransitionRoutes);
 app.use('/api/task-explainer', taskExplainerRoutes);
+app.use('/api/cms', cmsRoutes);
 
 // Fallback 404
 app.use((req, res) => {
@@ -141,10 +143,13 @@ async function start() {
       console.log(`  Health:       http://localhost:${PORT}/health`);
       console.log('');
       console.log('  Endpoints:');
-      console.log(`    POST /api/chat       - Main chat endpoint`);
-      console.log(`    POST /api/genesis    - Project initialization`);
-      console.log(`    POST /api/analytics  - Analytics data`);
-      console.log(`    POST /api/files/*    - File management`);
+      console.log(`    POST /api/chat         - Main chat endpoint`);
+      console.log(`    POST /api/genesis      - Project initialization`);
+      console.log(`    POST /api/analytics    - Analytics data`);
+      console.log(`    POST /api/files/*      - File management`);
+      console.log(`    POST /api/cms/execute  - Execute CMS change`);
+      console.log(`    POST /api/cms/rollback - Rollback CMS change`);
+      console.log(`    GET  /api/cms/pending  - List pending CMS approvals`);
       console.log('');
       console.log('  Services:');
       console.log(`    Supabase:    ${isSupabaseConfigured() ? '✓' : '✗'}`);

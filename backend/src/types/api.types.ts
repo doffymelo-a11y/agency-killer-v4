@@ -345,3 +345,37 @@ export interface PhaseTransitionProposal {
   nextPhasePreview: string; // 1-2 sentences
   proposedAt: string; // ISO timestamp
 }
+
+// ─────────────────────────────────────────────────────────────────
+// CMS Connector Types
+// ─────────────────────────────────────────────────────────────────
+
+/**
+ * POST /api/cms/execute - Execute an approved CMS change
+ */
+export interface CMSExecuteRequest {
+  change_id: string; // UUID from cms_change_log
+}
+
+export interface CMSExecuteResponse {
+  success: boolean;
+  message: string;
+  change_id?: string;
+  result?: any;
+  error?: string;
+}
+
+/**
+ * POST /api/cms/rollback - Rollback a CMS change
+ */
+export interface CMSRollbackRequest {
+  change_id: string; // UUID from cms_change_log
+  reason?: string; // Optional reason for rollback
+}
+
+export interface CMSRollbackResponse {
+  success: boolean;
+  message: string;
+  change_id?: string;
+  error?: string;
+}

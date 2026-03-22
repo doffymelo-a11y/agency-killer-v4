@@ -163,4 +163,15 @@ export const schemas = {
       project_metadata: z.record(z.unknown()),
     }),
   }),
+
+  // CMS Execute request schema
+  cmsExecuteRequest: z.object({
+    change_id: z.string().min(1, 'Change ID is required'),
+  }),
+
+  // CMS Rollback request schema
+  cmsRollbackRequest: z.object({
+    change_id: z.string().min(1, 'Change ID is required'),
+    reason: z.string().optional(),
+  }),
 };
