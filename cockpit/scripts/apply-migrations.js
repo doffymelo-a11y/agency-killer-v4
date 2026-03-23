@@ -1,95 +1,123 @@
-#!/usr/bin/env node
-
 /**
- * Script to apply database migrations to Supabase via SQL Editor API
- * Usage: node scripts/apply-migrations.js
+ * Apply Support System Migration using PostgreSQL direct connection
+ * Run: node scripts/apply-migrations.js
  */
 
+import pkg from 'pg';
+const { Client } = pkg;
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import dotenv from 'dotenv';
 
+// Load environment variables
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
-const SUPABASE_KEY = process.env.VITE_SUPABASE_ANON_KEY;
+// Construct PostgreSQL connection string
+const supabaseUrl = process.env.VITE_SUPABASE_URL;
+const password = process.env.SUPABASE_DB_PASSWORD;
 
-if (!SUPABASE_URL || !SUPABASE_KEY) {
-  console.error('❌ Error: VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY not found');
+if (!supabaseUrl || !password) {
+  console.error('❌ Missing credentials in .env');
+  console.error('   Required: VITE_SUPABASE_URL, SUPABASE_DB_PASSWORD');
   process.exit(1);
 }
 
-async function applyMigration(sqlFilePath) {
+// Extract project ref from URL
+const projectRef = supabaseUrl.replace('https://', '').replace('.supabase.co', '');
+const connectionString = `postgresql://postgres:${password}@db.${projectRef}.supabase.co:5432/postgres`;
+
+async function applyMigration() {
+  console.log('🚀 Applying Migration 017 - Support Tickets System\n');
+
+  const client = new Client({
+    connectionString,
+    ssl: { rejectUnauthorized: false }
+  });
+
   try {
-    console.log(`\n📄 Reading migration: ${sqlFilePath}`);
-    const sql = readFileSync(sqlFilePath, 'utf-8');
+    console.log('🔌 Connecting to Supabase PostgreSQL...');
+    await client.connect();
+    console.log('✅ Connected successfully\n');
 
-    console.log('🚀 Executing migration via Supabase REST API...');
-    console.log('');
-    console.log('⚠️  ATTENTION: This script cannot apply migrations automatically.');
-    console.log('');
-    console.log('Please apply the migration manually via Supabase Dashboard:');
-    console.log('');
-    console.log('1. Open: https://supabase.com/dashboard/project/hwiyvpfaolmasqchqwsa/sql/new');
-    console.log('');
-    console.log('2. Copy the content from:');
-    console.log('   ' + sqlFilePath);
-    console.log('');
-    console.log('3. Paste it in the SQL Editor');
-    console.log('');
-    console.log('4. Click "Run"');
-    console.log('');
-    console.log('5. Expected duration: ~10 seconds');
-    console.log('');
+    const migrationPath = join(__dirname, '../supabase/migrations/017_support_tickets.sql');
+    const migrationSQL = readFileSync(migrationPath, 'utf-8');
 
-    // Show first 20 lines as preview
-    const lines = sql.split('\n').slice(0, 20);
-    console.log('═══════════════════════════════════════════════════════════════');
-    console.log('PREVIEW (first 20 lines):');
-    console.log('═══════════════════════════════════════════════════════════════');
-    console.log(lines.join('\n'));
-    console.log('...');
-    console.log('');
-    console.log('Total lines:', sql.split('\n').length);
-    console.log('');
+    console.log('📖 Migration file loaded:', migrationPath);
+    console.log('📏 SQL length:', migrationSQL.length, 'characters\n');
 
-    return false; // Manual action required
+    console.log('⚙️  Executing migration...\n');
+
+    await client.query('BEGIN');
+
+    try {
+      await client.query(migrationSQL);
+      await client.query('COMMIT');
+      console.log('✅ Migration executed successfully!\n');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    }
+
+    console.log('🔍 Verifying tables...');
+
+    const { rows: ticketsRows } = await client.query(`
+      SELECT table_name FROM information_schema.tables
+      WHERE table_schema = 'public'
+      AND table_name IN ('support_tickets', 'support_messages')
+      ORDER BY table_name;
+    `);
+
+    console.log('✅ Tables created:', ticketsRows.map(r => r.table_name).join(', '));
+
+    const { rows: enumRows } = await client.query(`
+      SELECT typname FROM pg_type
+      WHERE typname IN ('ticket_status', 'ticket_priority', 'ticket_category', 'message_sender_type')
+      ORDER BY typname;
+    `);
+
+    console.log('✅ ENUM types created:', enumRows.map(r => r.typname).join(', '));
+
+    const { rows: functionRows } = await client.query(`
+      SELECT routine_name FROM information_schema.routines
+      WHERE routine_schema = 'public'
+      AND routine_name IN ('get_user_unread_ticket_messages', 'get_ticket_stats')
+      ORDER BY routine_name;
+    `);
+
+    console.log('✅ Functions created:', functionRows.map(r => r.routine_name).join(', '));
+
+    const { rows: policyRows } = await client.query(`
+      SELECT tablename, COUNT(*) as policy_count
+      FROM pg_policies
+      WHERE schemaname = 'public'
+      AND tablename IN ('support_tickets', 'support_messages')
+      GROUP BY tablename
+      ORDER BY tablename;
+    `);
+
+    console.log('✅ RLS policies:');
+    policyRows.forEach(row => {
+      console.log(`   - ${row.tablename}: ${row.policy_count} policies`);
+    });
+
+    console.log('\n🎉 Migration 017 applied successfully!\n');
 
   } catch (error) {
-    console.error('❌ Error reading migration file:', error.message);
-    return false;
+    console.error('\n❌ Migration failed:', error.message);
+
+    if (error.message.includes('already exists')) {
+      console.log('\n⚠️  Some objects already exist - might be okay if re-running\n');
+    } else {
+      console.error('\nFull error:', error);
+      process.exit(1);
+    }
+  } finally {
+    await client.end();
   }
 }
 
-async function main() {
-  console.log('═══════════════════════════════════════════════════════════════');
-  console.log('THE HIVE OS V4 - Database Migration Script');
-  console.log('═══════════════════════════════════════════════════════════════\n');
-
-  const migrationPath = join(__dirname, '../supabase/migrations/APPLY_NOW_security_migrations.sql');
-
-  const success = await applyMigration(migrationPath);
-
-  if (success) {
-    console.log('\n═══════════════════════════════════════════════════════════════');
-    console.log('✅ ALL MIGRATIONS APPLIED SUCCESSFULLY');
-    console.log('═══════════════════════════════════════════════════════════════\n');
-
-    console.log('Next steps:');
-    console.log('1. Verify RLS policies: Check Supabase Dashboard > Authentication > Policies');
-    console.log('2. Backfill user_id for existing data');
-    console.log('3. Test multi-tenant isolation\n');
-  } else {
-    console.error('\n❌ Migration failed. Please check the error above.\n');
-    process.exit(1);
-  }
-}
-
-main().catch(error => {
-  console.error('❌ Unexpected error:', error);
-  process.exit(1);
-});
+applyMigration();
