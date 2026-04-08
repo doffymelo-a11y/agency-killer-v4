@@ -17,6 +17,9 @@ import type {
   TicketStats,
   TicketStatus,
   TicketPriority,
+  TicketCategory,
+  EmailPreferences,
+  InternalNote,
 } from '../types/support.types';
 
 // ─────────────────────────────────────────────────────────────────
@@ -459,4 +462,430 @@ export function getRelativeTime(dateString: string): string {
   if (diffDays < 7) return `Il y a ${diffDays}j`;
   if (diffWeeks < 4) return `Il y a ${diffWeeks}sem`;
   return date.toLocaleDateString('fr-FR');
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Email Preferences (Phase 2)
+// ─────────────────────────────────────────────────────────────────
+
+/**
+ * Get email preferences for current user
+ */
+export async function getEmailPreferences(): Promise<EmailPreferences | null> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) throw new Error('Not authenticated');
+
+  const { data, error } = await supabase
+    .from('user_email_preferences')
+    .select('*')
+    .eq('user_id', user.id)
+    .single();
+
+  // Return defaults if no preferences exist yet
+  if (error && error.code === 'PGRST116') {
+    return {
+      user_id: user.id,
+      notify_on_message: true,
+      notify_on_status_change: true,
+      notify_on_assignment: true,
+      notify_on_resolution: true,
+      updated_at: new Date().toISOString(),
+    };
+  }
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Update email preferences for current user
+ */
+export async function updateEmailPreferences(
+  preferences: Partial<Omit<EmailPreferences, 'user_id' | 'updated_at'>>
+): Promise<EmailPreferences> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) throw new Error('Not authenticated');
+
+  const { data, error } = await supabase
+    .from('user_email_preferences')
+    .upsert(
+      {
+        user_id: user.id,
+        ...preferences,
+        updated_at: new Date().toISOString(),
+      },
+      {
+        onConflict: 'user_id',
+      }
+    )
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Internal Notes (Phase 2 - Admin Only)
+// ─────────────────────────────────────────────────────────────────
+
+/**
+ * Get all internal notes for a ticket (admin only)
+ */
+export async function getInternalNotes(ticketId: string): Promise<InternalNote[]> {
+  const { data, error } = await supabase.rpc('get_ticket_internal_notes', {
+    p_ticket_id: ticketId,
+  });
+
+  if (error) throw error;
+  return data || [];
+}
+
+/**
+ * Create a new internal note (admin only)
+ */
+export async function createInternalNote(ticketId: string, note: string): Promise<InternalNote> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) throw new Error('Not authenticated');
+
+  // Validate note length
+  if (!note.trim() || note.length < 1) {
+    throw new Error('Note cannot be empty');
+  }
+
+  if (note.length > 5000) {
+    throw new Error('Note cannot exceed 5000 characters');
+  }
+
+  const { data, error } = await supabase
+    .from('support_internal_notes')
+    .insert({
+      ticket_id: ticketId,
+      author_id: user.id,
+      note: note.trim(),
+    })
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return data as InternalNote;
+}
+
+/**
+ * Update an internal note (admin only, author only)
+ */
+export async function updateInternalNote(noteId: string, note: string): Promise<InternalNote> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) throw new Error('Not authenticated');
+
+  // Validate note length
+  if (!note.trim() || note.length < 1) {
+    throw new Error('Note cannot be empty');
+  }
+
+  if (note.length > 5000) {
+    throw new Error('Note cannot exceed 5000 characters');
+  }
+
+  const { data, error } = await supabase
+    .from('support_internal_notes')
+    .update({
+      note: note.trim(),
+    })
+    .eq('id', noteId)
+    .eq('author_id', user.id) // Only author can update
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  return data as InternalNote;
+}
+
+/**
+ * Delete an internal note (admin only, author only)
+ */
+export async function deleteInternalNote(noteId: string): Promise<void> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) throw new Error('Not authenticated');
+
+  const { error } = await supabase
+    .from('support_internal_notes')
+    .delete()
+    .eq('id', noteId)
+    .eq('author_id', user.id); // Only author can delete
+
+  if (error) throw error;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Knowledge Base
+// ─────────────────────────────────────────────────────────────────
+
+export interface KBArticle {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  content?: string;
+  category: string;
+  tags: string[];
+  view_count: number;
+  helpful_score?: number;
+  relevance?: number;
+  published_at?: string;
+}
+
+/**
+ * Search knowledge base articles
+ */
+export async function searchKnowledgeBase(
+  query: string,
+  limit: number = 5,
+  categoryFilter?: string
+): Promise<KBArticle[]> {
+  const { data, error } = await supabase.rpc('search_kb_articles', {
+    search_query: query,
+    limit_count: limit,
+    category_filter: categoryFilter || null,
+  });
+
+  if (error) throw error;
+  return data || [];
+}
+
+/**
+ * Get popular KB articles
+ */
+export async function getPopularArticles(limit: number = 10): Promise<KBArticle[]> {
+  const { data, error } = await supabase.rpc('get_popular_kb_articles', {
+    limit_count: limit,
+  });
+
+  if (error) throw error;
+  return data || [];
+}
+
+/**
+ * Get articles by category
+ */
+export async function getArticlesByCategory(
+  category: string,
+  limit: number = 20
+): Promise<KBArticle[]> {
+  const { data, error } = await supabase.rpc('get_kb_articles_by_category', {
+    p_category: category,
+    limit_count: limit,
+  });
+
+  if (error) throw error;
+  return data || [];
+}
+
+/**
+ * Get a single article by slug
+ */
+export async function getArticleBySlug(slug: string): Promise<KBArticle | null> {
+  const { data, error } = await supabase
+    .from('kb_articles')
+    .select('*')
+    .eq('slug', slug)
+    .eq('published', true)
+    .single();
+
+  if (error) {
+    if (error.code === 'PGRST116') return null; // Not found
+    throw error;
+  }
+
+  // Increment view count (fire and forget)
+  supabase.rpc('increment_article_view', { p_article_id: data.id });
+
+  return data;
+}
+
+/**
+ * Mark article as helpful/not helpful
+ */
+export async function markArticleHelpful(
+  articleId: string,
+  isHelpful: boolean
+): Promise<void> {
+  const { error } = await supabase.rpc('mark_article_helpful', {
+    p_article_id: articleId,
+    p_is_helpful: isHelpful,
+  });
+
+  if (error) throw error;
+}
+
+/**
+ * Get KB stats (admin only)
+ */
+export async function getKBStats() {
+  const { data, error } = await supabase.rpc('get_kb_stats');
+
+  if (error) throw error;
+  return data && data.length > 0 ? data[0] : null;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Ticket Templates
+// ─────────────────────────────────────────────────────────────────
+
+export interface TicketTemplate {
+  id: string;
+  name: string;
+  description: string;
+  category: TicketCategory;
+  subject_template: string;
+  description_template: string;
+  is_featured: boolean;
+  usage_count: number;
+}
+
+/**
+ * Get public ticket templates
+ */
+export async function getPublicTemplates(
+  categoryFilter?: TicketCategory
+): Promise<TicketTemplate[]> {
+  const { data, error } = await supabase.rpc('get_public_templates', {
+    category_filter: categoryFilter || null,
+  });
+
+  if (error) throw error;
+  return data || [];
+}
+
+/**
+ * Increment template usage count
+ */
+export async function incrementTemplateUsage(templateId: string): Promise<void> {
+  const { error } = await supabase.rpc('increment_template_usage', {
+    p_template_id: templateId,
+  });
+
+  if (error) throw error;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Admin Response Templates
+// ─────────────────────────────────────────────────────────────────
+
+export interface ResponseTemplate {
+  id: string;
+  title: string;
+  body: string;
+  category: TicketCategory | null;
+  is_shared: boolean;
+  usage_count: number;
+  created_by: string;
+}
+
+/**
+ * Get response templates (admin only)
+ */
+export async function getResponseTemplates(
+  categoryFilter?: TicketCategory
+): Promise<ResponseTemplate[]> {
+  const { data, error } = await supabase.rpc('get_response_templates', {
+    category_filter: categoryFilter || null,
+  });
+
+  if (error) throw error;
+  return data || [];
+}
+
+/**
+ * Increment response template usage
+ */
+export async function incrementResponseTemplateUsage(templateId: string): Promise<void> {
+  const { error } = await supabase.rpc('increment_response_template_usage', {
+    p_template_id: templateId,
+  });
+
+  if (error) throw error;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Duplicate Detection (Vector Search)
+// ─────────────────────────────────────────────────────────────────
+
+export interface SimilarTicket {
+  id: string;
+  ticket_number: string;
+  subject: string;
+  description: string;
+  category: TicketCategory;
+  status: TicketStatus;
+  priority: TicketPriority;
+  created_at: string;
+  similarity: number; // 0.0 to 1.0
+}
+
+/**
+ * Generate embedding for a ticket using OpenAI
+ */
+export async function generateTicketEmbedding(
+  ticketId: string,
+  text?: string
+): Promise<{ success: boolean; similar_tickets: SimilarTicket[] }> {
+  const { data, error } = await supabase.functions.invoke('generate-ticket-embedding', {
+    body: {
+      ticket_id: ticketId,
+      text,
+      find_similar: true,
+    },
+  });
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Find similar/duplicate tickets for a given ticket ID
+ */
+export async function findTicketDuplicates(
+  ticketId: string,
+  similarityThreshold: number = 0.80,
+  limit: number = 5
+): Promise<SimilarTicket[]> {
+  const { data, error } = await supabase.rpc('find_ticket_duplicates', {
+    p_ticket_id: ticketId,
+    similarity_threshold: similarityThreshold,
+    limit_count: limit,
+  });
+
+  if (error) throw error;
+  return data || [];
+}
+
+/**
+ * Mark a ticket as duplicate (admin only)
+ */
+export async function markTicketAsDuplicate(
+  ticketId: string,
+  originalTicketId: string
+): Promise<void> {
+  const { error } = await supabase.rpc('mark_ticket_as_duplicate', {
+    p_ticket_id: ticketId,
+    p_original_ticket_id: originalTicketId,
+  });
+
+  if (error) throw error;
 }

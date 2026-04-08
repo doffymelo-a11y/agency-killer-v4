@@ -16,8 +16,18 @@ import {
   Image as ImageIcon,
   Clock,
   AlertTriangle,
+  Lock,
+  Trash2,
+  Copy,
+  ExternalLink,
 } from 'lucide-react';
-import { getCurrentUser } from '../lib/supabase';
+import { getCurrentUser, supabase } from '../lib/supabase';
+import FileUploader, {
+  FileAttachmentDisplay,
+  type FileAttachment,
+} from '../components/support/FileUploader';
+import SatisfactionSurvey from '../components/support/SatisfactionSurvey';
+import HelpButton from '../components/support/HelpButton';
 import {
   getTicket,
   getTicketMessages,
@@ -31,12 +41,23 @@ import {
   subscribeToTicketUpdates,
   formatTicketNumber,
   getRelativeTime,
+  getInternalNotes,
+  createInternalNote,
+  deleteInternalNote,
+  getResponseTemplates,
+  incrementResponseTemplateUsage,
+  generateTicketEmbedding,
+  findTicketDuplicates,
+  markTicketAsDuplicate,
+  type ResponseTemplate,
+  type SimilarTicket,
 } from '../services/support.service';
 import type {
   SupportTicket,
   SupportMessage,
   TicketStatus,
   TicketPriority,
+  InternalNote,
 } from '../types/support.types';
 import {
   TICKET_STATUS_CONFIG,
@@ -54,6 +75,22 @@ export default function SupportTicketDetailView() {
   const [sending, setSending] = useState(false);
   const [newMessage, setNewMessage] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
+  const [attachments, setAttachments] = useState<FileAttachment[]>([]);
+
+  // Internal notes (admin only)
+  const [internalNotes, setInternalNotes] = useState<InternalNote[]>([]);
+  const [newNote, setNewNote] = useState('');
+  const [savingNote, setSavingNote] = useState(false);
+
+  // Satisfaction survey
+  const [hasSurvey, setHasSurvey] = useState(false);
+
+  // Response templates (admin only)
+  const [responseTemplates, setResponseTemplates] = useState<ResponseTemplate[]>([]);
+
+  // Similar tickets / duplicate detection (admin only)
+  const [similarTickets, setSimilarTickets] = useState<SimilarTicket[]>([]);
+  const [loadingSimilar, setLoadingSimilar] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -83,6 +120,27 @@ export default function SupportTicketDetailView() {
     scrollToBottom();
   }, [messages]);
 
+  // Load internal notes when admin status changes
+  useEffect(() => {
+    if (isAdmin && ticketId) {
+      loadInternalNotes();
+    }
+  }, [isAdmin, ticketId]);
+
+  // Load response templates when admin status changes
+  useEffect(() => {
+    if (isAdmin && ticket) {
+      loadResponseTemplates();
+    }
+  }, [isAdmin, ticket]);
+
+  // Load similar tickets when admin views ticket
+  useEffect(() => {
+    if (isAdmin && ticketId) {
+      loadSimilarTickets();
+    }
+  }, [isAdmin, ticketId]);
+
   // ─────────────────────────────────────────────────────────────────
   // Load Data
   // ─────────────────────────────────────────────────────────────────
@@ -102,6 +160,15 @@ export default function SupportTicketDetailView() {
 
       // Mark admin messages as read
       await markTicketMessagesAsRead(ticketId);
+
+      // Check if ticket has satisfaction survey
+      const { data: surveyData } = await supabase
+        .from('ticket_satisfaction')
+        .select('id')
+        .eq('ticket_id', ticketId)
+        .maybeSingle();
+
+      setHasSurvey(!!surveyData);
     } catch (error) {
       console.error('[Support] Error loading ticket:', error);
       alert('Erreur chargement ticket');
@@ -146,10 +213,12 @@ export default function SupportTicketDetailView() {
         ticket_id: ticketId,
         message: newMessage.trim(),
         sender_type: isAdmin ? 'admin' : 'user',
+        attachments: attachments.length > 0 ? attachments : undefined,
       });
 
       setMessages((prev) => [...prev, message]);
       setNewMessage('');
+      setAttachments([]);
       scrollToBottom();
     } catch (error: any) {
       console.error('[Support] Error sending message:', error);
@@ -206,6 +275,127 @@ export default function SupportTicketDetailView() {
       await assignTicket(ticketId, user.id);
       setTicket((prev) => (prev ? { ...prev, assigned_to: user.id } : null));
     } catch (error: any) {
+      alert(`Erreur : ${error.message}`);
+    }
+  };
+
+  // ─────────────────────────────────────────────────────────────────
+  // Internal Notes (Admin Only)
+  // ─────────────────────────────────────────────────────────────────
+
+  const loadInternalNotes = async () => {
+    if (!ticketId || !isAdmin) return;
+
+    try {
+      const notes = await getInternalNotes(ticketId);
+      setInternalNotes(notes);
+    } catch (error) {
+      console.error('[Support] Error loading internal notes:', error);
+    }
+  };
+
+  const handleCreateNote = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!newNote.trim() || !ticketId) return;
+
+    setSavingNote(true);
+    try {
+      const note = await createInternalNote(ticketId, newNote.trim());
+      setInternalNotes((prev) => [...prev, note]);
+      setNewNote('');
+    } catch (error: any) {
+      console.error('[Support] Error creating note:', error);
+      alert(`Erreur : ${error.message}`);
+    } finally {
+      setSavingNote(false);
+    }
+  };
+
+  const handleDeleteNote = async (noteId: string) => {
+    if (!confirm('Supprimer cette note interne ?')) return;
+
+    try {
+      await deleteInternalNote(noteId);
+      setInternalNotes((prev) => prev.filter((n) => n.id !== noteId));
+    } catch (error: any) {
+      console.error('[Support] Error deleting note:', error);
+      alert(`Erreur : ${error.message}`);
+    }
+  };
+
+  // ─────────────────────────────────────────────────────────────────
+  // Response Templates (Admin Only)
+  // ─────────────────────────────────────────────────────────────────
+
+  const loadResponseTemplates = async () => {
+    if (!ticketId || !isAdmin || !ticket) return;
+
+    try {
+      const templates = await getResponseTemplates(ticket.category);
+      setResponseTemplates(templates);
+    } catch (error) {
+      console.error('[Support] Error loading response templates:', error);
+    }
+  };
+
+  const handleInsertTemplate = async (templateId: string) => {
+    const template = responseTemplates.find((t) => t.id === templateId);
+    if (!template) return;
+
+    setNewMessage(template.body);
+
+    // Increment usage counter
+    try {
+      await incrementResponseTemplateUsage(templateId);
+    } catch (error) {
+      console.error('[Support] Error incrementing template usage:', error);
+    }
+  };
+
+  // ─────────────────────────────────────────────────────────────────
+  // Similar Tickets / Duplicate Detection (Admin Only)
+  // ─────────────────────────────────────────────────────────────────
+
+  const loadSimilarTickets = async () => {
+    if (!ticketId || !isAdmin) return;
+
+    setLoadingSimilar(true);
+    try {
+      // Try to find duplicates (requires embedding to exist)
+      const similar = await findTicketDuplicates(ticketId, 0.80, 5);
+      setSimilarTickets(similar);
+
+      // If no embedding yet and no similar tickets found, generate embedding
+      if (similar.length === 0) {
+        console.log('[Support] No embedding found, generating...');
+        const result = await generateTicketEmbedding(ticketId);
+        if (result.similar_tickets) {
+          setSimilarTickets(result.similar_tickets);
+        }
+      }
+    } catch (error) {
+      console.error('[Support] Error loading similar tickets:', error);
+      // Don't show alert, just log - this is a non-critical feature
+    } finally {
+      setLoadingSimilar(false);
+    }
+  };
+
+  const handleMarkAsDuplicate = async (originalTicketId: string) => {
+    if (!ticketId) return;
+
+    if (!confirm('Marquer ce ticket comme doublon ? Il sera automatiquement fermé.')) {
+      return;
+    }
+
+    try {
+      await markTicketAsDuplicate(ticketId, originalTicketId);
+      // Reload ticket to show updated status
+      await loadTicketAndMessages();
+      alert('Ticket marqué comme doublon');
+    } catch (error: any) {
+      console.error('[Support] Error marking as duplicate:', error);
       alert(`Erreur : ${error.message}`);
     }
   };
@@ -377,8 +567,55 @@ export default function SupportTicketDetailView() {
             <div ref={messagesEndRef} />
           </div>
 
+          {/* Satisfaction Survey - Only for resolved tickets without survey */}
+          {ticket && (ticket.status === 'resolved' || ticket.status === 'closed') && !isAdmin && !hasSurvey && (
+            <div className="p-4 border-t border-slate-200 bg-slate-50">
+              <SatisfactionSurvey
+                ticketId={ticket.id}
+                onSubmit={() => {
+                  setHasSurvey(true);
+                }}
+              />
+            </div>
+          )}
+
           {/* Input Form */}
-          <form onSubmit={handleSendMessage} className="p-4 border-t border-slate-200 bg-slate-50">
+          <form onSubmit={handleSendMessage} className="p-4 border-t border-slate-200 bg-slate-50 space-y-3">
+            {/* File uploader */}
+            <FileUploader
+              onFilesUploaded={(files) => setAttachments(files)}
+              disabled={sending}
+            />
+
+            {/* Response Templates (Admin Only) */}
+            {isAdmin && responseTemplates.length > 0 && (
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                  💬 Modèles de réponse
+                </label>
+                <select
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      handleInsertTemplate(e.target.value);
+                      e.target.value = ''; // Reset after selection
+                    }
+                  }}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 focus:border-transparent bg-white"
+                  disabled={sending}
+                  defaultValue=""
+                >
+                  <option value="">Sélectionner un modèle de réponse...</option>
+                  {responseTemplates.map((template) => (
+                    <option key={template.id} value={template.id}>
+                      {template.title}
+                      {template.usage_count > 0 && ` (utilisé ${template.usage_count}×)`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Message input */}
             <div className="flex items-end gap-3">
               <textarea
                 value={newMessage}
@@ -386,6 +623,7 @@ export default function SupportTicketDetailView() {
                 placeholder="Ajouter un message..."
                 rows={3}
                 className="flex-1 px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent resize-none"
+                disabled={sending}
               />
               <button
                 type="submit"
@@ -398,6 +636,177 @@ export default function SupportTicketDetailView() {
             </div>
           </form>
         </div>
+
+        {/* Internal Notes (Admin Only) */}
+        {isAdmin && (
+          <div className="mt-6 p-4 bg-red-50/50 border border-red-200 rounded-lg">
+            <div className="flex items-center gap-2 mb-4">
+              <Lock className="w-4 h-4 text-red-600" />
+              <h3 className="text-sm font-semibold text-red-800">
+                Notes Internes (Visibles uniquement par les admins)
+              </h3>
+            </div>
+
+            {/* Existing notes */}
+            {internalNotes.length > 0 && (
+              <div className="space-y-2 mb-4">
+                {internalNotes.map((note) => (
+                  <div
+                    key={note.id}
+                    className="p-3 bg-white border border-red-100 rounded-lg"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 text-xs text-slate-500 mb-1.5">
+                          <span className="font-medium text-red-700">
+                            {note.author_email || 'Admin'}
+                          </span>
+                          <span>•</span>
+                          <span>{getRelativeTime(note.created_at)}</span>
+                        </div>
+                        <p className="text-sm text-slate-700 whitespace-pre-wrap">
+                          {note.note}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteNote(note.id)}
+                        className="p-1.5 rounded-lg hover:bg-red-100 text-slate-400 hover:text-red-600 transition flex-shrink-0"
+                        title="Supprimer cette note"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Add note form */}
+            <div className="space-y-2">
+              <textarea
+                value={newNote}
+                onChange={(e) => setNewNote(e.target.value)}
+                placeholder="Ajouter une note interne (visible uniquement par les admins)..."
+                className="w-full px-3 py-2 border border-red-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
+                rows={3}
+              />
+              <button
+                onClick={handleCreateNote}
+                disabled={!newNote.trim() || savingNote}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {savingNote ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Enregistrement...
+                  </>
+                ) : (
+                  <>
+                    <Lock className="w-4 h-4" />
+                    Ajouter une note interne
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Similar Tickets / Duplicate Detection (Admin Only) */}
+        {isAdmin && (
+          <div className="mt-6 p-4 bg-yellow-50/50 border border-yellow-200 rounded-lg">
+            <div className="flex items-center justify-between gap-2 mb-4">
+              <div className="flex items-center gap-2">
+                <Copy className="w-4 h-4 text-yellow-600" />
+                <h3 className="text-sm font-semibold text-yellow-800">
+                  Tickets similaires / Doublons potentiels
+                </h3>
+              </div>
+              {loadingSimilar && (
+                <Loader2 className="w-4 h-4 text-yellow-600 animate-spin" />
+              )}
+            </div>
+
+            {similarTickets.length === 0 && !loadingSimilar && (
+              <p className="text-sm text-slate-600">
+                Aucun doublon détecté. L'IA a analysé ce ticket et n'a trouvé aucun ticket similaire.
+              </p>
+            )}
+
+            {similarTickets.length > 0 && (
+              <>
+                <p className="text-xs text-yellow-700 mb-3">
+                  {similarTickets.length} ticket(s) similaire(s) détecté(s) par IA
+                </p>
+                <div className="space-y-2">
+                  {similarTickets.map((similar) => (
+                    <div
+                      key={similar.id}
+                      className="p-3 bg-white border border-yellow-100 rounded-lg hover:border-yellow-300 transition"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs font-mono font-semibold text-yellow-700">
+                              #{similar.ticket_number}
+                            </span>
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                TICKET_STATUS_CONFIG[similar.status].color
+                              }`}
+                            >
+                              {TICKET_STATUS_CONFIG[similar.status].label}
+                            </span>
+                            <span className="text-xs font-medium text-yellow-600">
+                              {(similar.similarity * 100).toFixed(0)}% similaire
+                            </span>
+                          </div>
+                          <h4 className="text-sm font-medium text-slate-900 mb-1 line-clamp-1">
+                            {similar.subject}
+                          </h4>
+                          <p className="text-xs text-slate-600 line-clamp-2">
+                            {similar.description}
+                          </p>
+                          <div className="flex items-center gap-2 mt-2">
+                            <span
+                              className={`text-xs ${
+                                TICKET_CATEGORY_CONFIG[similar.category as TicketCategory].color
+                              }`}
+                            >
+                              {TICKET_CATEGORY_CONFIG[similar.category as TicketCategory].emoji}{' '}
+                              {TICKET_CATEGORY_CONFIG[similar.category as TicketCategory].label}
+                            </span>
+                            <span>•</span>
+                            <span className="text-xs text-slate-500">
+                              {getRelativeTime(similar.created_at)}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-2 flex-shrink-0">
+                          <a
+                            href={`/support/${similar.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 rounded-lg hover:bg-yellow-100 text-yellow-600 hover:text-yellow-700 transition"
+                            title="Voir le ticket"
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                          </a>
+                          <button
+                            onClick={() => handleMarkAsDuplicate(similar.id)}
+                            className="p-1.5 rounded-lg hover:bg-yellow-100 text-yellow-600 hover:text-yellow-700 transition"
+                            title="Marquer comme doublon de ce ticket"
+                          >
+                            <Copy className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
 
         {/* Actions */}
         {ticket.status !== 'resolved' && ticket.status !== 'closed' && !isAdmin && (
@@ -412,6 +821,9 @@ export default function SupportTicketDetailView() {
           </div>
         )}
       </div>
+
+      {/* Help Button */}
+      <HelpButton />
     </div>
   );
 }
@@ -463,6 +875,11 @@ function MessageBubble({
           }`}
         >
           <p className="whitespace-pre-wrap">{message.message}</p>
+
+          {/* File attachments */}
+          {message.attachments && message.attachments.length > 0 && (
+            <FileAttachmentDisplay attachments={message.attachments as FileAttachment[]} />
+          )}
         </div>
       </div>
     </motion.div>

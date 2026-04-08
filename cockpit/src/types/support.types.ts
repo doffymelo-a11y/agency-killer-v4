@@ -279,3 +279,30 @@ export const TICKET_CATEGORY_CONFIG: Record<TicketCategory, CategoryConfig> = {
     placeholder: 'Décrivez votre demande...',
   },
 };
+
+// ─────────────────────────────────────────────────────────────────
+// Email Preferences (Phase 2)
+// ─────────────────────────────────────────────────────────────────
+
+export interface EmailPreferences {
+  user_id: string;
+  notify_on_message: boolean;
+  notify_on_status_change: boolean;
+  notify_on_assignment: boolean;
+  notify_on_resolution: boolean;
+  updated_at: string;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Internal Notes (Phase 2 - Admin Only)
+// ─────────────────────────────────────────────────────────────────
+
+export interface InternalNote {
+  id: string;
+  ticket_id: string;
+  author_id: string;
+  author_email?: string; // Joined from auth.users
+  note: string;
+  created_at: string;
+  updated_at: string;
+}

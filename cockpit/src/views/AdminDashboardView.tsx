@@ -18,6 +18,7 @@ import {
   TICKET_PRIORITY_CONFIG,
   TICKET_CATEGORY_CONFIG,
 } from '../types/support.types';
+import SLADashboard from '../components/admin/SLADashboard';
 
 interface UserStats {
   id: string;
@@ -39,7 +40,7 @@ interface GlobalStats {
   tasks_created_today: number;
 }
 
-type TabType = 'users' | 'tickets' | 'stats';
+type TabType = 'users' | 'tickets' | 'sla' | 'stats';
 
 export default function AdminDashboardView() {
   const navigate = useNavigate();
@@ -186,6 +187,17 @@ export default function AdminDashboardView() {
           >
             <LifeBuoy className="w-4 h-4" />
             Tickets ({tickets.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('sla')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+              activeTab === 'sla'
+                ? 'bg-cyan-600 text-white'
+                : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700'
+            }`}
+          >
+            <Clock className="w-4 h-4" />
+            SLA Performance
           </button>
           <button
             onClick={() => setActiveTab('stats')}
@@ -460,6 +472,13 @@ export default function AdminDashboardView() {
               )}
             </div>
           </>
+        )}
+
+        {/* SLA Tab */}
+        {activeTab === 'sla' && (
+          <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6">
+            <SLADashboard />
+          </div>
         )}
 
         {/* Stats Tab */}

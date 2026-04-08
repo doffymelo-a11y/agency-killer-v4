@@ -6,6 +6,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getCurrentUser, updatePassword, signOut, supabase } from '../lib/supabase';
+import { getEmailPreferences, updateEmailPreferences } from '../services/support.service';
+import type { EmailPreferences } from '../types/support.types';
 
 export default function AccountSettingsView() {
   const navigate = useNavigate();
@@ -26,14 +28,48 @@ export default function AccountSettingsView() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
+  // Email preferences (Phase 2)
+  const [emailPreferences, setEmailPreferences] = useState<EmailPreferences | null>(null);
+  const [prefsLoading, setPrefsLoading] = useState(false);
+  const [prefsSuccess, setPrefsSuccess] = useState(false);
+
   useEffect(() => {
     loadUser();
+    loadEmailPreferences();
   }, []);
 
   async function loadUser() {
     const currentUser = await getCurrentUser();
     setUser(currentUser);
     setLoading(false);
+  }
+
+  async function loadEmailPreferences() {
+    try {
+      const prefs = await getEmailPreferences();
+      setEmailPreferences(prefs);
+    } catch (error) {
+      console.error('[Account] Error loading email preferences:', error);
+    }
+  }
+
+  async function handleUpdateEmailPreference(key: keyof Omit<EmailPreferences, 'user_id' | 'updated_at'>, value: boolean) {
+    setPrefsSuccess(false);
+    setPrefsLoading(true);
+
+    try {
+      const updated = await updateEmailPreferences({ [key]: value });
+      setEmailPreferences(updated);
+      setPrefsSuccess(true);
+
+      // Hide success message after 3 seconds
+      setTimeout(() => setPrefsSuccess(false), 3000);
+    } catch (error) {
+      console.error('[Account] Error updating email preference:', error);
+      alert('Failed to update preference. Please try again.');
+    } finally {
+      setPrefsLoading(false);
+    }
   }
 
   async function handlePasswordChange(e: React.FormEvent) {
@@ -267,6 +303,103 @@ export default function AccountSettingsView() {
                 {passwordLoading ? 'Updating...' : 'Update Password'}
               </button>
             </form>
+          </div>
+
+          {/* Email Notifications (Phase 2) */}
+          <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6">
+            <h2 className="text-xl font-bold text-white mb-4">Email Notifications</h2>
+
+            {prefsSuccess && (
+              <div className="mb-4 p-3 rounded-lg text-sm bg-green-500/10 text-green-400 border border-green-500/20">
+                Email preferences updated successfully!
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <p className="text-slate-400 text-sm mb-4">
+                Choose when you want to receive email notifications for your support tickets.
+              </p>
+
+              {emailPreferences ? (
+                <>
+                  <label className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-700/50 cursor-pointer transition group">
+                    <input
+                      type="checkbox"
+                      checked={emailPreferences.notify_on_message}
+                      onChange={(e) => handleUpdateEmailPreference('notify_on_message', e.target.checked)}
+                      disabled={prefsLoading}
+                      className="w-5 h-5 rounded border-slate-600 bg-slate-700 text-cyan-500 focus:ring-2 focus:ring-cyan-500 focus:ring-offset-0 focus:ring-offset-slate-800 disabled:opacity-50 cursor-pointer"
+                    />
+                    <div className="flex-1">
+                      <div className="font-medium text-white group-hover:text-cyan-400 transition">
+                        New messages
+                      </div>
+                      <div className="text-sm text-slate-400">
+                        Receive an email when an admin responds to your ticket
+                      </div>
+                    </div>
+                  </label>
+
+                  <label className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-700/50 cursor-pointer transition group">
+                    <input
+                      type="checkbox"
+                      checked={emailPreferences.notify_on_status_change}
+                      onChange={(e) => handleUpdateEmailPreference('notify_on_status_change', e.target.checked)}
+                      disabled={prefsLoading}
+                      className="w-5 h-5 rounded border-slate-600 bg-slate-700 text-cyan-500 focus:ring-2 focus:ring-cyan-500 focus:ring-offset-0 focus:ring-offset-slate-800 disabled:opacity-50 cursor-pointer"
+                    />
+                    <div className="flex-1">
+                      <div className="font-medium text-white group-hover:text-cyan-400 transition">
+                        Status changes
+                      </div>
+                      <div className="text-sm text-slate-400">
+                        Receive an email when the status of your ticket changes
+                      </div>
+                    </div>
+                  </label>
+
+                  <label className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-700/50 cursor-pointer transition group">
+                    <input
+                      type="checkbox"
+                      checked={emailPreferences.notify_on_assignment}
+                      onChange={(e) => handleUpdateEmailPreference('notify_on_assignment', e.target.checked)}
+                      disabled={prefsLoading}
+                      className="w-5 h-5 rounded border-slate-600 bg-slate-700 text-cyan-500 focus:ring-2 focus:ring-cyan-500 focus:ring-offset-0 focus:ring-offset-slate-800 disabled:opacity-50 cursor-pointer"
+                    />
+                    <div className="flex-1">
+                      <div className="font-medium text-white group-hover:text-cyan-400 transition">
+                        Ticket assignment
+                      </div>
+                      <div className="text-sm text-slate-400">
+                        Receive an email when your ticket is assigned to an admin
+                      </div>
+                    </div>
+                  </label>
+
+                  <label className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-700/50 cursor-pointer transition group">
+                    <input
+                      type="checkbox"
+                      checked={emailPreferences.notify_on_resolution}
+                      onChange={(e) => handleUpdateEmailPreference('notify_on_resolution', e.target.checked)}
+                      disabled={prefsLoading}
+                      className="w-5 h-5 rounded border-slate-600 bg-slate-700 text-cyan-500 focus:ring-2 focus:ring-cyan-500 focus:ring-offset-0 focus:ring-offset-slate-800 disabled:opacity-50 cursor-pointer"
+                    />
+                    <div className="flex-1">
+                      <div className="font-medium text-white group-hover:text-cyan-400 transition">
+                        Ticket resolution
+                      </div>
+                      <div className="text-sm text-slate-400">
+                        Receive an email when your ticket is marked as resolved
+                      </div>
+                    </div>
+                  </label>
+                </>
+              ) : (
+                <div className="flex items-center justify-center p-8">
+                  <div className="w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Data & Privacy (GDPR) */}

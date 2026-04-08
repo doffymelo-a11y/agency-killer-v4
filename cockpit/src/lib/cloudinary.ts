@@ -20,24 +20,26 @@ export interface CloudinaryUploadResult {
  * Upload a file (image/screenshot) to Cloudinary
  * @param file File object from input type="file"
  * @param folder Optional folder in Cloudinary
+ * @param maxSize Optional max file size in bytes (default 5MB for screenshots)
  * @returns Cloudinary upload result with secure_url
  */
 export async function uploadToCloudinary(
   file: File,
-  folder?: string
+  folder?: string,
+  maxSize: number = 5 * 1024 * 1024
 ): Promise<CloudinaryUploadResult> {
   // Validate file
   if (!file) {
     throw new Error('No file provided');
   }
 
-  // Validate file size (max 5MB for screenshots)
-  const maxSize = 5 * 1024 * 1024; // 5MB
+  // Validate file size
   if (file.size > maxSize) {
-    throw new Error('File size exceeds 5MB limit');
+    const sizeMB = (maxSize / (1024 * 1024)).toFixed(0);
+    throw new Error(`File size exceeds ${sizeMB}MB limit`);
   }
 
-  // Validate file type (images only)
+  // Validate file type (images only for image upload)
   const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
   if (!validTypes.includes(file.type)) {
     throw new Error('Invalid file type. Only JPEG, PNG, and WebP are allowed');
@@ -75,13 +77,108 @@ export async function uploadToCloudinary(
       secure_url: result.secure_url,
       public_id: result.public_id,
       format: result.format,
-      width: result.width,
-      height: result.height,
+      width: result.width || 0,
+      height: result.height || 0,
       bytes: result.bytes,
     };
   } catch (error: any) {
     console.error('[Cloudinary] Upload error:', error);
     throw new Error(`Failed to upload screenshot: ${error.message}`);
+  }
+}
+
+/**
+ * Upload any file type to Cloudinary (PDFs, documents, etc.)
+ * @param file File object from input type="file"
+ * @param folder Optional folder in Cloudinary
+ * @param maxSize Optional max file size in bytes (default 10MB)
+ * @returns Cloudinary upload result with secure_url
+ */
+export async function uploadFileToCloudinary(
+  file: File,
+  folder?: string,
+  maxSize: number = 10 * 1024 * 1024
+): Promise<CloudinaryUploadResult> {
+  // Validate file
+  if (!file) {
+    throw new Error('No file provided');
+  }
+
+  // Validate file size
+  if (file.size > maxSize) {
+    const sizeMB = (maxSize / (1024 * 1024)).toFixed(0);
+    throw new Error(`File size exceeds ${sizeMB}MB limit`);
+  }
+
+  // Validate file type (allow common document types + images)
+  const validTypes = [
+    // Images
+    'image/jpeg',
+    'image/jpg',
+    'image/png',
+    'image/webp',
+    'image/gif',
+    // Documents
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    // Text/Logs
+    'text/plain',
+    'text/csv',
+    'application/json',
+    'application/xml',
+    'text/xml',
+    // Archives (for log bundles)
+    'application/zip',
+    'application/x-zip-compressed',
+  ];
+
+  if (!validTypes.includes(file.type)) {
+    throw new Error('Invalid file type. Allowed: images, PDFs, documents, text files, JSON, XML, ZIP');
+  }
+
+  // Prepare form data
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+
+  if (folder) {
+    formData.append('folder', folder);
+  }
+
+  // Add tags for organization
+  formData.append('tags', 'support-ticket,attachment');
+
+  // Determine resource type (image vs raw)
+  const resourceType = file.type.startsWith('image/') ? 'image' : 'raw';
+
+  // Upload to Cloudinary
+  const cloudinaryUrl = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/${resourceType}/upload`;
+
+  try {
+    const response = await fetch(cloudinaryUrl, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error?.message || 'Upload failed');
+    }
+
+    const result = await response.json();
+
+    return {
+      secure_url: result.secure_url,
+      public_id: result.public_id,
+      format: result.format,
+      width: result.width || 0,
+      height: result.height || 0,
+      bytes: result.bytes,
+    };
+  } catch (error: any) {
+    console.error('[Cloudinary] File upload error:', error);
+    throw new Error(`Failed to upload file: ${error.message}`);
   }
 }
 
