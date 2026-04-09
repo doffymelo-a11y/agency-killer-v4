@@ -889,3 +889,82 @@ export async function markTicketAsDuplicate(
 
   if (error) throw error;
 }
+
+// ─────────────────────────────────────────────────────────────────
+// Satisfaction Surveys (CSAT)
+// ─────────────────────────────────────────────────────────────────
+
+export interface SatisfactionSurvey {
+  id: string;
+  ticket_id: string;
+  user_id: string;
+  rating: number;
+  feedback?: string;
+  positive_tags?: string[];
+  negative_tags?: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Create a satisfaction survey for a ticket
+ */
+export async function createSatisfactionSurvey(
+  ticketId: string,
+  rating: number,
+  feedback?: string,
+  positiveTags?: string[],
+  negativeTags?: string[]
+): Promise<SatisfactionSurvey> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) throw new Error('Not authenticated');
+
+  const { data, error } = await supabase
+    .from('ticket_satisfaction')
+    .insert({
+      ticket_id: ticketId,
+      user_id: user.id,
+      rating,
+      feedback: feedback || null,
+      positive_tags: positiveTags || null,
+      negative_tags: negativeTags || null,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as SatisfactionSurvey;
+}
+
+/**
+ * Get satisfaction survey for a ticket
+ */
+export async function getSatisfactionSurvey(ticketId: string): Promise<SatisfactionSurvey | null> {
+  const { data, error } = await supabase
+    .from('ticket_satisfaction')
+    .select('*')
+    .eq('ticket_id', ticketId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data as SatisfactionSurvey | null;
+}
+
+/**
+ * Check if ticket has a survey
+ */
+export async function ticketHasSurvey(ticketId: string): Promise<boolean> {
+  const { data, error } = await supabase.rpc('ticket_has_survey', {
+    p_ticket_id: ticketId,
+  });
+
+  if (error) return false;
+  return data || false;
+}
+
+// Alias functions for convenience
+export const getKBArticle = getArticleBySlug;
+export const getTicketTemplates = getPublicTemplates;
