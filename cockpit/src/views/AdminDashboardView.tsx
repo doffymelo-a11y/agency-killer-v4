@@ -5,7 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, LifeBuoy, BarChart3, Clock } from 'lucide-react';
+import { Users, LifeBuoy, BarChart3, Clock, Activity, Zap } from 'lucide-react';
 import { supabase, getCurrentUser } from '../lib/supabase';
 import {
   getAllTickets,
@@ -19,6 +19,9 @@ import {
   TICKET_CATEGORY_CONFIG,
 } from '../types/support.types';
 import SLADashboard from '../components/admin/SLADashboard';
+import SystemHealthTab from '../components/admin/SystemHealthTab';
+import AgentActivityTab from '../components/admin/AgentActivityTab';
+import BusinessStatsTab from '../components/admin/BusinessStatsTab';
 
 interface UserStats {
   id: string;
@@ -40,7 +43,7 @@ interface GlobalStats {
   tasks_created_today: number;
 }
 
-type TabType = 'users' | 'tickets' | 'sla' | 'stats';
+type TabType = 'users' | 'tickets' | 'sla' | 'system_health' | 'agent_activity' | 'stats';
 
 export default function AdminDashboardView() {
   const navigate = useNavigate();
@@ -206,6 +209,28 @@ export default function AdminDashboardView() {
           >
             <Clock className="w-4 h-4" />
             SLA Performance
+          </button>
+          <button
+            onClick={() => setActiveTab('system_health')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+              activeTab === 'system_health'
+                ? 'bg-cyan-600 text-white'
+                : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700'
+            }`}
+          >
+            <Activity className="w-4 h-4" />
+            System Health
+          </button>
+          <button
+            onClick={() => setActiveTab('agent_activity')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+              activeTab === 'agent_activity'
+                ? 'bg-cyan-600 text-white'
+                : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700'
+            }`}
+          >
+            <Zap className="w-4 h-4" />
+            Agent Activity
           </button>
           <button
             onClick={() => setActiveTab('stats')}
@@ -489,12 +514,19 @@ export default function AdminDashboardView() {
           </div>
         )}
 
-        {/* Stats Tab */}
+        {/* System Health Tab */}
+        {activeTab === 'system_health' && (
+          <SystemHealthTab />
+        )}
+
+        {/* Agent Activity Tab */}
+        {activeTab === 'agent_activity' && (
+          <AgentActivityTab />
+        )}
+
+        {/* Business Stats Tab */}
         {activeTab === 'stats' && (
-          <div className="bg-slate-800 border border-slate-700 rounded-2xl p-12 text-center">
-            <BarChart3 className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-            <p className="text-slate-400">Advanced statistics coming soon...</p>
-          </div>
+          <BusinessStatsTab />
         )}
       </div>
     </div>

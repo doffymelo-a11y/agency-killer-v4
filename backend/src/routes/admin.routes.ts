@@ -1,5 +1,6 @@
 /**
  * Admin Routes - Admin dashboard statistics and monitoring
+ * GET /api/admin/health - System health check
  * GET /api/admin/stats/agents - Agent performance stats
  * GET /api/admin/stats/business - Business metrics
  * GET /api/admin/logs/recent - Recent system logs
@@ -10,7 +11,9 @@ import { Router } from 'express';
 import type { Response, NextFunction } from 'express';
 import { asyncHandler } from '../middleware/error.middleware.js';
 import { authMiddleware, type AuthenticatedRequest } from '../middleware/auth.middleware.js';
-import { supabaseAdmin } from '../services/supabase.service.js';
+import { supabaseAdmin, isSupabaseConfigured } from '../services/supabase.service.js';
+import { isClaudeConfigured } from '../services/claude.service.js';
+import { isMCPBridgeConfigured } from '../services/mcp-bridge.service.js';
 
 const router = Router();
 
@@ -82,6 +85,62 @@ async function requireAdmin(
     });
   }
 }
+
+// ─────────────────────────────────────────────────────────────────
+// GET /api/admin/health - System health check
+// ─────────────────────────────────────────────────────────────────
+
+router.get(
+  '/health',
+  authMiddleware,
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const startTime = Date.now();
+
+    // Check all services
+    const supabaseOk = isSupabaseConfigured();
+    const claudeOk = isClaudeConfigured();
+    const mcpBridgeOk = await isMCPBridgeConfigured();
+
+    // Calculate uptime (simple approximation - could be improved with process.uptime())
+    const uptimeMs = process.uptime() * 1000;
+    const uptimeHours = Math.floor(uptimeMs / (1000 * 60 * 60));
+    const uptimeMinutes = Math.floor((uptimeMs % (1000 * 60 * 60)) / (1000 * 60));
+    const uptimeFormatted = `${uptimeHours}h ${uptimeMinutes}min`;
+
+    res.json({
+      success: true,
+      data: {
+        backend: {
+          name: 'Backend API',
+          status: 'healthy',
+          uptime: uptimeFormatted,
+          lastCheck: new Date().toISOString(),
+        },
+        mcp_bridge: {
+          name: 'MCP Bridge',
+          status: mcpBridgeOk ? 'healthy' : 'down',
+          uptime: mcpBridgeOk ? 'Available' : 'Unavailable',
+          lastCheck: new Date().toISOString(),
+        },
+        supabase: {
+          name: 'Supabase',
+          status: supabaseOk ? 'healthy' : 'down',
+          uptime: supabaseOk ? 'Connected' : 'Not configured',
+          lastCheck: new Date().toISOString(),
+        },
+        claude_api: {
+          name: 'Claude API',
+          status: claudeOk ? 'healthy' : 'down',
+          uptime: claudeOk ? 'Configured' : 'Not configured',
+          lastCheck: new Date().toISOString(),
+        },
+        timestamp: new Date().toISOString(),
+        response_time_ms: Date.now() - startTime,
+      },
+    });
+  })
+);
 
 // ─────────────────────────────────────────────────────────────────
 // GET /api/admin/stats/agents - Agent performance statistics

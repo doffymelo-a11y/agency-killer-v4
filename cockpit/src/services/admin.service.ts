@@ -64,6 +64,18 @@ export interface ErrorCountResult {
   hours_back: number;
 }
 
+export interface AgentActivity {
+  id: string;
+  agent_id: string;
+  project_id: string;
+  action_type: string;
+  summary: string;
+  deliverables?: any;
+  recommendations?: any;
+  created_at: string;
+  project_name?: string;
+}
+
 // ─────────────────────────────────────────────────────────────────
 // Helper: Get auth token
 // ─────────────────────────────────────────────────────────────────
@@ -233,5 +245,90 @@ export async function isCurrentUserAdmin(): Promise<boolean> {
   } catch (error) {
     console.error('[Admin Service] Error checking admin status:', error);
     return false;
+  }
+}
+
+/**
+ * Get system health status
+ */
+export async function getSystemHealth(): Promise<any> {
+  try {
+    const token = await getAuthToken();
+
+    const response = await axios.get(`${BACKEND_API_URL}/api/admin/health`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      timeout: 10000,
+    });
+
+    if (!response.data.success) {
+      throw new Error(response.data.error?.message || 'Failed to fetch system health');
+    }
+
+    return response.data.data;
+  } catch (error) {
+    console.error('[Admin Service] Error fetching system health:', error);
+    if (axios.isAxiosError(error) && error.response?.status === 403) {
+      throw new Error('Admin access required');
+    }
+    throw error;
+  }
+}
+
+/**
+ * Get recent agent activity from project_memory
+ */
+export async function getAgentActivity(params: {
+  limit?: number;
+  agent_id?: string;
+  project_id?: string;
+}): Promise<AgentActivity[]> {
+  try {
+    const { data, error } = await supabase
+      .from('project_memory')
+      .select(`
+        id,
+        agent_id,
+        project_id,
+        action_type,
+        summary,
+        deliverables,
+        recommendations,
+        created_at,
+        project:projects(name)
+      `)
+      .order('created_at', { ascending: false })
+      .limit(params.limit || 50);
+
+    if (error) throw error;
+
+    // Transform the data to flatten project name
+    const activities: AgentActivity[] = (data || []).map((item: any) => ({
+      id: item.id,
+      agent_id: item.agent_id,
+      project_id: item.project_id,
+      action_type: item.action_type,
+      summary: item.summary,
+      deliverables: item.deliverables,
+      recommendations: item.recommendations,
+      created_at: item.created_at,
+      project_name: item.project?.name,
+    }));
+
+    // Apply filters if provided
+    let filtered = activities;
+    if (params.agent_id) {
+      filtered = filtered.filter(a => a.agent_id === params.agent_id);
+    }
+    if (params.project_id) {
+      filtered = filtered.filter(a => a.project_id === params.project_id);
+    }
+
+    return filtered;
+  } catch (error) {
+    console.error('[Admin Service] Error fetching agent activity:', error);
+    throw error;
   }
 }
