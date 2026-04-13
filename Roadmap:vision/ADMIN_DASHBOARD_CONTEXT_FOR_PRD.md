@@ -8,7 +8,7 @@
 
 **Nom du projet** : The Hive OS V4 - Agency Killer Cockpit
 **Type** : SaaS marketing automation avec 5 agents IA spécialisés
-**Stack technique** : React + TypeScript + Supabase + n8n + 14 MCP servers
+**Stack technique** : React + TypeScript + Supabase + Backend TypeScript (Express) + 14 MCP servers
 
 ### Les 5 Agents IA
 1. **LUNA** - Expert SEO, Keywords, Content Strategy, Technical SEO
@@ -17,13 +17,15 @@
 4. **MILO** - Expert Créatif (Images, Vidéos, Audio), Content Generation
 5. **DOFFY** - Expert Social Media (LinkedIn, Instagram, Twitter/X, TikTok, Facebook), Content Scheduling, Community Engagement
 
-### Architecture Backend Actuelle
+### Architecture Backend Actuelle (V5 - TypeScript)
 ```
 Frontend (React Cockpit)
   ↓
-n8n Workflows (PM + Orchestrator + 5 Agents)
+Backend TypeScript (Express.js, port 3457)
+  ├── Orchestrator (routing vers agents)
+  └── 5 Agents (Luna, Sora, Marcus, Milo, Doffy)
   ↓
-MCP Bridge (Express.js HTTP server)
+MCP Bridge (Express.js HTTP server, port 3456)
   ↓
 14 MCP Servers (stdio) : seo-audit, google-ads, meta-ads, analytics, social-media, etc.
   ↓
@@ -97,22 +99,23 @@ Supabase (PostgreSQL + Auth + Realtime + Edge Functions)
 
 ## CE QUI MANQUE (À CONSTRUIRE)
 
-### 1. Visibilité Backend n8n
-**Problème** : Les workflows n8n tournent mais on ne voit rien depuis le cockpit.
+### 1. Visibilité Backend TypeScript
+**Problème** : Les agents IA s'exécutent dans le backend mais on ne voit rien depuis le cockpit.
 
 **Besoin** :
-- Voir les workflows n8n en cours d'exécution
+- Voir les exécutions d'agents en cours
 - Voir les logs des agents IA (Luna, Sora, Marcus, Milo, Doffy)
 - Voir les erreurs en temps réel
-- Voir les performances (temps d'exécution, taux de succès)
+- Voir les performances (temps d'exécution, taux de succès, coûts)
 
 **Données disponibles** :
-- n8n expose une API REST : https://docs.n8n.io/api/
-- Endpoints utiles :
-  - `GET /executions` - Liste des executions
-  - `GET /executions/{id}` - Détails d'une execution
-  - `GET /workflows` - Liste des workflows
-  - `GET /workflows/{id}/executions` - Executions d'un workflow
+- Backend TypeScript expose `/api/admin/health` - Status de tous les services
+- Table `project_memory` - Toutes les actions des agents
+- Table `system_logs` - Logs centralisés (à créer dans le PRD)
+- Endpoints admin (à créer) :
+  - `GET /api/admin/agent-stats` - Stats par agent
+  - `GET /api/admin/agent-activity` - Activité récente
+  - `GET /api/admin/logs` - Logs filtrables
 
 ### 2. Visibilité MCP Servers
 **Problème** : 14 MCP servers tournent via le Bridge mais aucune visibilité.
@@ -158,7 +161,7 @@ Supabase (PostgreSQL + Auth + Realtime + Edge Functions)
 
 **Metrics clés** :
 - Nombre de tickets support ouverts/in progress/resolved
-- Nombre de workflows n8n en cours
+- Nombre d'exécutions d'agents en cours
 - Nombre d'agents IA actifs (5 agents : Luna, Sora, Marcus, Milo, Doffy)
 - Nombre d'erreurs dans la dernière heure
 
@@ -169,7 +172,7 @@ Supabase (PostgreSQL + Auth + Realtime + Edge Functions)
 - SLA compliance rate (% de tickets résolus dans les délais)
 - Temps moyen de première réponse
 - Temps moyen de résolution
-- Taux de succès des workflows n8n
+- Taux de succès des exécutions d'agents
 - Temps d'exécution moyen par agent
 
 ### Objectif 3 : Debug & Troubleshooting

@@ -41,52 +41,62 @@ await fetch(`https://logs.papertrailapp.com:XXXXX`, {
 
 ---
 
-### 2. n8n Workflows
+### 2. Backend TypeScript (Express.js)
 **Ce qui tourne** :
-- PM (Project Manager workflow)
-- Orchestrator
-- Luna Agent workflow
-- Sora Agent workflow
-- Marcus Agent workflow
-- Milo Agent workflow
-- Doffy Agent workflow
+- API Server (Express, port 3457)
+- Orchestrator (routing vers agents)
+- Luna Agent executor
+- Sora Agent executor
+- Marcus Agent executor
+- Milo Agent executor
+- Doffy Agent executor
 
 **Logs disponibles** :
-- Workflow executions (success/fail)
-- Node outputs (chaque étape)
+- Agent executions (success/fail)
+- HTTP requests/responses
 - Errors & stack traces
-- Execution time
+- Execution time, tokens used, costs
 
 **Comment centraliser avec Papertrail**:
 
-#### Option A: n8n Logging Node
-Ajouter dans chaque workflow un node "HTTP Request" qui POST vers Papertrail:
+#### Setup Winston Logger avec Papertrail transport
 
-```json
-// Node config
-{
-  "method": "POST",
-  "url": "https://logs.papertrailapp.com:XXXXX",
-  "body": {
-    "hostname": "n8n-workflow",
-    "app": "{{$workflow.name}}",
-    "message": "Execution {{$execution.id}} - {{$execution.mode}}",
-    "data": "{{$json}}"
-  }
-}
+```bash
+cd backend
+npm install winston winston-papertrail
 ```
 
-#### Option B: n8n → Loki → Papertrail
-Si n8n tourne dans Docker:
-```yaml
-# docker-compose.yml
-services:
-  n8n:
-    logging:
-      driver: "syslog"
-      options:
-        syslog-address: "udp://logs.papertrailapp.com:XXXXX"
-        tag: "n8n"
+```typescript
+// backend/src/services/logging.service.ts
+import winston from 'winston';
+import { Papertrail } from 'winston-papertrail';
+
+const papertrailTransport = new Papertrail({
+  host: 'logs.papertrailapp.com',
+  port: XXXXX, // Ton port Papertrail
+  hostname: 'backend-typescript',
+  program: 'hive-backend',
+});
+
+export const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.json()
+  ),
+  transports: [
+    new winston.transports.Console(),
+    papertrailTransport
+  ]
+});
+
+// Usage dans agent-executor:
+logger.info('Agent execution', {
+  agent: 'luna',
+  action: 'agent_complete',
+  duration: 1234,
+  credits_used: 0.05
+});
 ```
 
 ---

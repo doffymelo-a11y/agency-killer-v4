@@ -52,9 +52,9 @@ Supabase INSERT → Database Trigger
     ↓
 Edge Function (notify-support-ticket)
     ↓
-n8n Webhook
+Backend TypeScript API (/api/support/process-ticket)
     ↓
-PM/Orchestrator (routing)
+Orchestrator (routing)
     ↓
 Agent approprié (Luna/Sora/Marcus/Milo/Doffy)
     ↓
@@ -110,17 +110,17 @@ INSERT INTO support_tickets (
 
 ---
 
-### Étape 3: Notification n8n (Edge Function)
+### Étape 3: Notification Backend (Edge Function)
 
 **Fichier**: `/supabase/functions/notify-support-ticket/index.ts`
 
 **Ce qui se passe**:
 1. Le trigger database appelle l'Edge Function
 2. L'Edge Function enrichit le ticket avec les données user
-3. Elle construit un payload optimisé pour n8n
-4. Elle POST vers le webhook n8n
+3. Elle construit un payload optimisé pour le backend
+4. Elle POST vers l'API backend TypeScript
 
-**Payload envoyé à n8n**:
+**Payload envoyé au backend**:
 ```json
 {
   "event_type": "support_ticket_created",
@@ -149,12 +149,12 @@ INSERT INTO support_tickets (
 
 ---
 
-### Étape 4: Routing par le PM (n8n)
+### Étape 4: Routing par l'Orchestrator (Backend TypeScript)
 
-**Fichier**: `/agents/CURRENT_pm-mcp/` (workflow n8n)
+**Fichier**: `/backend/src/agents/orchestrator.ts`
 
 **Ce qui se passe**:
-1. Le PM reçoit le webhook
+1. L'Orchestrator reçoit la requête API
 2. Il analyse le `suggested_intent` et le `category`
 3. Il route vers l'agent approprié (5 agents disponibles):
    - `bug` technique/SEO → **LUNA** (expert SEO/Technique)
@@ -185,7 +185,7 @@ INSERT INTO support_tickets (
 3. Génère une réponse avec recommandations
 4. Crée un message dans `support_messages`
 
-**Fichier**: LUNA via n8n POST vers Supabase
+**Fichier**: LUNA via backend TypeScript POST vers Supabase
 
 ```sql
 INSERT INTO support_messages (
