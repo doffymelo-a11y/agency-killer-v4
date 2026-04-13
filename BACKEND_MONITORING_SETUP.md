@@ -49,6 +49,7 @@ await fetch(`https://logs.papertrailapp.com:XXXXX`, {
 - Sora Agent workflow
 - Marcus Agent workflow
 - Milo Agent workflow
+- Doffy Agent workflow
 
 **Logs disponibles** :
 - Workflow executions (success/fail)
@@ -93,7 +94,7 @@ services:
 ### 3. MCP Bridge (Express.js)
 **Ce qui tourne** :
 - HTTP server (port 3456)
-- 13 MCP server connections (stdio)
+- 14 MCP server connections (stdio)
 - Request routing
 - Error handling
 
@@ -168,7 +169,7 @@ app.post('/api/:server/call', async (req, res) => {
 
 ---
 
-### 4. MCP Servers (13 servers stdio)
+### 4. MCP Servers (14 servers stdio)
 **Ce qui tourne** :
 - seo-audit-server
 - google-ads-launcher-server
@@ -178,7 +179,8 @@ app.post('/api/:server/call', async (req, res) => {
 - google-tag-manager-server
 - cms-connector-server
 - project-manager-server
-- web-intelligence-server (nouveau)
+- web-intelligence-server
+- social-media-server (DOFFY)
 - ... et 4 autres
 
 **Logs disponibles** :
@@ -241,7 +243,7 @@ async function handleFullSEOAudit(url: string) {
 }
 ```
 
-**Répéter pour les 13 servers** (ou créer un package shared `@hive/logger`).
+**Répéter pour les 14 servers** (ou créer un package shared `@hive/logger`).
 
 ---
 
@@ -335,9 +337,10 @@ logToBackend('error', 'Failed to create ticket', {
          │         │         │         │         │
     ┌────┴───┬────┴───┬────┴────┬────┴────┬────┴────┐
     │        │        │         │         │         │
-Supabase   n8n    MCP     13 MCP   Frontend
- Edge              Bridge   Servers  (Sentry)
-Functions
+Supabase   n8n    MCP     14 MCP   Frontend
+ Edge        (7 wf)  Bridge   Servers  (Sentry)
+Functions           (PM+Orch  (incl.
+                     +5 agents) social-media)
 ```
 
 ---
@@ -372,7 +375,7 @@ Créer `src/logger.ts` (voir code ci-dessus)
 
 Remplacer tous les `console.log` par `logger.info`
 
-### Étape 4: Configurer les 13 MCP Servers (30 min)
+### Étape 4: Configurer les 14 MCP Servers (30 min)
 
 **Option A: Individuel** (si tu veux des logs précis par server)
 - Ajouter winston + papertrail dans chaque server

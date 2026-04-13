@@ -7,24 +7,25 @@
 ## CONTEXTE DU PROJET
 
 **Nom du projet** : The Hive OS V4 - Agency Killer Cockpit
-**Type** : SaaS marketing automation avec 4 agents IA spécialisés
-**Stack technique** : React + TypeScript + Supabase + n8n + 13 MCP servers
+**Type** : SaaS marketing automation avec 5 agents IA spécialisés
+**Stack technique** : React + TypeScript + Supabase + n8n + 14 MCP servers
 
-### Les 4 Agents IA
+### Les 5 Agents IA
 1. **LUNA** - Expert SEO, Keywords, Content Strategy, Technical SEO
 2. **SORA** - Expert Analytics (GA4, GTM, Meta Pixel, TikTok), Data Analysis
 3. **MARCUS** - Expert Ads (Meta, Google, TikTok), Campaign Management, Budget
 4. **MILO** - Expert Créatif (Images, Vidéos, Audio), Content Generation
+5. **DOFFY** - Expert Social Media (LinkedIn, Instagram, Twitter/X, TikTok, Facebook), Content Scheduling, Community Engagement
 
 ### Architecture Backend Actuelle
 ```
 Frontend (React Cockpit)
   ↓
-n8n Workflows (PM + Orchestrator + 4 Agents)
+n8n Workflows (PM + Orchestrator + 5 Agents)
   ↓
 MCP Bridge (Express.js HTTP server)
   ↓
-13 MCP Servers (stdio) : seo-audit, google-ads, meta-ads, analytics, etc.
+14 MCP Servers (stdio) : seo-audit, google-ads, meta-ads, analytics, social-media, etc.
   ↓
 Supabase (PostgreSQL + Auth + Realtime + Edge Functions)
 ```
@@ -101,7 +102,7 @@ Supabase (PostgreSQL + Auth + Realtime + Edge Functions)
 
 **Besoin** :
 - Voir les workflows n8n en cours d'exécution
-- Voir les logs des agents IA (Luna, Sora, Marcus, Milo)
+- Voir les logs des agents IA (Luna, Sora, Marcus, Milo, Doffy)
 - Voir les erreurs en temps réel
 - Voir les performances (temps d'exécution, taux de succès)
 
@@ -114,7 +115,7 @@ Supabase (PostgreSQL + Auth + Realtime + Edge Functions)
   - `GET /workflows/{id}/executions` - Executions d'un workflow
 
 ### 2. Visibilité MCP Servers
-**Problème** : 13 MCP servers tournent via le Bridge mais aucune visibilité.
+**Problème** : 14 MCP servers tournent via le Bridge mais aucune visibilité.
 
 **Besoin** :
 - Voir quels MCP servers sont actifs
@@ -158,7 +159,7 @@ Supabase (PostgreSQL + Auth + Realtime + Edge Functions)
 **Metrics clés** :
 - Nombre de tickets support ouverts/in progress/resolved
 - Nombre de workflows n8n en cours
-- Nombre d'agents IA actifs
+- Nombre d'agents IA actifs (5 agents : Luna, Sora, Marcus, Milo, Doffy)
 - Nombre d'erreurs dans la dernière heure
 
 ### Objectif 2 : Performance Monitoring

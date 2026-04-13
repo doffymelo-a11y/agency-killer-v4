@@ -19,7 +19,7 @@ Frontend (React) → Supabase (Database) → FIN
                   Juste stocké
 ```
 
-**Ce qui manque** : Le lien entre les tickets support et les agents IA (Luna, Sora, Marcus, Milo).
+**Ce qui manque** : Le lien entre les tickets support et les 5 agents IA (Luna, Sora, Marcus, Milo, Doffy).
 
 ---
 
@@ -56,7 +56,7 @@ n8n Webhook
     ↓
 PM/Orchestrator (routing)
     ↓
-Agent approprié (Luna/Sora/Marcus/Milo)
+Agent approprié (Luna/Sora/Marcus/Milo/Doffy)
     ↓
 Réponse automatique stockée dans support_messages
     ↓
@@ -156,24 +156,33 @@ INSERT INTO support_tickets (
 **Ce qui se passe**:
 1. Le PM reçoit le webhook
 2. Il analyse le `suggested_intent` et le `category`
-3. Il route vers l'agent approprié:
-   - `bug` → **LUNA** (expert SEO/Technique)
-   - `feature_request` → **MARCUS** (expert Ads/Features)
-   - `integration` → **SORA** (expert Analytics/Intégrations)
-   - `question` → **MILO** (expert Créatif/Content)
+3. Il route vers l'agent approprié (5 agents disponibles):
+   - `bug` technique/SEO → **LUNA** (expert SEO/Technique)
+   - `feature_request` ads/budget → **MARCUS** (expert Ads/Features)
+   - `integration` analytics → **SORA** (expert Analytics/Intégrations)
+   - `question` créatif/contenu → **MILO** (expert Créatif/Content)
+   - `question` social media/posts → **DOFFY** (expert Social Media/Community)
 
 ---
 
 ### Étape 5: Traitement par l'Agent IA
 
-**Exemple**: Bug de pixel → LUNA
+**Exemples de traitement par agent**:
 
-**Ce que LUNA fait**:
+**Exemple 1: Bug de pixel → LUNA**
 1. Lit le ticket complet (sujet + description + screenshot)
 2. Utilise ses MCP tools pour investiguer:
    - `web-intelligence:ad_verification` → Vérifie le pixel
    - `seo-audit:check_page` → Analyse la page
 3. Génère une réponse structurée
+4. Crée un message dans `support_messages`
+
+**Exemple 2: Question social media → DOFFY**
+1. Lit le ticket (ex: "Comment programmer mes posts LinkedIn?")
+2. Utilise ses MCP tools:
+   - `social-media:create_content_calendar` → Génère calendrier
+   - `social-media:suggest_hashtags` → Suggère hashtags
+3. Génère une réponse avec recommandations
 4. Crée un message dans `support_messages`
 
 **Fichier**: LUNA via n8n POST vers Supabase
