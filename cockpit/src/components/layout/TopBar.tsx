@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { LifeBuoy } from 'lucide-react';
 import { getCurrentUser, signOut, getUserRole } from '../../lib/supabase';
 import { getUnreadMessageCount } from '../../services/support.service';
+import { getErrorCount } from '../../services/admin.service';
 
 export default function TopBar() {
   const navigate = useNavigate();
@@ -15,11 +16,20 @@ export default function TopBar() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [errorCount, setErrorCount] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadUser();
     loadUnreadCount();
+    loadErrorCount();
+
+    // Polling for error count every 30 seconds (only for admins)
+    const errorInterval = setInterval(() => {
+      if (isAdmin) {
+        loadErrorCount();
+      }
+    }, 30000);
 
     // Close menu on click outside
     function handleClickOutside(event: MouseEvent) {
@@ -29,8 +39,11 @@ export default function TopBar() {
     }
 
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    return () => {
+      clearInterval(errorInterval);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isAdmin]);
 
   async function loadUser() {
     const currentUser = await getCurrentUser();
@@ -49,6 +62,18 @@ export default function TopBar() {
     } catch (error) {
       // Silent fail
       setUnreadCount(0);
+    }
+  }
+
+  async function loadErrorCount() {
+    if (!isAdmin) return;
+
+    try {
+      const result = await getErrorCount(1); // Last 1 hour
+      setErrorCount(result.error_count);
+    } catch (error) {
+      // Silent fail - might not have admin permissions yet
+      setErrorCount(0);
     }
   }
 
@@ -172,12 +197,17 @@ export default function TopBar() {
                         navigate('/admin');
                         setMenuOpen(false);
                       }}
-                      className="w-full px-4 py-2 text-left text-red-400 hover:bg-red-500/10 hover:text-red-300 transition flex items-center gap-3"
+                      className="w-full px-4 py-2 text-left text-red-400 hover:bg-red-500/10 hover:text-red-300 transition flex items-center gap-3 relative"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                       </svg>
                       Admin Dashboard
+                      {errorCount > 0 && (
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2 px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full">
+                          {errorCount}
+                        </span>
+                      )}
                     </button>
                   </>
                 )}

@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { supabase } from '../../lib/supabase';
 import { getSystemHealth, getRecentLogs } from '../../services/admin.service';
 import type { SystemLog } from '../../services/admin.service';
 import type { MCPServerStatus } from '../../types/admin.types';
@@ -34,6 +35,7 @@ export default function SystemHealthTab() {
   const [errors, setErrors] = useState<SystemLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorsLoading, setErrorsLoading] = useState(true);
+  const [isLive, setIsLive] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -41,7 +43,34 @@ export default function SystemHealthTab() {
     // Polling every 30 seconds
     const interval = setInterval(loadData, 30000);
 
-    return () => clearInterval(interval);
+    // Setup Realtime subscription for error logs
+    const channel = supabase
+      .channel('system_logs_errors')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'system_logs',
+          filter: 'level=eq.error',
+        },
+        (payload) => {
+          console.log('[SystemHealthTab] New error received:', payload);
+          const newError = payload.new as SystemLog;
+
+          // Prepend new error to the list
+          setErrors((prev) => [newError, ...prev].slice(0, 20));
+        }
+      )
+      .subscribe((status) => {
+        console.log('[SystemHealthTab] Subscription status:', status);
+        setIsLive(status === 'SUBSCRIBED');
+      });
+
+    return () => {
+      clearInterval(interval);
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   async function loadData() {
@@ -84,7 +113,7 @@ export default function SystemHealthTab() {
       <MCPServerGrid servers={MCP_SERVERS} isLoading={false} />
 
       {/* Recent Errors */}
-      <RecentErrorsTable errors={errors} isLoading={errorsLoading} isLive={false} />
+      <RecentErrorsTable errors={errors} isLoading={errorsLoading} isLive={isLive} />
     </div>
   );
 }
