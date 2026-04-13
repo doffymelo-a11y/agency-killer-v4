@@ -16,6 +16,7 @@ import filesRoutes from './routes/files.routes.js';
 import phaseTransitionRoutes from './routes/phase-transition.routes.js';
 import taskExplainerRoutes from './routes/task-explainer.routes.js';
 import cmsRoutes from './routes/cms.routes.js';
+import adminRoutes from './routes/admin.routes.js';
 
 // Middleware
 import { errorHandler } from './middleware/error.middleware.js';
@@ -96,6 +97,7 @@ app.use('/api/files', filesRoutes);
 app.use('/api/phase-transition', phaseTransitionRoutes);
 app.use('/api/task-explainer', taskExplainerRoutes);
 app.use('/api/cms', cmsRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Fallback 404
 app.use((req, res) => {
@@ -150,6 +152,12 @@ async function start() {
       console.log(`    POST /api/cms/execute  - Execute CMS change`);
       console.log(`    POST /api/cms/rollback - Rollback CMS change`);
       console.log(`    GET  /api/cms/pending  - List pending CMS approvals`);
+      console.log('');
+      console.log('  Admin Endpoints:');
+      console.log(`    GET  /api/admin/stats/agents     - Agent performance stats`);
+      console.log(`    GET  /api/admin/stats/business   - Business metrics`);
+      console.log(`    GET  /api/admin/logs/recent      - Recent system logs`);
+      console.log(`    GET  /api/admin/logs/error-count - Error count`);
       console.log('');
       console.log('  Services:');
       console.log(`    Supabase:    ${isSupabaseConfigured() ? '✓' : '✗'}`);

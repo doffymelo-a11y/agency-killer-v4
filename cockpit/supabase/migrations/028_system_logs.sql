@@ -126,7 +126,7 @@ BEGIN
     'users_active_7d', (SELECT COUNT(*) FROM auth.users WHERE last_sign_in_at >= NOW() - INTERVAL '7 days'),
     'users_active_30d', (SELECT COUNT(*) FROM auth.users WHERE last_sign_in_at >= NOW() - INTERVAL '30 days'),
     'projects_total', (SELECT COUNT(*) FROM projects),
-    'projects_active', (SELECT COUNT(*) FROM projects WHERE status = 'active'),
+    'projects_active', (SELECT COUNT(*) FROM projects WHERE status = 'in_progress'),
     'projects_by_scope', (
       SELECT json_agg(json_build_object('scope', scope, 'count', cnt))
       FROM (SELECT scope, COUNT(*) as cnt FROM projects GROUP BY scope) sub

@@ -8,6 +8,7 @@ import { mcpBridge } from '../services/mcp-bridge.service.js';
 import { recordCMSChange } from '../services/cms.service.js';
 import { parseAgentResponse } from '../shared/response-parser.js';
 import { detectComplexity, logComplexityDecision } from '../services/complexity-detector.js';
+import { logToSystem } from '../services/logging.service.js';
 import type { AgentConfig } from '../types/agent.types.js';
 import type { AgentId, SharedProjectContext } from '../types/api.types.js';
 import type { Anthropic } from '@anthropic-ai/sdk';
@@ -36,10 +37,27 @@ export interface AgentExecutionContext {
  * Execute agent with Claude API + MCP tools
  */
 export async function executeAgent(context: AgentExecutionContext) {
+  const startTime = Date.now();
   console.log(`[Agent Executor] Executing ${context.agentId}`);
 
-  // Step 1: Build system prompt
-  const systemPrompt = buildSystemPrompt(context);
+  // Log agent start
+  await logToSystem({
+    level: 'info',
+    source: 'agent-executor',
+    agent_id: context.agentId,
+    user_id: context.userId,
+    project_id: context.projectContext.project_id,
+    action: 'agent_start',
+    message: `Agent ${context.agentId} started`,
+    metadata: {
+      session_id: context.sessionId,
+      has_images: Boolean(context.images && context.images.length > 0),
+    },
+  });
+
+  try {
+    // Step 1: Build system prompt
+    const systemPrompt = buildSystemPrompt(context);
 
   // Step 2: Build MCP tools definitions for Claude
   const tools = buildMCPToolsDefinitions(context.agentConfig.mcpTools);
@@ -136,18 +154,66 @@ export async function executeAgent(context: AgentExecutionContext) {
     console.warn(`[Agent Executor] Max iterations reached (${MAX_ITERATIONS})`);
   }
 
-  // Step 6: Parse final response
-  const parsedResponse = parseAgentResponse(response, context.agentId);
+    // Step 6: Parse final response
+    const parsedResponse = parseAgentResponse(response, context.agentId);
 
-  return {
-    success: true,
-    agent: context.agentId,
-    message: parsedResponse.message,
-    ui_components: parsedResponse.ui_components,
-    write_back_commands: parsedResponse.write_back_commands,
-    memory_contribution: parsedResponse.memory_contribution,
-    session_id: context.sessionId,
-  };
+    // Calculate execution metrics
+    const durationMs = Date.now() - startTime;
+    const tokensUsed = response.usage?.input_tokens + response.usage?.output_tokens || 0;
+    // Rough cost estimate: ~$3 per 1M input tokens, ~$15 per 1M output tokens for Sonnet
+    const creditsUsed =
+      ((response.usage?.input_tokens || 0) * 3 + (response.usage?.output_tokens || 0) * 15) /
+      1_000_000;
+
+    // Log agent completion
+    await logToSystem({
+      level: 'info',
+      source: 'agent-executor',
+      agent_id: context.agentId,
+      user_id: context.userId,
+      project_id: context.projectContext.project_id,
+      action: 'agent_complete',
+      message: `Agent ${context.agentId} completed successfully`,
+      metadata: {
+        duration_ms: durationMs,
+        tokens_used: tokensUsed,
+        credits_used: creditsUsed,
+        iterations: iterationCount,
+        stop_reason: response.stop_reason,
+      },
+    });
+
+    return {
+      success: true,
+      agent: context.agentId,
+      message: parsedResponse.message,
+      ui_components: parsedResponse.ui_components,
+      write_back_commands: parsedResponse.write_back_commands,
+      memory_contribution: parsedResponse.memory_contribution,
+      session_id: context.sessionId,
+    };
+  } catch (error: any) {
+    const durationMs = Date.now() - startTime;
+
+    // Log agent error
+    await logToSystem({
+      level: 'error',
+      source: 'agent-executor',
+      agent_id: context.agentId,
+      user_id: context.userId,
+      project_id: context.projectContext.project_id,
+      action: 'agent_error',
+      message: `Agent ${context.agentId} failed: ${error.message}`,
+      metadata: {
+        duration_ms: durationMs,
+        error_stack: error.stack,
+        error_name: error.name,
+      },
+    });
+
+    // Re-throw to let the caller handle it
+    throw error;
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -292,6 +358,21 @@ async function executeMCPToolCalls(toolCalls: any[], context: AgentExecutionCont
     const [server, tool] = toolName.split('__');
 
     console.log(`[Agent Executor] Executing MCP tool: ${server}.${tool}`);
+
+    // Log MCP tool call
+    await logToSystem({
+      level: 'info',
+      source: 'agent-executor',
+      agent_id: context.agentId,
+      project_id: context.projectContext.project_id,
+      action: 'mcp_tool_call',
+      message: `Calling ${tool} on ${server}`,
+      metadata: {
+        tool_name: toolName,
+        server_name: server,
+        tool: tool,
+      },
+    });
 
     try {
       const result = await mcpBridge.call(server, tool, toolCall.input);

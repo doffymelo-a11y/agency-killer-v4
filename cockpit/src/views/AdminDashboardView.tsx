@@ -156,12 +156,20 @@ export default function AdminDashboardView() {
             </div>
             <p className="text-slate-400">System-wide statistics and user management</p>
           </div>
-          <button
-            onClick={() => navigate('/projects')}
-            className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 transition"
-          >
-            ← Back to Projects
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate('/admin/monitoring')}
+              className="px-4 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-700 text-white transition font-medium"
+            >
+              📊 System Monitoring
+            </button>
+            <button
+              onClick={() => navigate('/projects')}
+              className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 transition"
+            >
+              ← Back to Projects
+            </button>
+          </div>
         </div>
 
         {/* Tabs */}

@@ -22,6 +22,7 @@ import BillingView from './views/BillingView';
 import SupportView from './views/SupportView';
 import SupportTicketDetailView from './views/SupportTicketDetailView';
 import AdminDashboardView from './views/AdminDashboardView';
+import AdminMonitoringView from './views/AdminMonitoringView';
 import GenesisView from './views/GenesisView';
 import BoardView from './views/BoardView';
 import ChatView from './views/ChatView';
@@ -91,6 +92,7 @@ function AppRoutes() {
 
         {/* Admin Dashboard */}
         <Route path="/admin" element={<AdminDashboardView />} />
+        <Route path="/admin/monitoring" element={<AdminMonitoringView />} />
 
         {/* Genesis Wizard */}
         <Route path="/genesis" element={<GenesisView />} />

@@ -6,6 +6,7 @@
 import axios, { AxiosInstance } from 'axios';
 import * as dotenv from 'dotenv';
 import type { MCPToolCall, MCPToolResult } from '../types/agent.types.js';
+import { logToSystem } from './logging.service.js';
 
 dotenv.config();
 
@@ -40,6 +41,8 @@ class MCPBridgeClient {
    * @param args - Tool arguments
    */
   async call(server: string, tool: string, args: Record<string, unknown>): Promise<MCPToolResult> {
+    const startTime = Date.now();
+
     try {
       const response = await this.client.post(`/api/${server}/call`, {
         tool,
@@ -47,11 +50,38 @@ class MCPBridgeClient {
       });
 
       if (response.data.success === false) {
+        // Log MCP call error (logical error from server)
+        await logToSystem({
+          level: 'error',
+          source: 'mcp-bridge',
+          action: 'mcp_call_error',
+          message: `MCP call ${server}.${tool} returned error: ${response.data.error || 'Unknown error'}`,
+          metadata: {
+            server_name: server,
+            tool_name: tool,
+            duration_ms: Date.now() - startTime,
+            error: response.data.error || 'Unknown error from MCP server',
+          },
+        });
+
         return {
           success: false,
           error: response.data.error || 'Unknown error from MCP server',
         };
       }
+
+      // Log successful MCP call
+      await logToSystem({
+        level: 'info',
+        source: 'mcp-bridge',
+        action: 'mcp_call_complete',
+        message: `MCP call ${server}.${tool} completed successfully`,
+        metadata: {
+          server_name: server,
+          tool_name: tool,
+          duration_ms: Date.now() - startTime,
+        },
+      });
 
       return {
         success: true,
@@ -59,6 +89,22 @@ class MCPBridgeClient {
       };
     } catch (error: any) {
       console.error(`[MCP Bridge] Error calling ${server}.${tool}:`, error.message);
+
+      // Log MCP call error (network/timeout error)
+      await logToSystem({
+        level: 'error',
+        source: 'mcp-bridge',
+        action: 'mcp_call_error',
+        message: `MCP call ${server}.${tool} failed: ${error.message}`,
+        metadata: {
+          server_name: server,
+          tool_name: tool,
+          duration_ms: Date.now() - startTime,
+          error_message: error.message,
+          error_stack: error.stack,
+        },
+      });
+
       return {
         success: false,
         error: `MCP call failed: ${error.message}`,
