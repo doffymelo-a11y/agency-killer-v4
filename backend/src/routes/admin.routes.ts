@@ -18,6 +18,111 @@ import { isMCPBridgeConfigured } from '../services/mcp-bridge.service.js';
 const router = Router();
 
 // ─────────────────────────────────────────────────────────────────
+// Security Helper - Safe Error Response
+// ─────────────────────────────────────────────────────────────────
+
+/**
+ * Creates a safe error response that doesn't leak internal details in production
+ */
+function createSafeErrorResponse(error: any, code: string, userMessage: string) {
+  const isDevelopment = process.env.NODE_ENV === 'development';
+
+  // Log the full error server-side for debugging
+  console.error(`[Admin Error] ${code}:`, error);
+
+  return {
+    success: false,
+    error: {
+      message: userMessage,
+      code: code,
+      // Only expose error details in development
+      ...(isDevelopment && { details: error.message }),
+    },
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Admin Rate Limiting
+// ─────────────────────────────────────────────────────────────────
+
+/**
+ * Rate limit tracker for admin endpoints
+ * In-memory store (can be replaced with Redis for production)
+ */
+const adminRateLimitStore = new Map<
+  string,
+  { count: number; resetAt: number }
+>();
+
+const ADMIN_RATE_LIMIT = {
+  maxRequests: 30, // Max requests per window
+  windowMs: 60 * 1000, // 1 minute window
+};
+
+/**
+ * Admin-specific rate limiting middleware
+ * More strict than regular API rate limiting
+ */
+function adminRateLimit(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): void {
+  const userId = req.user?.id;
+
+  if (!userId) {
+    next();
+    return;
+  }
+
+  const now = Date.now();
+  const key = `admin:${userId}`;
+
+  // Get or create rate limit entry
+  let entry = adminRateLimitStore.get(key);
+
+  if (!entry || now > entry.resetAt) {
+    // Create new window
+    entry = {
+      count: 1,
+      resetAt: now + ADMIN_RATE_LIMIT.windowMs,
+    };
+    adminRateLimitStore.set(key, entry);
+    next();
+    return;
+  }
+
+  // Check if limit exceeded
+  if (entry.count >= ADMIN_RATE_LIMIT.maxRequests) {
+    const resetIn = Math.ceil((entry.resetAt - now) / 1000);
+    res.status(429).json({
+      success: false,
+      error: {
+        message: 'Too many admin requests. Please try again later.',
+        code: 'ADMIN_RATE_LIMIT_EXCEEDED',
+        resetIn,
+      },
+    });
+    return;
+  }
+
+  // Increment count
+  entry.count++;
+  next();
+}
+
+// Cleanup old entries every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of adminRateLimitStore.entries()) {
+    if (now > entry.resetAt + 60000) {
+      // Keep 1 minute after reset
+      adminRateLimitStore.delete(key);
+    }
+  }
+}, 5 * 60 * 1000);
+
+// ─────────────────────────────────────────────────────────────────
 // Admin Authorization Middleware
 // ─────────────────────────────────────────────────────────────────
 
@@ -74,15 +179,9 @@ async function requireAdmin(
 
     next();
   } catch (error: any) {
-    console.error('[Admin Middleware] Error:', error);
-    res.status(500).json({
-      success: false,
-      error: {
-        message: 'Authorization error',
-        code: 'ADMIN_AUTH_ERROR',
-        details: error.message,
-      },
-    });
+    res.status(500).json(
+      createSafeErrorResponse(error, 'ADMIN_AUTH_ERROR', 'Authorization error')
+    );
   }
 }
 
@@ -93,8 +192,9 @@ async function requireAdmin(
 router.get(
   '/health',
   authMiddleware,
+  adminRateLimit,
   requireAdmin,
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (_req, res) => {
     const startTime = Date.now();
 
     // Check all services
@@ -102,11 +202,9 @@ router.get(
     const claudeOk = isClaudeConfigured();
     const mcpBridgeOk = await isMCPBridgeConfigured();
 
-    // Calculate uptime (simple approximation - could be improved with process.uptime())
+    // Generic uptime (don't expose exact values for security)
     const uptimeMs = process.uptime() * 1000;
-    const uptimeHours = Math.floor(uptimeMs / (1000 * 60 * 60));
-    const uptimeMinutes = Math.floor((uptimeMs % (1000 * 60 * 60)) / (1000 * 60));
-    const uptimeFormatted = `${uptimeHours}h ${uptimeMinutes}min`;
+    const uptimeStatus = uptimeMs > 3600000 ? 'Operational' : 'Starting';
 
     res.json({
       success: true,
@@ -114,25 +212,25 @@ router.get(
         backend: {
           name: 'Backend API',
           status: 'healthy',
-          uptime: uptimeFormatted,
+          details: uptimeStatus,
           lastCheck: new Date().toISOString(),
         },
         mcp_bridge: {
           name: 'MCP Bridge',
           status: mcpBridgeOk ? 'healthy' : 'down',
-          uptime: mcpBridgeOk ? 'Available' : 'Unavailable',
+          details: mcpBridgeOk ? 'Operational' : 'Unavailable',
           lastCheck: new Date().toISOString(),
         },
         supabase: {
           name: 'Supabase',
           status: supabaseOk ? 'healthy' : 'down',
-          uptime: supabaseOk ? 'Connected' : 'Not configured',
+          details: supabaseOk ? 'Operational' : 'Unavailable',
           lastCheck: new Date().toISOString(),
         },
         claude_api: {
           name: 'Claude API',
           status: claudeOk ? 'healthy' : 'down',
-          uptime: claudeOk ? 'Configured' : 'Not configured',
+          details: claudeOk ? 'Operational' : 'Unavailable',
           lastCheck: new Date().toISOString(),
         },
         timestamp: new Date().toISOString(),
@@ -149,6 +247,7 @@ router.get(
 router.get(
   '/stats/agents',
   authMiddleware,
+  adminRateLimit,
   requireAdmin,
   asyncHandler(async (req, res) => {
     const daysBack = parseInt(req.query.days_back as string) || 30;
@@ -159,15 +258,9 @@ router.get(
     });
 
     if (error) {
-      console.error('[Admin] Error fetching agent stats:', error);
-      res.status(500).json({
-        success: false,
-        error: {
-          message: 'Failed to fetch agent statistics',
-          code: 'AGENT_STATS_ERROR',
-          details: error.message,
-        },
-      });
+      res.status(500).json(
+        createSafeErrorResponse(error, 'AGENT_STATS_ERROR', 'Failed to fetch agent statistics')
+      );
       return;
     }
 
@@ -185,6 +278,7 @@ router.get(
 router.get(
   '/stats/business',
   authMiddleware,
+  adminRateLimit,
   requireAdmin,
   asyncHandler(async (req, res) => {
     const daysBack = parseInt(req.query.days_back as string) || 30;
@@ -195,15 +289,9 @@ router.get(
     });
 
     if (error) {
-      console.error('[Admin] Error fetching business stats:', error);
-      res.status(500).json({
-        success: false,
-        error: {
-          message: 'Failed to fetch business statistics',
-          code: 'BUSINESS_STATS_ERROR',
-          details: error.message,
-        },
-      });
+      res.status(500).json(
+        createSafeErrorResponse(error, 'BUSINESS_STATS_ERROR', 'Failed to fetch business statistics')
+      );
       return;
     }
 
@@ -221,6 +309,7 @@ router.get(
 router.get(
   '/logs/recent',
   authMiddleware,
+  adminRateLimit,
   requireAdmin,
   asyncHandler(async (req, res) => {
     const limit = parseInt(req.query.limit as string) || 50;
@@ -237,15 +326,9 @@ router.get(
     });
 
     if (error) {
-      console.error('[Admin] Error fetching recent logs:', error);
-      res.status(500).json({
-        success: false,
-        error: {
-          message: 'Failed to fetch recent logs',
-          code: 'RECENT_LOGS_ERROR',
-          details: error.message,
-        },
-      });
+      res.status(500).json(
+        createSafeErrorResponse(error, 'RECENT_LOGS_ERROR', 'Failed to fetch recent logs')
+      );
       return;
     }
 
@@ -263,6 +346,7 @@ router.get(
 router.get(
   '/logs/error-count',
   authMiddleware,
+  adminRateLimit,
   requireAdmin,
   asyncHandler(async (req, res) => {
     const hoursBack = parseInt(req.query.hours_back as string) || 1;
@@ -273,15 +357,9 @@ router.get(
     });
 
     if (error) {
-      console.error('[Admin] Error fetching error count:', error);
-      res.status(500).json({
-        success: false,
-        error: {
-          message: 'Failed to fetch error count',
-          code: 'ERROR_COUNT_ERROR',
-          details: error.message,
-        },
-      });
+      res.status(500).json(
+        createSafeErrorResponse(error, 'ERROR_COUNT_ERROR', 'Failed to fetch error count')
+      );
       return;
     }
 

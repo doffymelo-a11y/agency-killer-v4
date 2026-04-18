@@ -29,6 +29,68 @@ export interface SystemLog {
 }
 
 // ─────────────────────────────────────────────────────────────────
+// Security Helper - Sanitize Metadata
+// ─────────────────────────────────────────────────────────────────
+
+/**
+ * Sanitize metadata to prevent sensitive data leakage
+ * Redacts passwords, tokens, secrets, API keys, etc.
+ */
+function sanitizeMetadata(metadata?: Record<string, unknown>): Record<string, unknown> {
+  if (!metadata || typeof metadata !== 'object') {
+    return {};
+  }
+
+  // Sensitive keywords to redact
+  const SENSITIVE_KEYS = [
+    'password',
+    'passwd',
+    'pwd',
+    'secret',
+    'token',
+    'api_key',
+    'apikey',
+    'api-key',
+    'authorization',
+    'auth',
+    'bearer',
+    'session',
+    'cookie',
+    'credentials',
+    'access_token',
+    'refresh_token',
+    'private_key',
+    'privatekey',
+    'client_secret',
+  ];
+
+  const sanitized: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(metadata)) {
+    const lowerKey = key.toLowerCase();
+
+    // Check if key contains sensitive keyword
+    const isSensitive = SENSITIVE_KEYS.some((sensitive) => lowerKey.includes(sensitive));
+
+    if (isSensitive) {
+      // Redact sensitive values
+      sanitized[key] = '[REDACTED]';
+    } else if (typeof value === 'string') {
+      // Truncate long strings to prevent log bloat (max 500 chars)
+      sanitized[key] = value.length > 500 ? value.substring(0, 500) + '...[truncated]' : value;
+    } else if (typeof value === 'object' && value !== null) {
+      // Recursively sanitize nested objects (max depth 2 to prevent performance issues)
+      sanitized[key] = sanitizeMetadata(value as Record<string, unknown>);
+    } else {
+      // Keep primitives as-is (numbers, booleans, null)
+      sanitized[key] = value;
+    }
+  }
+
+  return sanitized;
+}
+
+// ─────────────────────────────────────────────────────────────────
 // Main Function
 // ─────────────────────────────────────────────────────────────────
 
@@ -54,6 +116,9 @@ export async function logToSystem(log: SystemLog): Promise<void> {
       return;
     }
 
+    // Sanitize metadata to prevent sensitive data leakage
+    const sanitizedMetadata = sanitizeMetadata(log.metadata);
+
     // Insert into system_logs via admin client (bypasses RLS)
     const { error } = await supabaseAdmin.from('system_logs').insert({
       level: log.level,
@@ -63,7 +128,7 @@ export async function logToSystem(log: SystemLog): Promise<void> {
       project_id: log.project_id || null,
       action: log.action,
       message: log.message,
-      metadata: log.metadata || {},
+      metadata: sanitizedMetadata,
     });
 
     if (error) {
