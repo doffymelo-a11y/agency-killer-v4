@@ -38,8 +38,10 @@ const AGENT_CONFIG: Record<string, { name: string; color: string; bg: string }> 
 };
 
 function ServerCard({ server }: { server: MCPServerStatus }) {
-  const agentConfig = AGENT_CONFIG[server.primary_agent];
-  const isHealthy = server.status === 'healthy';
+  const agentConfig = AGENT_CONFIG[server.primary_agent || 'ALL'];
+  // Support both 'healthy'/'active' for healthy status
+  const isHealthy = server.status === 'healthy' || server.status === 'active';
+  const displayName = server.displayName || server.name;
 
   return (
     <div className={`bg-white rounded-lg border ${
@@ -48,7 +50,7 @@ function ServerCard({ server }: { server: MCPServerStatus }) {
       <div className="flex items-start justify-between mb-2">
         <div className="flex-1 min-w-0">
           <h5 className="font-semibold text-sm text-slate-900 truncate">
-            {server.name}
+            {displayName}
           </h5>
         </div>
         <div className="flex-shrink-0 ml-2">
@@ -62,7 +64,7 @@ function ServerCard({ server }: { server: MCPServerStatus }) {
 
       <div className="flex items-center justify-between text-xs">
         <span className="text-slate-600">
-          {server.tools_count} tool{server.tools_count !== 1 ? 's' : ''}
+          {server.tools_count ? `${server.tools_count} tool${server.tools_count !== 1 ? 's' : ''}` : 'Server'}
         </span>
         <span className={`px-2 py-0.5 rounded-full font-medium ${agentConfig.bg} ${agentConfig.color}`}>
           {agentConfig.name}
@@ -106,7 +108,7 @@ export default function MCPServerGrid({ servers, isLoading }: MCPServerGridProps
     );
   }
 
-  const healthyCount = servers.filter((s) => s.status === 'healthy').length;
+  const healthyCount = servers.filter((s) => s.status === 'healthy' || s.status === 'active').length;
   const totalCount = servers.length;
 
   return (

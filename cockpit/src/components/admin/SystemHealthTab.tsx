@@ -12,23 +12,23 @@ import ServiceHealthGrid from './ServiceHealthGrid';
 import MCPServerGrid from './MCPServerGrid';
 import RecentErrorsTable from './RecentErrorsTable';
 
-// Hardcoded MCP servers for now (could be fetched from backend later)
-const MCP_SERVERS: MCPServerStatus[] = [
-  { name: 'web-intelligence', status: 'healthy', tools_count: 8, primary_agent: 'ALL' },
-  { name: 'cms-connector', status: 'healthy', tools_count: 12, primary_agent: 'luna' },
-  { name: 'seo-audit', status: 'healthy', tools_count: 5, primary_agent: 'luna' },
-  { name: 'keyword-research', status: 'healthy', tools_count: 4, primary_agent: 'luna' },
-  { name: 'google-ads', status: 'healthy', tools_count: 6, primary_agent: 'sora' },
-  { name: 'meta-ads', status: 'healthy', tools_count: 7, primary_agent: 'sora' },
-  { name: 'google-ads-launcher', status: 'healthy', tools_count: 5, primary_agent: 'marcus' },
-  { name: 'budget-optimizer', status: 'healthy', tools_count: 4, primary_agent: 'marcus' },
-  { name: 'gtm', status: 'healthy', tools_count: 6, primary_agent: 'sora' },
-  { name: 'looker', status: 'healthy', tools_count: 5, primary_agent: 'sora' },
-  { name: 'elevenlabs', status: 'healthy', tools_count: 3, primary_agent: 'milo' },
-  { name: 'nano-banana-pro', status: 'healthy', tools_count: 4, primary_agent: 'milo' },
-  { name: 'veo3', status: 'healthy', tools_count: 3, primary_agent: 'milo' },
-  { name: 'social-media', status: 'healthy', tools_count: 8, primary_agent: 'doffy' },
-];
+// Mapping of MCP servers to primary agents (business logic)
+const SERVER_PRIMARY_AGENTS: Record<string, 'luna' | 'sora' | 'marcus' | 'milo' | 'doffy' | 'ALL'> = {
+  'web-intelligence': 'ALL',
+  'cms-connector': 'luna',
+  'seo-audit': 'luna',
+  'keyword-research': 'luna',
+  'google-ads': 'sora',
+  'meta-ads': 'sora',
+  'google-ads-launcher': 'marcus',
+  'budget-optimizer': 'marcus',
+  'gtm': 'sora',
+  'looker': 'sora',
+  'elevenlabs': 'milo',
+  'nano-banana-pro': 'milo',
+  'veo3': 'milo',
+  'social-media': 'doffy',
+};
 
 export default function SystemHealthTab() {
   const [health, setHealth] = useState<any>(null);
@@ -36,6 +36,7 @@ export default function SystemHealthTab() {
   const [loading, setLoading] = useState(true);
   const [errorsLoading, setErrorsLoading] = useState(true);
   const [isLive, setIsLive] = useState(false);
+  const [mcpServers, setMcpServers] = useState<MCPServerStatus[]>([]);
 
   useEffect(() => {
     loadData();
@@ -82,6 +83,17 @@ export default function SystemHealthTab() {
     try {
       const data = await getSystemHealth();
       setHealth(data);
+
+      // Extract MCP servers from health data and add primary agents
+      if (data?.mcp_bridge?.servers) {
+        const serversWithAgents = data.mcp_bridge.servers.map((server: MCPServerStatus) => ({
+          ...server,
+          primary_agent: SERVER_PRIMARY_AGENTS[server.name] || 'ALL',
+        }));
+        setMcpServers(serversWithAgents);
+      } else {
+        setMcpServers([]);
+      }
     } catch (error) {
       console.error('[SystemHealthTab] Error loading health:', error);
     } finally {
@@ -110,7 +122,7 @@ export default function SystemHealthTab() {
       <ServiceHealthGrid health={health} isLoading={loading} />
 
       {/* MCP Servers */}
-      <MCPServerGrid servers={MCP_SERVERS} isLoading={false} />
+      <MCPServerGrid servers={mcpServers} isLoading={loading} />
 
       {/* Recent Errors */}
       <RecentErrorsTable errors={errors} isLoading={errorsLoading} isLive={isLive} />

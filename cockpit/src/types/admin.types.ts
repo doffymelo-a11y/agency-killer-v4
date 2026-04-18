@@ -17,9 +17,13 @@ export interface ServiceHealth {
   details?: string;
 }
 
+export interface MCPBridgeHealth extends ServiceHealth {
+  servers?: MCPServerStatus[];
+}
+
 export interface SystemHealth {
   backend: ServiceHealth;
-  mcp_bridge: ServiceHealth;
+  mcp_bridge: MCPBridgeHealth;
   supabase: ServiceHealth;
   claude_api: ServiceHealth;
   timestamp: string;
@@ -27,10 +31,12 @@ export interface SystemHealth {
 
 export interface MCPServerStatus {
   name: string;
-  status: ServiceStatus;
-  tools_count: number;
-  primary_agent: 'luna' | 'sora' | 'marcus' | 'milo' | 'doffy' | 'ALL';
+  displayName?: string;
+  status: 'active' | 'inactive' | 'error' | 'healthy';
+  tools_count?: number;
+  primary_agent?: 'luna' | 'sora' | 'marcus' | 'milo' | 'doffy' | 'ALL';
   last_call?: string; // ISO timestamp
+  path?: string;
 }
 
 // ─────────────────────────────────────────────────────────────────

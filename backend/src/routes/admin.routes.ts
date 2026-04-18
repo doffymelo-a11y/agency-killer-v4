@@ -206,6 +206,34 @@ router.get(
     const uptimeMs = process.uptime() * 1000;
     const uptimeStatus = uptimeMs > 3600000 ? 'Operational' : 'Starting';
 
+    // Fetch MCP server statuses if bridge is healthy
+    let mcpServers: any[] = [];
+    if (mcpBridgeOk) {
+      try {
+        // Get server list and connection status
+        const [serversRes, statusRes] = await Promise.all([
+          fetch('http://localhost:3456/api/servers'),
+          fetch('http://localhost:3456/api/status'),
+        ]);
+
+        const serversData = await serversRes.json();
+        const statusData = await statusRes.json();
+
+        if (serversData.success && statusData.success) {
+          // Map servers with their connection status
+          mcpServers = serversData.servers.map((server: any) => ({
+            name: server.id,
+            displayName: server.name,
+            status: statusData.connections[server.id] ? 'active' : 'inactive',
+            path: server.path,
+          }));
+        }
+      } catch (error) {
+        // Log error but don't fail the whole health check
+        console.error('[Health] Failed to fetch MCP server details:', error);
+      }
+    }
+
     res.json({
       success: true,
       data: {
@@ -220,6 +248,7 @@ router.get(
           status: mcpBridgeOk ? 'healthy' : 'down',
           details: mcpBridgeOk ? 'Operational' : 'Unavailable',
           lastCheck: new Date().toISOString(),
+          servers: mcpServers,
         },
         supabase: {
           name: 'Supabase',
