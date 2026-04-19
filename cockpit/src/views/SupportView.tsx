@@ -296,7 +296,7 @@ export default function SupportView() {
         <div className="flex items-center justify-between max-w-5xl mx-auto">
           <div className="flex items-center gap-4">
             <button
-              onClick={() => navigate('/')}
+              onClick={() => navigate(currentProject ? `/board/${currentProject.id}` : '/projects')}
               className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
               title="Retour au tableur de tâches"
             >
