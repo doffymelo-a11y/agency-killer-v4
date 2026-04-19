@@ -296,8 +296,9 @@ export default function SupportView() {
         <div className="flex items-center justify-between max-w-5xl mx-auto">
           <div className="flex items-center gap-4">
             <button
-              onClick={() => navigate(-1)}
+              onClick={() => navigate('/')}
               className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+              title="Retour au tableur de tâches"
             >
               <ArrowLeft className="w-5 h-5 text-slate-600" />
             </button>
