@@ -17,6 +17,7 @@ import phaseTransitionRoutes from './routes/phase-transition.routes.js';
 import taskExplainerRoutes from './routes/task-explainer.routes.js';
 import cmsRoutes from './routes/cms.routes.js';
 import adminRoutes from './routes/admin.routes.js';
+import superAdminRoutes from './routes/super-admin.routes.js';
 
 // Middleware
 import { errorHandler } from './middleware/error.middleware.js';
@@ -98,6 +99,7 @@ app.use('/api/phase-transition', phaseTransitionRoutes);
 app.use('/api/task-explainer', taskExplainerRoutes);
 app.use('/api/cms', cmsRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/superadmin', superAdminRoutes);
 
 // Fallback 404
 app.use((req, res) => {
@@ -158,6 +160,14 @@ async function start() {
       console.log(`    GET  /api/admin/stats/business   - Business metrics`);
       console.log(`    GET  /api/admin/logs/recent      - Recent system logs`);
       console.log(`    GET  /api/admin/logs/error-count - Error count`);
+      console.log('');
+      console.log('  Super Admin Endpoints (super_admin role only):');
+      console.log(`    GET    /api/superadmin/tickets       - List all support tickets`);
+      console.log(`    GET    /api/superadmin/tickets/:id   - View ticket details`);
+      console.log(`    PATCH  /api/superadmin/tickets/:id/status - Update ticket status`);
+      console.log(`    POST   /api/superadmin/tickets/:id/reply  - Reply to ticket`);
+      console.log(`    GET    /api/superadmin/users         - List all users`);
+      console.log(`    GET    /api/superadmin/logs/audit    - View audit trail`);
       console.log('');
       console.log('  Services:');
       console.log(`    Supabase:    ${isSupabaseConfigured() ? '✓' : '✗'}`);
