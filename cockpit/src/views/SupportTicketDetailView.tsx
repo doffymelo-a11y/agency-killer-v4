@@ -57,6 +57,7 @@ import type {
   SupportMessage,
   TicketStatus,
   TicketPriority,
+  TicketCategory,
   InternalNote,
 } from '../types/support.types';
 import {
@@ -464,55 +465,81 @@ export default function SupportTicketDetailView() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className={`px-3 py-1.5 rounded-full text-sm font-medium border ${statusConfig.bgColor} ${statusConfig.color}`}>
-              {statusConfig.icon} {statusConfig.label}
-            </div>
-            <div className={`px-3 py-1.5 rounded-lg text-sm font-medium ${priorityConfig.color}`}>
-              {priorityConfig.icon} Priorité {priorityConfig.label}
-            </div>
-            <div className="flex items-center gap-1.5 text-sm text-slate-500">
-              <Clock className="w-4 h-4" />
-              Créé {getRelativeTime(ticket.created_at)}
-            </div>
-          </div>
-
-          {/* Admin Controls */}
-          {isAdmin && (
-            <div className="mt-4 pt-4 border-t border-slate-200 flex items-center gap-3">
-              <select
-                value={ticket.status}
-                onChange={(e) => handleUpdateStatus(e.target.value as TicketStatus)}
-                className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm"
-              >
-                {Object.entries(TICKET_STATUS_CONFIG).map(([key, config]) => (
-                  <option key={key} value={key}>
-                    {config.icon} {config.label}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={ticket.priority}
-                onChange={(e) => handleUpdatePriority(e.target.value as TicketPriority)}
-                className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm"
-              >
-                {Object.entries(TICKET_PRIORITY_CONFIG).map(([key, config]) => (
-                  <option key={key} value={key}>
-                    {config.icon} {config.label}
-                  </option>
-                ))}
-              </select>
-
-              {!ticket.assigned_to && (
-                <button
-                  onClick={handleAssign}
-                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm"
-                >
-                  S'assigner
-                </button>
+          {/* USER VIEW: Simplified status display */}
+          {!isAdmin && (
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className={`px-3 py-1.5 rounded-full text-sm font-medium border ${statusConfig.bgColor} ${statusConfig.color}`}>
+                {statusConfig.icon} {statusConfig.label}
+              </div>
+              <div className="flex items-center gap-1.5 text-sm text-slate-500">
+                <Clock className="w-4 h-4" />
+                Créé {getRelativeTime(ticket.created_at)}
+              </div>
+              {ticket.status === 'open' && (
+                <p className="text-sm text-slate-600 ml-2">
+                  Notre équipe va vous répondre sous peu
+                </p>
+              )}
+              {ticket.status === 'in_progress' && (
+                <p className="text-sm text-cyan-700 ml-2">
+                  ⚡ Notre équipe travaille sur votre demande
+                </p>
               )}
             </div>
+          )}
+
+          {/* ADMIN VIEW: Full details */}
+          {isAdmin && (
+            <>
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className={`px-3 py-1.5 rounded-full text-sm font-medium border ${statusConfig.bgColor} ${statusConfig.color}`}>
+                  {statusConfig.icon} {statusConfig.label}
+                </div>
+                <div className={`px-3 py-1.5 rounded-lg text-sm font-medium ${priorityConfig.color}`}>
+                  {priorityConfig.icon} Priorité {priorityConfig.label}
+                </div>
+                <div className="flex items-center gap-1.5 text-sm text-slate-500">
+                  <Clock className="w-4 h-4" />
+                  Créé {getRelativeTime(ticket.created_at)}
+                </div>
+              </div>
+
+              {/* Admin Controls */}
+              <div className="mt-4 pt-4 border-t border-slate-200 flex items-center gap-3">
+                <select
+                  value={ticket.status}
+                  onChange={(e) => handleUpdateStatus(e.target.value as TicketStatus)}
+                  className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm"
+                >
+                  {Object.entries(TICKET_STATUS_CONFIG).map(([key, config]) => (
+                    <option key={key} value={key}>
+                      {config.icon} {config.label}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={ticket.priority}
+                  onChange={(e) => handleUpdatePriority(e.target.value as TicketPriority)}
+                  className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm"
+                >
+                  {Object.entries(TICKET_PRIORITY_CONFIG).map(([key, config]) => (
+                    <option key={key} value={key}>
+                      {config.icon} {config.label}
+                    </option>
+                  ))}
+                </select>
+
+                {!ticket.assigned_to && (
+                  <button
+                    onClick={handleAssign}
+                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm"
+                  >
+                    S'assigner
+                  </button>
+                )}
+              </div>
+            </>
           )}
         </div>
       </div>
@@ -580,61 +607,98 @@ export default function SupportTicketDetailView() {
           )}
 
           {/* Input Form */}
-          <form onSubmit={handleSendMessage} className="p-4 border-t border-slate-200 bg-slate-50 space-y-3">
-            {/* File uploader */}
-            <FileUploader
-              onFilesUploaded={(files) => setAttachments(files)}
-              disabled={sending}
-            />
+          {(ticket.status !== 'resolved' && ticket.status !== 'closed') && (
+            <form onSubmit={handleSendMessage} className="p-4 border-t border-slate-200 bg-slate-50 space-y-3">
+              {/* User Help Text */}
+              {!isAdmin && (
+                <div className="flex items-start gap-2 p-3 bg-cyan-50 border border-cyan-200 rounded-lg">
+                  <Bot className="w-5 h-5 text-cyan-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm text-cyan-900 font-medium">
+                      Besoin de plus d'informations ou d'aide supplémentaire ?
+                    </p>
+                    <p className="text-xs text-cyan-700 mt-1">
+                      Ajoutez un message ci-dessous et notre équipe vous répondra rapidement.
+                    </p>
+                  </div>
+                </div>
+              )}
 
-            {/* Response Templates (Admin Only) */}
-            {isAdmin && responseTemplates.length > 0 && (
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1.5">
-                  💬 Modèles de réponse
-                </label>
-                <select
-                  onChange={(e) => {
-                    if (e.target.value) {
-                      handleInsertTemplate(e.target.value);
-                      e.target.value = ''; // Reset after selection
-                    }
-                  }}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 focus:border-transparent bg-white"
-                  disabled={sending}
-                  defaultValue=""
-                >
-                  <option value="">Sélectionner un modèle de réponse...</option>
-                  {responseTemplates.map((template) => (
-                    <option key={template.id} value={template.id}>
-                      {template.title}
-                      {template.usage_count > 0 && ` (utilisé ${template.usage_count}×)`}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {/* Message input */}
-            <div className="flex items-end gap-3">
-              <textarea
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                placeholder="Ajouter un message..."
-                rows={3}
-                className="flex-1 px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent resize-none"
+              {/* File uploader */}
+              <FileUploader
+                onFilesUploaded={(files) => setAttachments(files)}
                 disabled={sending}
               />
+
+              {/* Response Templates (Admin Only) */}
+              {isAdmin && responseTemplates.length > 0 && (
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1.5">
+                    💬 Modèles de réponse
+                  </label>
+                  <select
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        handleInsertTemplate(e.target.value);
+                        e.target.value = ''; // Reset after selection
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 focus:border-transparent bg-white"
+                    disabled={sending}
+                    defaultValue=""
+                  >
+                    <option value="">Sélectionner un modèle de réponse...</option>
+                    {responseTemplates.map((template) => (
+                      <option key={template.id} value={template.id}>
+                        {template.title}
+                        {template.usage_count > 0 && ` (utilisé ${template.usage_count}×)`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Message input */}
+              <div className="flex items-end gap-3">
+                <textarea
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  placeholder={isAdmin ? "Ajouter un message..." : "Décrivez votre problème ou posez une question..."}
+                  rows={3}
+                  className="flex-1 px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent resize-none"
+                  disabled={sending}
+                />
+                <button
+                  type="submit"
+                  disabled={sending || !newMessage.trim()}
+                  className="px-6 py-3 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                  Envoyer
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* Ticket closed message for users */}
+          {!isAdmin && (ticket.status === 'resolved' || ticket.status === 'closed') && (
+            <div className="p-6 border-t border-slate-200 bg-slate-50 text-center">
+              <CheckCircle2 className="w-12 h-12 text-green-600 mx-auto mb-3" />
+              <h3 className="text-lg font-semibold text-slate-900 mb-2">
+                Ticket résolu
+              </h3>
+              <p className="text-sm text-slate-600 mb-4">
+                Ce ticket a été marqué comme résolu. Si vous avez d'autres questions,
+                n'hésitez pas à créer un nouveau ticket.
+              </p>
               <button
-                type="submit"
-                disabled={sending || !newMessage.trim()}
-                className="px-6 py-3 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                onClick={() => navigate('/support')}
+                className="px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-medium transition-colors"
               >
-                {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                Envoyer
+                Retour à mes tickets
               </button>
             </div>
-          </form>
+          )}
         </div>
 
         {/* Internal Notes (Admin Only) */}
@@ -808,16 +872,27 @@ export default function SupportTicketDetailView() {
           </div>
         )}
 
-        {/* Actions */}
+        {/* User Action: Mark as resolved */}
         {ticket.status !== 'resolved' && ticket.status !== 'closed' && !isAdmin && (
-          <div className="mt-4">
-            <button
-              onClick={handleMarkResolved}
-              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
-            >
-              <CheckCircle2 className="w-4 h-4" />
-              Marquer comme résolu
-            </button>
+          <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-green-900 mb-1">
+                  Votre problème est résolu ?
+                </h3>
+                <p className="text-xs text-green-700">
+                  Si notre réponse a résolu votre problème, vous pouvez marquer ce ticket comme résolu.
+                  Vous pourrez toujours le consulter dans votre historique.
+                </p>
+              </div>
+              <button
+                onClick={handleMarkResolved}
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2 flex-shrink-0"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                Marquer comme résolu
+              </button>
+            </div>
           </div>
         )}
       </div>
