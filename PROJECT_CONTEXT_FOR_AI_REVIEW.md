@@ -37,9 +37,9 @@ Instead of hiring:
 
 **Total**: $12-20k/month for a full marketing team
 
-**Users get**: 4 specialized AI agents for **$97-297/month**
+**Users get**: 5 specialized AI agents for **$97-297/month**
 
-### The 4 AI Agents
+### The 5 AI Agents
 
 1. **Luna** (SEO & Content Strategist)
    - Color: Purple (#8B5CF6)
@@ -60,6 +60,11 @@ Instead of hiring:
    - Color: Rose (#EC4899)
    - Expertise: Image generation, video creation, audio production, brand assets
    - MCP Servers: elevenlabs, nano-banana-pro (images), veo3 (videos)
+
+5. **Doffy** (Social Media & Community Manager)
+   - Color: Green (#10B981)
+   - Expertise: Social media strategy, content scheduling, community engagement, influencer outreach
+   - MCP Servers: social-media, web-intelligence
 
 ### How It Works
 
@@ -318,7 +323,7 @@ Recommendations: ..."
 ### What's Working ✅
 
 **Core Platform**:
-- ✅ 4 AI agents (Luna, Sora, Marcus, Milo) functional
+- ✅ 5 AI agents (Luna, Sora, Marcus, Milo, Doffy) functional
 - ✅ 11/14 MCP servers operational (3 inactive: elevenlabs, veo3, nano-banana-pro)
 - ✅ Project & task management complete
 - ✅ Collective memory system working

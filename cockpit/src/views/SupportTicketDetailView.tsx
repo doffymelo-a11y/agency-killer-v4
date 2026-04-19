@@ -16,10 +16,6 @@ import {
   Image as ImageIcon,
   Clock,
   AlertTriangle,
-  Lock,
-  Trash2,
-  Copy,
-  ExternalLink,
 } from 'lucide-react';
 import { getCurrentUser, supabase } from '../lib/supabase';
 import FileUploader, {
@@ -33,32 +29,14 @@ import {
   getTicketMessages,
   sendMessage,
   markTicketMessagesAsRead,
-  markTicketResolved,
-  updateTicketStatus,
-  updateTicketPriority,
-  assignTicket,
   subscribeToTicketMessages,
   subscribeToTicketUpdates,
   formatTicketNumber,
   getRelativeTime,
-  getInternalNotes,
-  createInternalNote,
-  deleteInternalNote,
-  getResponseTemplates,
-  incrementResponseTemplateUsage,
-  generateTicketEmbedding,
-  findTicketDuplicates,
-  markTicketAsDuplicate,
-  type ResponseTemplate,
-  type SimilarTicket,
 } from '../services/support.service';
 import type {
   SupportTicket,
   SupportMessage,
-  TicketStatus,
-  TicketPriority,
-  TicketCategory,
-  InternalNote,
 } from '../types/support.types';
 import {
   TICKET_STATUS_CONFIG,
@@ -78,20 +56,8 @@ export default function SupportTicketDetailView() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [attachments, setAttachments] = useState<FileAttachment[]>([]);
 
-  // Internal notes (admin only)
-  const [internalNotes, setInternalNotes] = useState<InternalNote[]>([]);
-  const [newNote, setNewNote] = useState('');
-  const [savingNote, setSavingNote] = useState(false);
-
   // Satisfaction survey
   const [hasSurvey, setHasSurvey] = useState(false);
-
-  // Response templates (admin only)
-  const [responseTemplates, setResponseTemplates] = useState<ResponseTemplate[]>([]);
-
-  // Similar tickets / duplicate detection (admin only)
-  const [similarTickets, setSimilarTickets] = useState<SimilarTicket[]>([]);
-  const [loadingSimilar, setLoadingSimilar] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -120,27 +86,6 @@ export default function SupportTicketDetailView() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
-
-  // Load internal notes when admin status changes
-  useEffect(() => {
-    if (isAdmin && ticketId) {
-      loadInternalNotes();
-    }
-  }, [isAdmin, ticketId]);
-
-  // Load response templates when admin status changes
-  useEffect(() => {
-    if (isAdmin && ticket) {
-      loadResponseTemplates();
-    }
-  }, [isAdmin, ticket]);
-
-  // Load similar tickets when admin views ticket
-  useEffect(() => {
-    if (isAdmin && ticketId) {
-      loadSimilarTickets();
-    }
-  }, [isAdmin, ticketId]);
 
   // ─────────────────────────────────────────────────────────────────
   // Load Data
@@ -229,177 +174,6 @@ export default function SupportTicketDetailView() {
     }
   };
 
-  // ─────────────────────────────────────────────────────────────────
-  // Actions
-  // ─────────────────────────────────────────────────────────────────
-
-  const handleMarkResolved = async () => {
-    if (!ticketId) return;
-
-    try {
-      await markTicketResolved(ticketId);
-      setTicket((prev) => (prev ? { ...prev, status: 'resolved' } : null));
-    } catch (error: any) {
-      alert(`Erreur : ${error.message}`);
-    }
-  };
-
-  const handleUpdateStatus = async (status: TicketStatus) => {
-    if (!ticketId || !isAdmin) return;
-
-    try {
-      await updateTicketStatus(ticketId, status);
-      setTicket((prev) => (prev ? { ...prev, status } : null));
-    } catch (error: any) {
-      alert(`Erreur : ${error.message}`);
-    }
-  };
-
-  const handleUpdatePriority = async (priority: TicketPriority) => {
-    if (!ticketId || !isAdmin) return;
-
-    try {
-      await updateTicketPriority(ticketId, priority);
-      setTicket((prev) => (prev ? { ...prev, priority } : null));
-    } catch (error: any) {
-      alert(`Erreur : ${error.message}`);
-    }
-  };
-
-  const handleAssign = async () => {
-    if (!ticketId || !isAdmin) return;
-
-    const user = await getCurrentUser();
-    if (!user) return;
-
-    try {
-      await assignTicket(ticketId, user.id);
-      setTicket((prev) => (prev ? { ...prev, assigned_to: user.id } : null));
-    } catch (error: any) {
-      alert(`Erreur : ${error.message}`);
-    }
-  };
-
-  // ─────────────────────────────────────────────────────────────────
-  // Internal Notes (Admin Only)
-  // ─────────────────────────────────────────────────────────────────
-
-  const loadInternalNotes = async () => {
-    if (!ticketId || !isAdmin) return;
-
-    try {
-      const notes = await getInternalNotes(ticketId);
-      setInternalNotes(notes);
-    } catch (error) {
-      console.error('[Support] Error loading internal notes:', error);
-    }
-  };
-
-  const handleCreateNote = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!newNote.trim() || !ticketId) return;
-
-    setSavingNote(true);
-    try {
-      const note = await createInternalNote(ticketId, newNote.trim());
-      setInternalNotes((prev) => [...prev, note]);
-      setNewNote('');
-    } catch (error: any) {
-      console.error('[Support] Error creating note:', error);
-      alert(`Erreur : ${error.message}`);
-    } finally {
-      setSavingNote(false);
-    }
-  };
-
-  const handleDeleteNote = async (noteId: string) => {
-    if (!confirm('Supprimer cette note interne ?')) return;
-
-    try {
-      await deleteInternalNote(noteId);
-      setInternalNotes((prev) => prev.filter((n) => n.id !== noteId));
-    } catch (error: any) {
-      console.error('[Support] Error deleting note:', error);
-      alert(`Erreur : ${error.message}`);
-    }
-  };
-
-  // ─────────────────────────────────────────────────────────────────
-  // Response Templates (Admin Only)
-  // ─────────────────────────────────────────────────────────────────
-
-  const loadResponseTemplates = async () => {
-    if (!ticketId || !isAdmin || !ticket) return;
-
-    try {
-      const templates = await getResponseTemplates(ticket.category);
-      setResponseTemplates(templates);
-    } catch (error) {
-      console.error('[Support] Error loading response templates:', error);
-    }
-  };
-
-  const handleInsertTemplate = async (templateId: string) => {
-    const template = responseTemplates.find((t) => t.id === templateId);
-    if (!template) return;
-
-    setNewMessage(template.body);
-
-    // Increment usage counter
-    try {
-      await incrementResponseTemplateUsage(templateId);
-    } catch (error) {
-      console.error('[Support] Error incrementing template usage:', error);
-    }
-  };
-
-  // ─────────────────────────────────────────────────────────────────
-  // Similar Tickets / Duplicate Detection (Admin Only)
-  // ─────────────────────────────────────────────────────────────────
-
-  const loadSimilarTickets = async () => {
-    if (!ticketId || !isAdmin) return;
-
-    setLoadingSimilar(true);
-    try {
-      // Try to find duplicates (requires embedding to exist)
-      const similar = await findTicketDuplicates(ticketId, 0.80, 5);
-      setSimilarTickets(similar);
-
-      // If no embedding yet and no similar tickets found, generate embedding
-      if (similar.length === 0) {
-        console.log('[Support] No embedding found, generating...');
-        const result = await generateTicketEmbedding(ticketId);
-        if (result.similar_tickets) {
-          setSimilarTickets(result.similar_tickets);
-        }
-      }
-    } catch (error) {
-      console.error('[Support] Error loading similar tickets:', error);
-      // Don't show alert, just log - this is a non-critical feature
-    } finally {
-      setLoadingSimilar(false);
-    }
-  };
-
-  const handleMarkAsDuplicate = async (originalTicketId: string) => {
-    if (!ticketId) return;
-
-    if (!confirm('Marquer ce ticket comme doublon ? Il sera automatiquement fermé.')) {
-      return;
-    }
-
-    try {
-      await markTicketAsDuplicate(ticketId, originalTicketId);
-      // Reload ticket to show updated status
-      await loadTicketAndMessages();
-      alert('Ticket marqué comme doublon');
-    } catch (error: any) {
-      console.error('[Support] Error marking as duplicate:', error);
-      alert(`Erreur : ${error.message}`);
-    }
-  };
 
   // ─────────────────────────────────────────────────────────────────
   // Utilities
@@ -440,7 +214,6 @@ export default function SupportTicketDetailView() {
 
   const statusConfig = TICKET_STATUS_CONFIG[ticket.status];
   const categoryConfig = TICKET_CATEGORY_CONFIG[ticket.category];
-  const priorityConfig = TICKET_PRIORITY_CONFIG[ticket.priority];
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -465,82 +238,26 @@ export default function SupportTicketDetailView() {
             </div>
           </div>
 
-          {/* USER VIEW: Simplified status display */}
-          {!isAdmin && (
-            <div className="flex items-center gap-3 flex-wrap">
-              <div className={`px-3 py-1.5 rounded-full text-sm font-medium border ${statusConfig.bgColor} ${statusConfig.color}`}>
-                {statusConfig.icon} {statusConfig.label}
-              </div>
-              <div className="flex items-center gap-1.5 text-sm text-slate-500">
-                <Clock className="w-4 h-4" />
-                Créé {getRelativeTime(ticket.created_at)}
-              </div>
-              {ticket.status === 'open' && (
-                <p className="text-sm text-slate-600 ml-2">
-                  Notre équipe va vous répondre sous peu
-                </p>
-              )}
-              {ticket.status === 'in_progress' && (
-                <p className="text-sm text-cyan-700 ml-2">
-                  ⚡ Notre équipe travaille sur votre demande
-                </p>
-              )}
+          {/* SIMPLIFIED VIEW FOR EVERYONE */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className={`px-3 py-1.5 rounded-full text-sm font-medium border ${statusConfig.bgColor} ${statusConfig.color}`}>
+              {statusConfig.icon} {statusConfig.label}
             </div>
-          )}
-
-          {/* ADMIN VIEW: Full details */}
-          {isAdmin && (
-            <>
-              <div className="flex items-center gap-3 flex-wrap">
-                <div className={`px-3 py-1.5 rounded-full text-sm font-medium border ${statusConfig.bgColor} ${statusConfig.color}`}>
-                  {statusConfig.icon} {statusConfig.label}
-                </div>
-                <div className={`px-3 py-1.5 rounded-lg text-sm font-medium ${priorityConfig.color}`}>
-                  {priorityConfig.icon} Priorité {priorityConfig.label}
-                </div>
-                <div className="flex items-center gap-1.5 text-sm text-slate-500">
-                  <Clock className="w-4 h-4" />
-                  Créé {getRelativeTime(ticket.created_at)}
-                </div>
-              </div>
-
-              {/* Admin Controls */}
-              <div className="mt-4 pt-4 border-t border-slate-200 flex items-center gap-3">
-                <select
-                  value={ticket.status}
-                  onChange={(e) => handleUpdateStatus(e.target.value as TicketStatus)}
-                  className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm"
-                >
-                  {Object.entries(TICKET_STATUS_CONFIG).map(([key, config]) => (
-                    <option key={key} value={key}>
-                      {config.icon} {config.label}
-                    </option>
-                  ))}
-                </select>
-
-                <select
-                  value={ticket.priority}
-                  onChange={(e) => handleUpdatePriority(e.target.value as TicketPriority)}
-                  className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm"
-                >
-                  {Object.entries(TICKET_PRIORITY_CONFIG).map(([key, config]) => (
-                    <option key={key} value={key}>
-                      {config.icon} {config.label}
-                    </option>
-                  ))}
-                </select>
-
-                {!ticket.assigned_to && (
-                  <button
-                    onClick={handleAssign}
-                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm"
-                  >
-                    S'assigner
-                  </button>
-                )}
-              </div>
-            </>
-          )}
+            <div className="flex items-center gap-1.5 text-sm text-slate-500">
+              <Clock className="w-4 h-4" />
+              Créé {getRelativeTime(ticket.created_at)}
+            </div>
+            {ticket.status === 'open' && (
+              <p className="text-sm text-slate-600 ml-2">
+                Notre équipe va vous répondre sous peu
+              </p>
+            )}
+            {ticket.status === 'in_progress' && (
+              <p className="text-sm text-cyan-700 ml-2">
+                ⚡ Notre équipe travaille sur votre demande
+              </p>
+            )}
+          </div>
         </div>
       </div>
 
@@ -609,20 +326,18 @@ export default function SupportTicketDetailView() {
           {/* Input Form */}
           {(ticket.status !== 'resolved' && ticket.status !== 'closed') && (
             <form onSubmit={handleSendMessage} className="p-4 border-t border-slate-200 bg-slate-50 space-y-3">
-              {/* User Help Text */}
-              {!isAdmin && (
-                <div className="flex items-start gap-2 p-3 bg-cyan-50 border border-cyan-200 rounded-lg">
-                  <Bot className="w-5 h-5 text-cyan-600 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-sm text-cyan-900 font-medium">
-                      Besoin de plus d'informations ou d'aide supplémentaire ?
-                    </p>
-                    <p className="text-xs text-cyan-700 mt-1">
-                      Ajoutez un message ci-dessous et notre équipe vous répondra rapidement.
-                    </p>
-                  </div>
+              {/* Help Text */}
+              <div className="flex items-start gap-2 p-3 bg-cyan-50 border border-cyan-200 rounded-lg">
+                <Bot className="w-5 h-5 text-cyan-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm text-cyan-900 font-medium">
+                    Besoin de plus d'informations ou d'aide supplémentaire ?
+                  </p>
+                  <p className="text-xs text-cyan-700 mt-1">
+                    Ajoutez un message ci-dessous et notre équipe vous répondra rapidement.
+                  </p>
                 </div>
-              )}
+              </div>
 
               {/* File uploader */}
               <FileUploader
@@ -630,40 +345,12 @@ export default function SupportTicketDetailView() {
                 disabled={sending}
               />
 
-              {/* Response Templates (Admin Only) */}
-              {isAdmin && responseTemplates.length > 0 && (
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1.5">
-                    💬 Modèles de réponse
-                  </label>
-                  <select
-                    onChange={(e) => {
-                      if (e.target.value) {
-                        handleInsertTemplate(e.target.value);
-                        e.target.value = ''; // Reset after selection
-                      }
-                    }}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 focus:border-transparent bg-white"
-                    disabled={sending}
-                    defaultValue=""
-                  >
-                    <option value="">Sélectionner un modèle de réponse...</option>
-                    {responseTemplates.map((template) => (
-                      <option key={template.id} value={template.id}>
-                        {template.title}
-                        {template.usage_count > 0 && ` (utilisé ${template.usage_count}×)`}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
               {/* Message input */}
               <div className="flex items-end gap-3">
                 <textarea
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder={isAdmin ? "Ajouter un message..." : "Décrivez votre problème ou posez une question..."}
+                  placeholder="Ajouter un message..."
                   rows={3}
                   className="flex-1 px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent resize-none"
                   disabled={sending}
@@ -680,8 +367,8 @@ export default function SupportTicketDetailView() {
             </form>
           )}
 
-          {/* Ticket closed message for users */}
-          {!isAdmin && (ticket.status === 'resolved' || ticket.status === 'closed') && (
+          {/* Ticket closed message */}
+          {(ticket.status === 'resolved' || ticket.status === 'closed') && (
             <div className="p-6 border-t border-slate-200 bg-slate-50 text-center">
               <CheckCircle2 className="w-12 h-12 text-green-600 mx-auto mb-3" />
               <h3 className="text-lg font-semibold text-slate-900 mb-2">
@@ -700,201 +387,6 @@ export default function SupportTicketDetailView() {
             </div>
           )}
         </div>
-
-        {/* Internal Notes (Admin Only) */}
-        {isAdmin && (
-          <div className="mt-6 p-4 bg-red-50/50 border border-red-200 rounded-lg">
-            <div className="flex items-center gap-2 mb-4">
-              <Lock className="w-4 h-4 text-red-600" />
-              <h3 className="text-sm font-semibold text-red-800">
-                Notes Internes (Visibles uniquement par les admins)
-              </h3>
-            </div>
-
-            {/* Existing notes */}
-            {internalNotes.length > 0 && (
-              <div className="space-y-2 mb-4">
-                {internalNotes.map((note) => (
-                  <div
-                    key={note.id}
-                    className="p-3 bg-white border border-red-100 rounded-lg"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 text-xs text-slate-500 mb-1.5">
-                          <span className="font-medium text-red-700">
-                            {note.author_email || 'Admin'}
-                          </span>
-                          <span>•</span>
-                          <span>{getRelativeTime(note.created_at)}</span>
-                        </div>
-                        <p className="text-sm text-slate-700 whitespace-pre-wrap">
-                          {note.note}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => handleDeleteNote(note.id)}
-                        className="p-1.5 rounded-lg hover:bg-red-100 text-slate-400 hover:text-red-600 transition flex-shrink-0"
-                        title="Supprimer cette note"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Add note form */}
-            <div className="space-y-2">
-              <textarea
-                value={newNote}
-                onChange={(e) => setNewNote(e.target.value)}
-                placeholder="Ajouter une note interne (visible uniquement par les admins)..."
-                className="w-full px-3 py-2 border border-red-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
-                rows={3}
-              />
-              <button
-                onClick={handleCreateNote}
-                disabled={!newNote.trim() || savingNote}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                {savingNote ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Enregistrement...
-                  </>
-                ) : (
-                  <>
-                    <Lock className="w-4 h-4" />
-                    Ajouter une note interne
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Similar Tickets / Duplicate Detection (Admin Only) */}
-        {isAdmin && (
-          <div className="mt-6 p-4 bg-yellow-50/50 border border-yellow-200 rounded-lg">
-            <div className="flex items-center justify-between gap-2 mb-4">
-              <div className="flex items-center gap-2">
-                <Copy className="w-4 h-4 text-yellow-600" />
-                <h3 className="text-sm font-semibold text-yellow-800">
-                  Tickets similaires / Doublons potentiels
-                </h3>
-              </div>
-              {loadingSimilar && (
-                <Loader2 className="w-4 h-4 text-yellow-600 animate-spin" />
-              )}
-            </div>
-
-            {similarTickets.length === 0 && !loadingSimilar && (
-              <p className="text-sm text-slate-600">
-                Aucun doublon détecté. L'IA a analysé ce ticket et n'a trouvé aucun ticket similaire.
-              </p>
-            )}
-
-            {similarTickets.length > 0 && (
-              <>
-                <p className="text-xs text-yellow-700 mb-3">
-                  {similarTickets.length} ticket(s) similaire(s) détecté(s) par IA
-                </p>
-                <div className="space-y-2">
-                  {similarTickets.map((similar) => (
-                    <div
-                      key={similar.id}
-                      className="p-3 bg-white border border-yellow-100 rounded-lg hover:border-yellow-300 transition"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs font-mono font-semibold text-yellow-700">
-                              #{similar.ticket_number}
-                            </span>
-                            <span
-                              className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                                TICKET_STATUS_CONFIG[similar.status].color
-                              }`}
-                            >
-                              {TICKET_STATUS_CONFIG[similar.status].label}
-                            </span>
-                            <span className="text-xs font-medium text-yellow-600">
-                              {(similar.similarity * 100).toFixed(0)}% similaire
-                            </span>
-                          </div>
-                          <h4 className="text-sm font-medium text-slate-900 mb-1 line-clamp-1">
-                            {similar.subject}
-                          </h4>
-                          <p className="text-xs text-slate-600 line-clamp-2">
-                            {similar.description}
-                          </p>
-                          <div className="flex items-center gap-2 mt-2">
-                            <span
-                              className={`text-xs ${
-                                TICKET_CATEGORY_CONFIG[similar.category as TicketCategory].color
-                              }`}
-                            >
-                              {TICKET_CATEGORY_CONFIG[similar.category as TicketCategory].emoji}{' '}
-                              {TICKET_CATEGORY_CONFIG[similar.category as TicketCategory].label}
-                            </span>
-                            <span>•</span>
-                            <span className="text-xs text-slate-500">
-                              {getRelativeTime(similar.created_at)}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex flex-col gap-2 flex-shrink-0">
-                          <a
-                            href={`/support/${similar.id}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-1.5 rounded-lg hover:bg-yellow-100 text-yellow-600 hover:text-yellow-700 transition"
-                            title="Voir le ticket"
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                          </a>
-                          <button
-                            onClick={() => handleMarkAsDuplicate(similar.id)}
-                            className="p-1.5 rounded-lg hover:bg-yellow-100 text-yellow-600 hover:text-yellow-700 transition"
-                            title="Marquer comme doublon de ce ticket"
-                          >
-                            <Copy className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* User Action: Mark as resolved */}
-        {ticket.status !== 'resolved' && ticket.status !== 'closed' && !isAdmin && (
-          <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1">
-                <h3 className="text-sm font-semibold text-green-900 mb-1">
-                  Votre problème est résolu ?
-                </h3>
-                <p className="text-xs text-green-700">
-                  Si notre réponse a résolu votre problème, vous pouvez marquer ce ticket comme résolu.
-                  Vous pourrez toujours le consulter dans votre historique.
-                </p>
-              </div>
-              <button
-                onClick={handleMarkResolved}
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2 flex-shrink-0"
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                Marquer comme résolu
-              </button>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Help Button */}
