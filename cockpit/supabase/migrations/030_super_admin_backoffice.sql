@@ -18,13 +18,13 @@ SECURITY DEFINER
 SET search_path = pg_catalog, public
 AS $$
 DECLARE
-  v_role VARCHAR;
+  v_user_role TEXT;
 BEGIN
-  SELECT role INTO v_role
-  FROM user_roles
-  WHERE user_id = auth.uid();
+  SELECT ur.role INTO v_user_role
+  FROM public.user_roles ur
+  WHERE ur.user_id = auth.uid();
 
-  RETURN v_role = 'super_admin';
+  RETURN v_user_role = 'super_admin';
 END;
 $$;
 
@@ -123,7 +123,7 @@ DECLARE
   v_log_id UUID;
   v_user_id UUID;
   v_user_email TEXT;
-  v_role VARCHAR;
+  v_user_role TEXT;
 BEGIN
   -- Get current user
   v_user_id := auth.uid();
@@ -140,14 +140,14 @@ BEGIN
     ur.role
   INTO
     v_user_email,
-    v_role
+    v_user_role
   FROM auth.users u
-  LEFT JOIN user_roles ur ON ur.user_id = u.id
+  LEFT JOIN public.user_roles ur ON ur.user_id = u.id
   WHERE u.id = v_user_id;
 
   -- Verify user is super_admin
-  IF v_role IS NULL OR v_role != 'super_admin' THEN
-    RAISE EXCEPTION 'Super admin access required (current role: %)', COALESCE(v_role, 'none')
+  IF v_user_role IS NULL OR v_user_role != 'super_admin' THEN
+    RAISE EXCEPTION 'Super admin access required (current role: %)', COALESCE(v_user_role, 'none')
       USING ERRCODE = 'insufficient_privilege';
   END IF;
 
