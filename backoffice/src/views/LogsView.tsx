@@ -7,14 +7,35 @@ import { useEffect, useState } from 'react';
 import { FileText, Search, RefreshCw, AlertCircle } from 'lucide-react';
 import { api } from '../lib/api';
 import type { AuditLog, SystemLog } from '../types';
+import {
+  Badge,
+  Button,
+  Input,
+  Tabs,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+  TableEmptyState,
+  Card,
+} from '../components/ui';
 
-const ACTION_CONFIG: Record<string, { label: string; color: string }> = {
-  UPDATE_TICKET: { label: 'Update Ticket', color: 'text-blue-600' },
-  ADD_NOTE: { label: 'Add Note', color: 'text-green-600' },
-  VIEW_TICKET: { label: 'View Ticket', color: 'text-slate-600' },
-  UPDATE_USER_ROLE: { label: 'Update User Role', color: 'text-amber-600' },
-  VIEW_LOGS: { label: 'View Logs', color: 'text-slate-600' },
-  VIEW_METRICS: { label: 'View Metrics', color: 'text-slate-600' },
+const ACTION_CONFIG: Record<string, { label: string; variant: any }> = {
+  UPDATE_TICKET: { label: 'Update Ticket', variant: 'open' },
+  ADD_NOTE: { label: 'Add Note', variant: 'resolved' },
+  VIEW_TICKET: { label: 'View Ticket', variant: 'user' },
+  UPDATE_USER_ROLE: { label: 'Update User Role', variant: 'admin' },
+  VIEW_LOGS: { label: 'View Logs', variant: 'user' },
+  VIEW_METRICS: { label: 'View Metrics', variant: 'user' },
+};
+
+const LEVEL_CONFIG: Record<string, { label: string; variant: any }> = {
+  error: { label: 'Error', variant: 'critical' },
+  warn: { label: 'Warning', variant: 'high' },
+  info: { label: 'Info', variant: 'open' },
+  debug: { label: 'Debug', variant: 'user' },
 };
 
 export default function LogsView() {
@@ -37,7 +58,6 @@ export default function LogsView() {
     if (activeTab === 'audit') {
       const response = await api.get<{ logs: AuditLog[]; pagination: any }>('/api/superadmin/logs/audit');
       if (response.success && response.data) {
-        // Backend returns { data: { logs: [...], pagination: {...} } }
         setAuditLogs(response.data.logs || []);
       } else {
         setError(response.error?.message || 'Failed to load audit logs');
@@ -45,7 +65,6 @@ export default function LogsView() {
     } else {
       const response = await api.get<{ logs: SystemLog[] }>('/api/superadmin/logs/system');
       if (response.success && response.data) {
-        // Backend returns { data: { logs: [...] } }
         setSystemLogs(response.data.logs || []);
       } else {
         setError(response.error?.message || 'Failed to load system logs');
@@ -95,71 +114,40 @@ export default function LogsView() {
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
   };
 
-  const getLevelColor = (level: string) => {
-    switch (level) {
-      case 'error':
-        return 'text-red-600 bg-red-50';
-      case 'warn':
-        return 'text-orange-600 bg-orange-50';
-      case 'info':
-        return 'text-blue-600 bg-blue-50';
-      case 'debug':
-        return 'text-slate-600 bg-slate-50';
-      default:
-        return 'text-slate-600 bg-slate-50';
-    }
-  };
-
   const uniqueActions = Array.from(new Set(auditLogs.map((log) => log.action)));
 
+  const tabs = [
+    { id: 'audit' as const, label: 'Audit Logs' },
+    { id: 'system' as const, label: 'System Logs' },
+  ];
+
   return (
-    <div className="p-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8">
       {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-4">
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900 mb-2">System Logs</h1>
-            <p className="text-slate-600">Monitor system activity and audit trail</p>
+            <h1 className="text-3xl font-bold text-white mb-2">System Logs</h1>
+            <p className="text-slate-400">Monitor system activity and audit trail</p>
           </div>
-          <button
-            onClick={loadLogs}
-            disabled={loading}
-            className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition flex items-center gap-2 disabled:opacity-50"
-          >
+          <Button variant="secondary" onClick={loadLogs} disabled={loading}>
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             Refresh
-          </button>
+          </Button>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 mb-4">
-          <button
-            onClick={() => setActiveTab('audit')}
-            className={`px-4 py-2 rounded-lg font-medium transition ${
-              activeTab === 'audit'
-                ? 'bg-amber-600 text-white'
-                : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
-            }`}
-          >
-            Audit Logs
-          </button>
-          <button
-            onClick={() => setActiveTab('system')}
-            className={`px-4 py-2 rounded-lg font-medium transition ${
-              activeTab === 'system'
-                ? 'bg-amber-600 text-white'
-                : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
-            }`}
-          >
-            System Logs
-          </button>
-        </div>
+        <Tabs
+          tabs={tabs}
+          activeTab={activeTab}
+          onChange={(tabId) => setActiveTab(tabId as 'audit' | 'system')}
+        />
 
         {/* Search and Filters */}
-        <div className="flex gap-3">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-            <input
+        <div className="flex gap-3 mt-6">
+          <div className="flex-1">
+            <Input
+              icon={<Search />}
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -168,14 +156,13 @@ export default function LogsView() {
                   ? 'Search audit logs by admin, action, or details...'
                   : 'Search system logs by message, level, or source...'
               }
-              className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
             />
           </div>
           {activeTab === 'audit' && (
             <select
               value={actionFilter}
               onChange={(e) => setActionFilter(e.target.value)}
-              className="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+              className="px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-lg text-white focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
             >
               <option value="">All Actions</option>
               {uniqueActions.map((action) => (
@@ -190,11 +177,11 @@ export default function LogsView() {
 
       {/* Error */}
       {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+        <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
           <div className="flex-1">
-            <p className="text-sm font-medium text-red-900">Error Loading Logs</p>
-            <p className="text-sm text-red-700 mt-1">{error}</p>
+            <p className="text-sm font-medium text-red-300">Error Loading Logs</p>
+            <p className="text-sm text-red-400 mt-1">{error}</p>
           </div>
         </div>
       )}
@@ -202,102 +189,112 @@ export default function LogsView() {
       {/* Logs List */}
       {loading ? (
         <div className="text-center py-12">
-          <RefreshCw className="w-8 h-8 text-amber-600 animate-spin mx-auto mb-4" />
-          <p className="text-slate-600">Loading logs...</p>
+          <RefreshCw className="w-8 h-8 text-cyan-500 animate-spin mx-auto mb-4" />
+          <p className="text-slate-400">Loading logs...</p>
         </div>
       ) : activeTab === 'audit' ? (
         filteredAuditLogs.length === 0 ? (
-          <div className="text-center py-12">
-            <FileText className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-            <p className="text-slate-600 text-lg">No audit logs found</p>
-          </div>
+          <Table>
+            <TableHeader>
+              <tr>
+                <TableHead>Time</TableHead>
+                <TableHead>Admin</TableHead>
+                <TableHead>Action</TableHead>
+                <TableHead>Details</TableHead>
+                <TableHead>IP Address</TableHead>
+              </tr>
+            </TableHeader>
+            <TableBody>
+              <TableEmptyState
+                icon={<FileText className="w-12 h-12" />}
+                title="No audit logs found"
+              />
+            </TableBody>
+          </Table>
         ) : (
-          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-slate-50 border-b border-slate-200">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                    Time
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                    Admin
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                    Action
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                    Details
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                    IP Address
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200">
-                {filteredAuditLogs.map((log) => (
-                  <tr key={log.id} className="hover:bg-slate-50 transition">
-                    <td className="px-6 py-4 text-sm text-slate-600 whitespace-nowrap">
-                      {getRelativeTime(log.created_at)}
-                    </td>
-                    <td className="px-6 py-4 text-sm">
-                      <div className="font-medium text-slate-900">{log.admin_email || 'Unknown'}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={`text-sm font-medium ${
-                          ACTION_CONFIG[log.action]?.color || 'text-slate-600'
-                        }`}
-                      >
-                        {ACTION_CONFIG[log.action]?.label || log.action}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-slate-600 max-w-md truncate">
-                      {log.details || '—'}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-slate-500 font-mono">{log.ip_address}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table>
+            <TableHeader>
+              <tr>
+                <TableHead>Time</TableHead>
+                <TableHead>Admin</TableHead>
+                <TableHead>Action</TableHead>
+                <TableHead>Details</TableHead>
+                <TableHead>IP Address</TableHead>
+              </tr>
+            </TableHeader>
+            <TableBody>
+              {filteredAuditLogs.map((log) => (
+                <TableRow key={log.id}>
+                  <TableCell className="whitespace-nowrap">
+                    {getRelativeTime(log.created_at)}
+                  </TableCell>
+                  <TableCell>
+                    <div className="font-medium text-white">{log.admin_email || 'Unknown'}</div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={ACTION_CONFIG[log.action]?.variant || 'user'}>
+                      {ACTION_CONFIG[log.action]?.label || log.action}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="max-w-md truncate">
+                    {log.details || '—'}
+                  </TableCell>
+                  <TableCell className="font-mono text-slate-500">{log.ip_address}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         )
       ) : filteredSystemLogs.length === 0 ? (
-        <div className="text-center py-12">
-          <FileText className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-          <p className="text-slate-600 text-lg">No system logs found</p>
-        </div>
+        <Table>
+          <TableHeader>
+            <tr>
+              <TableHead>Level</TableHead>
+              <TableHead>Message</TableHead>
+              <TableHead>Source</TableHead>
+              <TableHead>Time</TableHead>
+            </tr>
+          </TableHeader>
+          <TableBody>
+            <TableEmptyState
+              icon={<FileText className="w-12 h-12" />}
+              title="No system logs found"
+            />
+          </TableBody>
+        </Table>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {filteredSystemLogs.map((log) => (
-            <div
-              key={log.id}
-              className={`p-4 rounded-lg border ${getLevelColor(log.level)}`}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <span className="text-xs font-semibold uppercase">{log.level}</span>
+            <Card key={log.id}>
+              <div className="p-4">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex items-center gap-3">
+                    <Badge variant={LEVEL_CONFIG[log.level]?.variant || 'user'}>
+                      {LEVEL_CONFIG[log.level]?.label || log.level.toUpperCase()}
+                    </Badge>
                     {log.source && (
-                      <span className="text-xs px-2 py-0.5 bg-white rounded">{log.source}</span>
+                      <span className="text-xs px-2 py-1 bg-slate-900/50 text-slate-400 rounded">
+                        {log.source}
+                      </span>
                     )}
-                    <span className="text-xs opacity-75">{getRelativeTime(log.created_at)}</span>
                   </div>
-                  <div className="text-sm font-medium">{log.message}</div>
-                  {log.metadata && (
-                    <pre className="mt-2 text-xs bg-white p-2 rounded overflow-x-auto">
-                      {JSON.stringify(log.metadata, null, 2)}
-                    </pre>
-                  )}
+                  <span className="text-xs text-slate-500">{getRelativeTime(log.created_at)}</span>
                 </div>
+                <div className="text-sm text-white font-medium mb-2">{log.message}</div>
+                {log.metadata && (
+                  <pre className="text-xs bg-slate-900/50 text-slate-400 p-3 rounded overflow-x-auto">
+                    {JSON.stringify(log.metadata, null, 2)}
+                  </pre>
+                )}
               </div>
-            </div>
+            </Card>
           ))}
         </div>
       )}
 
       {/* Results Count */}
       {!loading && (
-        <div className="mt-4 text-sm text-slate-600 text-center">
+        <div className="mt-4 text-sm text-slate-500 text-center">
           Showing{' '}
           {activeTab === 'audit' ? filteredAuditLogs.length : filteredSystemLogs.length} log
           {(activeTab === 'audit' ? filteredAuditLogs.length : filteredSystemLogs.length) !== 1

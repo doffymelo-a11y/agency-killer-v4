@@ -5,26 +5,39 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Ticket, Search, Filter, RefreshCw, AlertCircle } from 'lucide-react';
+import { Ticket, Search, Filter, RefreshCw, AlertCircle, X } from 'lucide-react';
 import { api } from '../lib/api';
-import type { SupportTicket, TicketFilters, TicketStatus } from '../types';
+import type { SupportTicket, TicketFilters, TicketStatus, TicketPriority, TicketCategory } from '../types';
+import {
+  Badge,
+  Button,
+  Input,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+  TableEmptyState,
+  Card,
+} from '../components/ui';
 
-const STATUS_CONFIG: Record<TicketStatus, { label: string; color: string; icon: string }> = {
-  open: { label: 'Open', color: 'bg-blue-100 text-blue-800', icon: '🔵' },
-  in_progress: { label: 'In Progress', color: 'bg-yellow-100 text-yellow-800', icon: '⏳' },
-  resolved: { label: 'Resolved', color: 'bg-green-100 text-green-800', icon: '✅' },
-  closed: { label: 'Closed', color: 'bg-slate-100 text-slate-800', icon: '🔒' },
-  waiting_user: { label: 'Waiting on User', color: 'bg-purple-100 text-purple-800', icon: '⏸️' },
+const STATUS_CONFIG: Record<TicketStatus, { label: string; variant: any; icon: string }> = {
+  open: { label: 'Open', variant: 'open', icon: '🔵' },
+  in_progress: { label: 'In Progress', variant: 'in_progress', icon: '⏳' },
+  resolved: { label: 'Resolved', variant: 'resolved', icon: '✅' },
+  closed: { label: 'Closed', variant: 'closed', icon: '🔒' },
+  waiting_user: { label: 'Waiting on User', variant: 'waiting_user', icon: '⏸️' },
 };
 
-const PRIORITY_CONFIG = {
-  low: { label: 'Low', color: 'text-slate-600', icon: '⬇️' },
-  medium: { label: 'Medium', color: 'text-blue-600', icon: '➡️' },
-  high: { label: 'High', color: 'text-orange-600', icon: '⬆️' },
-  critical: { label: 'Critical', color: 'text-red-600', icon: '🚨' },
+const PRIORITY_CONFIG: Record<TicketPriority, { label: string; variant: any; icon: string }> = {
+  low: { label: 'Low', variant: 'low', icon: '⬇️' },
+  medium: { label: 'Medium', variant: 'medium', icon: '➡️' },
+  high: { label: 'High', variant: 'high', icon: '⬆️' },
+  critical: { label: 'Critical', variant: 'critical', icon: '🚨' },
 };
 
-const CATEGORY_CONFIG = {
+const CATEGORY_CONFIG: Record<TicketCategory, { label: string; emoji: string }> = {
   bug: { label: 'Bug', emoji: '🐛' },
   feature_request: { label: 'Feature Request', emoji: '✨' },
   question: { label: 'Question', emoji: '❓' },
@@ -53,7 +66,6 @@ export default function TicketsView() {
     const response = await api.get<{ tickets: SupportTicket[]; pagination: any }>('/api/superadmin/tickets', filters);
 
     if (response.success && response.data) {
-      // Backend returns { data: { tickets: [...], pagination: {...} } }
       setTickets(response.data.tickets || []);
     } else {
       setError(response.error?.message || 'Failed to load tickets');
@@ -87,125 +99,123 @@ export default function TicketsView() {
     return date.toLocaleDateString();
   };
 
+  const hasActiveFilters = filters.status || filters.priority || filters.category;
+
   return (
-    <div className="p-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8">
       {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-4">
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900 mb-2">Support Tickets</h1>
-            <p className="text-slate-600">Manage and respond to all user support requests</p>
+            <h1 className="text-3xl font-bold text-white mb-2">Support Tickets</h1>
+            <p className="text-slate-400">Manage and respond to all user support requests</p>
           </div>
-          <button
-            onClick={loadTickets}
-            disabled={loading}
-            className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition flex items-center gap-2 disabled:opacity-50"
-          >
+          <Button variant="secondary" onClick={loadTickets} disabled={loading}>
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             Refresh
-          </button>
+          </Button>
         </div>
 
         {/* Search and Filters */}
         <div className="flex gap-3">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-            <input
+          <div className="flex-1">
+            <Input
+              icon={<Search />}
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search tickets by subject, description, or user email..."
-              className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
             />
           </div>
-          <button
+          <Button
+            variant={showFilters ? 'primary' : 'ghost'}
             onClick={() => setShowFilters(!showFilters)}
-            className={`px-4 py-2 border rounded-lg transition flex items-center gap-2 ${
-              showFilters
-                ? 'bg-amber-50 border-amber-300 text-amber-700'
-                : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
-            }`}
           >
             <Filter className="w-4 h-4" />
             Filters
-          </button>
+            {hasActiveFilters && (
+              <span className="ml-2 px-2 py-0.5 bg-cyan-500 text-white text-xs rounded-full">
+                {[filters.status, filters.priority, filters.category].filter(Boolean).length}
+              </span>
+            )}
+          </Button>
         </div>
 
         {/* Filter Panel */}
         {showFilters && (
-          <div className="mt-3 p-4 bg-slate-50 border border-slate-200 rounded-lg">
-            <div className="grid grid-cols-3 gap-4">
-              {/* Status Filter */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Status</label>
-                <select
-                  value={filters.status || ''}
-                  onChange={(e) => setFilters({ ...filters, status: e.target.value as any || undefined })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-                >
-                  <option value="">All Statuses</option>
-                  {Object.entries(STATUS_CONFIG).map(([key, config]) => (
-                    <option key={key} value={key}>
-                      {config.icon} {config.label}
-                    </option>
-                  ))}
-                </select>
+          <Card className="mt-4">
+            <div className="p-4">
+              <div className="grid grid-cols-3 gap-4">
+                {/* Status Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">Status</label>
+                  <select
+                    value={filters.status || ''}
+                    onChange={(e) => setFilters({ ...filters, status: e.target.value as any || undefined })}
+                    className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-white focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                  >
+                    <option value="">All Statuses</option>
+                    {Object.entries(STATUS_CONFIG).map(([key, config]) => (
+                      <option key={key} value={key}>
+                        {config.icon} {config.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Priority Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">Priority</label>
+                  <select
+                    value={filters.priority || ''}
+                    onChange={(e) => setFilters({ ...filters, priority: e.target.value as any || undefined })}
+                    className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-white focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                  >
+                    <option value="">All Priorities</option>
+                    {Object.entries(PRIORITY_CONFIG).map(([key, config]) => (
+                      <option key={key} value={key}>
+                        {config.icon} {config.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Category Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">Category</label>
+                  <select
+                    value={filters.category || ''}
+                    onChange={(e) => setFilters({ ...filters, category: e.target.value as any || undefined })}
+                    className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700 rounded-lg text-white focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                  >
+                    <option value="">All Categories</option>
+                    {Object.entries(CATEGORY_CONFIG).map(([key, config]) => (
+                      <option key={key} value={key}>
+                        {config.emoji} {config.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
-              {/* Priority Filter */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Priority</label>
-                <select
-                  value={filters.priority || ''}
-                  onChange={(e) => setFilters({ ...filters, priority: e.target.value as any || undefined })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-                >
-                  <option value="">All Priorities</option>
-                  {Object.entries(PRIORITY_CONFIG).map(([key, config]) => (
-                    <option key={key} value={key}>
-                      {config.icon} {config.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Category Filter */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Category</label>
-                <select
-                  value={filters.category || ''}
-                  onChange={(e) => setFilters({ ...filters, category: e.target.value as any || undefined })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-                >
-                  <option value="">All Categories</option>
-                  {Object.entries(CATEGORY_CONFIG).map(([key, config]) => (
-                    <option key={key} value={key}>
-                      {config.emoji} {config.label}
-                    </option>
-                  ))}
-                </select>
+              <div className="mt-4 flex justify-end">
+                <Button variant="ghost" onClick={() => setFilters({})}>
+                  <X className="w-4 h-4" />
+                  Clear Filters
+                </Button>
               </div>
             </div>
-
-            <div className="mt-3 flex justify-end">
-              <button
-                onClick={() => setFilters({})}
-                className="px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900"
-              >
-                Clear Filters
-              </button>
-            </div>
-          </div>
+          </Card>
         )}
       </div>
 
       {/* Error */}
       {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+        <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
           <div className="flex-1">
-            <p className="text-sm font-medium text-red-900">Error Loading Tickets</p>
-            <p className="text-sm text-red-700 mt-1">{error}</p>
+            <p className="text-sm font-medium text-red-300">Error Loading Tickets</p>
+            <p className="text-sm text-red-400 mt-1">{error}</p>
           </div>
         </div>
       )}
@@ -213,95 +223,87 @@ export default function TicketsView() {
       {/* Tickets List */}
       {loading ? (
         <div className="text-center py-12">
-          <RefreshCw className="w-8 h-8 text-amber-600 animate-spin mx-auto mb-4" />
-          <p className="text-slate-600">Loading tickets...</p>
+          <RefreshCw className="w-8 h-8 text-cyan-500 animate-spin mx-auto mb-4" />
+          <p className="text-slate-400">Loading tickets...</p>
         </div>
       ) : filteredTickets.length === 0 ? (
-        <div className="text-center py-12">
-          <Ticket className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-          <p className="text-slate-600 text-lg">No tickets found</p>
-          {searchTerm && (
-            <p className="text-slate-500 text-sm mt-2">Try adjusting your search or filters</p>
-          )}
-        </div>
+        <Table>
+          <TableHeader>
+            <tr>
+              <TableHead>Ticket</TableHead>
+              <TableHead>User</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Priority</TableHead>
+              <TableHead>Created</TableHead>
+              <TableHead>Updated</TableHead>
+            </tr>
+          </TableHeader>
+          <TableBody>
+            <TableEmptyState
+              icon={<Ticket className="w-12 h-12" />}
+              title="No tickets found"
+              description={searchTerm || hasActiveFilters ? 'Try adjusting your search or filters' : undefined}
+            />
+          </TableBody>
+        </Table>
       ) : (
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-slate-50 border-b border-slate-200">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                  Ticket
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                  User
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                  Priority
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                  Created
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                  Updated
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200">
-              {filteredTickets.map((ticket) => (
-                <tr
-                  key={ticket.id}
-                  onClick={() => navigate(`/tickets/${ticket.id}`)}
-                  className="hover:bg-slate-50 cursor-pointer transition"
-                >
-                  <td className="px-6 py-4">
-                    <div className="flex items-start gap-3">
-                      <span className="text-2xl">{CATEGORY_CONFIG[ticket.category].emoji}</span>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-slate-900 truncate">{ticket.subject}</div>
-                        <div className="text-sm text-slate-500 truncate">{ticket.description}</div>
-                      </div>
+        <Table>
+          <TableHeader>
+            <tr>
+              <TableHead>Ticket</TableHead>
+              <TableHead>User</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Priority</TableHead>
+              <TableHead>Created</TableHead>
+              <TableHead>Updated</TableHead>
+            </tr>
+          </TableHeader>
+          <TableBody>
+            {filteredTickets.map((ticket) => (
+              <TableRow
+                key={ticket.id}
+                onClick={() => navigate(`/tickets/${ticket.id}`)}
+              >
+                <TableCell>
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl">{CATEGORY_CONFIG[ticket.category].emoji}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-white truncate">{ticket.subject}</div>
+                      <div className="text-sm text-slate-400 truncate">{ticket.description}</div>
                     </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm">
-                      <div className="font-medium text-slate-900">{ticket.user_email || 'Unknown'}</div>
-                      <div className="text-slate-500 text-xs">{ticket.user_id.slice(0, 8)}...</div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        STATUS_CONFIG[ticket.status].color
-                      }`}
-                    >
-                      {STATUS_CONFIG[ticket.status].icon}
-                      {STATUS_CONFIG[ticket.status].label}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`text-sm font-medium ${PRIORITY_CONFIG[ticket.priority].color}`}>
-                      {PRIORITY_CONFIG[ticket.priority].icon} {PRIORITY_CONFIG[ticket.priority].label}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm text-slate-600">{getRelativeTime(ticket.created_at)}</div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm text-slate-600">{getRelativeTime(ticket.updated_at)}</div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="text-sm">
+                    <div className="font-medium text-white">{ticket.user_email || 'Unknown'}</div>
+                    <div className="text-slate-500 text-xs">{ticket.user_id.slice(0, 8)}...</div>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Badge variant={STATUS_CONFIG[ticket.status].variant}>
+                    {STATUS_CONFIG[ticket.status].icon} {STATUS_CONFIG[ticket.status].label}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <Badge variant={PRIORITY_CONFIG[ticket.priority].variant}>
+                    {PRIORITY_CONFIG[ticket.priority].icon} {PRIORITY_CONFIG[ticket.priority].label}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <div className="text-sm text-slate-400">{getRelativeTime(ticket.created_at)}</div>
+                </TableCell>
+                <TableCell>
+                  <div className="text-sm text-slate-400">{getRelativeTime(ticket.updated_at)}</div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       )}
 
       {/* Results Count */}
       {!loading && (
-        <div className="mt-4 text-sm text-slate-600 text-center">
+        <div className="mt-4 text-sm text-slate-500 text-center">
           Showing {filteredTickets.length} of {tickets.length} ticket{tickets.length !== 1 ? 's' : ''}
         </div>
       )}
