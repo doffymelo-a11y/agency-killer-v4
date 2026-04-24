@@ -111,7 +111,7 @@ export default function Layout() {
       </aside>
 
       {/* Main Content */}
-      <main className="ml-64 flex-1">
+      <main className="ml-64 flex-1 min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
         <Outlet />
       </main>
     </div>

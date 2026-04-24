@@ -102,7 +102,7 @@ export default function TicketsView() {
   const hasActiveFilters = filters.status || filters.priority || filters.category;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8">
+    <div className="p-8">
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-6">

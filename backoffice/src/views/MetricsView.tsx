@@ -35,7 +35,7 @@ export default function MetricsView() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+      <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <RefreshCw className="w-8 h-8 text-cyan-500 animate-spin mx-auto mb-4" />
           <p className="text-slate-400">Loading metrics...</p>
@@ -46,7 +46,7 @@ export default function MetricsView() {
 
   if (error || !metrics) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8">
+      <div className="p-8">
         <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
           <div className="flex-1">
@@ -59,7 +59,7 @@ export default function MetricsView() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8">
+    <div className="p-8">
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-6">
