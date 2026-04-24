@@ -85,6 +85,73 @@ router.use(superAdminRateLimit);
 // ─────────────────────────────────────────────────────────────────
 
 /**
+ * GET /api/superadmin/tickets/stats - Ticket statistics
+ * IMPORTANT: Must be defined BEFORE /tickets/:id to avoid route conflict
+ */
+router.get(
+  '/tickets/stats',
+  autoLogSuperAdminAction('view_ticket_stats', 'ticket'),
+  asyncHandler(async (_req, res) => {
+    // Count by status
+    const { data: statusCounts } = await supabaseAdmin
+      .from('support_tickets')
+      .select('status')
+      .then((res) => {
+        if (res.error) return { data: [] };
+        const counts: Record<string, number> = {};
+        res.data.forEach((ticket: any) => {
+          counts[ticket.status] = (counts[ticket.status] || 0) + 1;
+        });
+        return { data: counts };
+      });
+
+    // Count by priority
+    const { data: priorityCounts } = await supabaseAdmin
+      .from('support_tickets')
+      .select('priority')
+      .then((res) => {
+        if (res.error) return { data: [] };
+        const counts: Record<string, number> = {};
+        res.data.forEach((ticket: any) => {
+          counts[ticket.priority] = (counts[ticket.priority] || 0) + 1;
+        });
+        return { data: counts };
+      });
+
+    // Total tickets
+    const { count: totalTickets } = await supabaseAdmin
+      .from('support_tickets')
+      .select('*', { count: 'exact', head: true });
+
+    // Average response time (calculate from tickets with first_response_at)
+    const { data: ticketsWithResponse } = await supabaseAdmin
+      .from('support_tickets')
+      .select('created_at, first_response_at')
+      .not('first_response_at', 'is', null);
+
+    let avgResponseTimeHours = 0;
+    if (ticketsWithResponse && ticketsWithResponse.length > 0) {
+      const totalResponseTime = ticketsWithResponse.reduce((sum, ticket: any) => {
+        const created = new Date(ticket.created_at).getTime();
+        const responded = new Date(ticket.first_response_at).getTime();
+        return sum + (responded - created);
+      }, 0);
+      avgResponseTimeHours = totalResponseTime / ticketsWithResponse.length / (1000 * 60 * 60);
+    }
+
+    res.json({
+      success: true,
+      data: {
+        total: totalTickets || 0,
+        by_status: statusCounts || {},
+        by_priority: priorityCounts || {},
+        avg_response_time_hours: avgResponseTimeHours,
+      },
+    });
+  })
+);
+
+/**
  * GET /api/super-admin/tickets - List all support tickets
  * Query params:
  *   - status: filter by status (open, in_progress, resolved, closed)
@@ -214,7 +281,11 @@ router.get(
       ? await Promise.all(
           internalNotes.map(async (note) => {
             const author = note.author_id ? await getUserDetails(note.author_id) : null;
-            return { ...note, author };
+            return {
+              ...note,
+              author,
+              author_email: author?.email || null,
+            };
           })
         )
       : [];
@@ -225,6 +296,7 @@ router.get(
         ticket: {
           ...ticket,
           user,
+          user_email: user?.email || null,
           assigned_admin: assignedAdmin,
         },
         messages: messages || [],
@@ -550,56 +622,6 @@ router.post(
         markdown,
         ticket_id: ticketId,
         ticket_number: ticketNumber,
-      },
-    });
-  })
-);
-
-/**
- * GET /api/superadmin/tickets/stats - Ticket statistics
- */
-router.get(
-  '/tickets/stats',
-  autoLogSuperAdminAction('view_ticket_stats', 'ticket'),
-  asyncHandler(async (_req, res) => {
-    // Count by status
-    const { data: statusCounts } = await supabaseAdmin
-      .from('support_tickets')
-      .select('status')
-      .then((res) => {
-        if (res.error) return { data: [] };
-        const counts: Record<string, number> = {};
-        res.data.forEach((ticket: any) => {
-          counts[ticket.status] = (counts[ticket.status] || 0) + 1;
-        });
-        return { data: counts };
-      });
-
-    // Count by priority
-    const { data: priorityCounts } = await supabaseAdmin
-      .from('support_tickets')
-      .select('priority')
-      .then((res) => {
-        if (res.error) return { data: [] };
-        const counts: Record<string, number> = {};
-        res.data.forEach((ticket: any) => {
-          counts[ticket.priority] = (counts[ticket.priority] || 0) + 1;
-        });
-        return { data: counts };
-      });
-
-    // Total tickets
-    const { count: totalTickets } = await supabaseAdmin
-      .from('support_tickets')
-      .select('*', { count: 'exact', head: true });
-
-    res.json({
-      success: true,
-      data: {
-        total: totalTickets || 0,
-        by_status: statusCounts || {},
-        by_priority: priorityCounts || {},
-        avg_response_time_hours: 0, // TODO: Calculate avg response time
       },
     });
   })
