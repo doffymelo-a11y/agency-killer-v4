@@ -50,10 +50,11 @@ export default function TicketsView() {
     setLoading(true);
     setError('');
 
-    const response = await api.get<SupportTicket[]>('/api/superadmin/tickets', filters);
+    const response = await api.get<{ tickets: SupportTicket[]; pagination: any }>('/api/superadmin/tickets', filters);
 
     if (response.success && response.data) {
-      setTickets(response.data);
+      // Backend returns { data: { tickets: [...], pagination: {...} } }
+      setTickets(response.data.tickets || []);
     } else {
       setError(response.error?.message || 'Failed to load tickets');
     }

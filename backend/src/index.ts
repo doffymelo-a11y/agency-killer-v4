@@ -35,7 +35,15 @@ dotenv.config();
 
 const PORT = process.env.PORT || 3457;
 const NODE_ENV = process.env.NODE_ENV || 'development';
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+
+// Allow both cockpit (5173) and backoffice (5174) in development
+// In production, set FRONTEND_URL and BACKOFFICE_URL via environment variables
+const ALLOWED_ORIGINS = NODE_ENV === 'development'
+  ? ['http://localhost:5173', 'http://localhost:5174']
+  : [
+      process.env.FRONTEND_URL || 'https://app.hive-os.com',
+      process.env.BACKOFFICE_URL || 'https://backoffice.hive-os.com'
+    ];
 
 // ─────────────────────────────────────────────────────────────────
 // Express App
@@ -46,10 +54,19 @@ const app = express();
 // Security middleware
 app.use(helmet());
 
-// CORS - Allow frontend to call backend
+// CORS - Allow both cockpit and backoffice
 app.use(
   cors({
-    origin: FRONTEND_URL,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps, curl, Postman)
+      if (!origin) return callback(null, true);
+
+      if (ALLOWED_ORIGINS.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
   })
 );

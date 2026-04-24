@@ -30,6 +30,51 @@ import { supabaseAdmin } from '../services/supabase.service.js';
 
 const router = Router();
 
+// ─────────────────────────────────────────────────────────────────
+// Helper Functions
+// ─────────────────────────────────────────────────────────────────
+
+/**
+ * Fetch user details from Auth API
+ * Cannot use JOIN with auth.users - must use Auth Admin API
+ */
+async function getUserDetails(userId: string) {
+  try {
+    const { data, error } = await supabaseAdmin.auth.admin.getUserById(userId);
+    if (error || !data.user) {
+      return null;
+    }
+    return {
+      id: data.user.id,
+      email: data.user.email || null,
+      created_at: data.user.created_at,
+    };
+  } catch (error) {
+    console.error(`[SuperAdmin] Failed to fetch user ${userId}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Enrich tickets with user details
+ */
+async function enrichTicketsWithUserDetails(tickets: any[]) {
+  const enriched = await Promise.all(
+    tickets.map(async (ticket) => {
+      const user = ticket.user_id ? await getUserDetails(ticket.user_id) : null;
+      const assignedAdmin = ticket.assigned_to ? await getUserDetails(ticket.assigned_to) : null;
+
+      return {
+        ...ticket,
+        user,
+        assigned_admin: assignedAdmin,
+      };
+    })
+  );
+
+  return enriched;
+}
+
 // Apply auth + super admin check + rate limit to ALL routes
 router.use(authMiddleware);
 router.use(requireSuperAdmin);
@@ -58,13 +103,10 @@ router.get(
     const limit = parseInt(req.query.limit as string) || 50;
     const offset = parseInt(req.query.offset as string) || 0;
 
+    // Fetch tickets WITHOUT JOINs (auth.users JOIN not supported)
     let query = supabaseAdmin
       .from('support_tickets')
-      .select(`
-        *,
-        user:auth.users!user_id(id, email),
-        assigned_admin:auth.users!assigned_to(id, email)
-      `)
+      .select('*', { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
@@ -93,10 +135,13 @@ router.get(
       return;
     }
 
+    // Enrich with user details via Auth Admin API
+    const enrichedTickets = await enrichTicketsWithUserDetails(tickets || []);
+
     res.json({
       success: true,
       data: {
-        tickets: tickets || [],
+        tickets: enrichedTickets,
         pagination: {
           limit,
           offset,
@@ -117,14 +162,10 @@ router.get(
   asyncHandler(async (req, res) => {
     const ticketId = req.params.id;
 
-    // Fetch ticket with user and admin details
+    // Fetch ticket WITHOUT JOINs
     const { data: ticket, error: ticketError } = await supabaseAdmin
       .from('support_tickets')
-      .select(`
-        *,
-        user:auth.users!user_id(id, email, created_at),
-        assigned_admin:auth.users!assigned_to(id, email)
-      `)
+      .select('*')
       .eq('id', ticketId)
       .single();
 
@@ -138,6 +179,10 @@ router.get(
       });
       return;
     }
+
+    // Fetch user and admin details via Auth Admin API
+    const user = ticket.user_id ? await getUserDetails(ticket.user_id) : null;
+    const assignedAdmin = ticket.assigned_to ? await getUserDetails(ticket.assigned_to) : null;
 
     // Fetch messages
     const { data: messages, error: messagesError } = await supabaseAdmin
@@ -157,22 +202,33 @@ router.get(
       return;
     }
 
-    // Fetch internal notes (super admin only)
+    // Fetch internal notes (WITHOUT JOIN)
     const { data: internalNotes } = await supabaseAdmin
       .from('support_internal_notes')
-      .select(`
-        *,
-        author:auth.users!author_id(id, email)
-      `)
+      .select('*')
       .eq('ticket_id', ticketId)
       .order('created_at', { ascending: true });
+
+    // Enrich internal notes with author details
+    const enrichedNotes = internalNotes
+      ? await Promise.all(
+          internalNotes.map(async (note) => {
+            const author = note.author_id ? await getUserDetails(note.author_id) : null;
+            return { ...note, author };
+          })
+        )
+      : [];
 
     res.json({
       success: true,
       data: {
-        ticket,
+        ticket: {
+          ...ticket,
+          user,
+          assigned_admin: assignedAdmin,
+        },
         messages: messages || [],
-        internal_notes: internalNotes || [],
+        internal_notes: enrichedNotes,
       },
     });
   })
@@ -645,7 +701,7 @@ router.patch(
     }
 
     // Update user role
-    const { data, error } = await supabaseAdmin
+    const { data: updatedRole, error } = await supabaseAdmin
       .from('user_roles')
       .upsert({ user_id: id, role })
       .select()
@@ -666,12 +722,9 @@ router.patch(
     res.json({
       success: true,
       data: {
-        users: users || [],
-        pagination: {
-          limit,
-          offset,
-          total: count || 0,
-        },
+        user_id: id,
+        role: updatedRole?.role || role,
+        updated_at: new Date().toISOString(),
       },
     });
   })
@@ -687,14 +740,10 @@ router.get(
   asyncHandler(async (req, res) => {
     const userId = req.params.id;
 
-    // Fetch user details
-    const { data: user, error: userError } = await supabaseAdmin
-      .from('auth.users')
-      .select('id, email, created_at, last_sign_in_at')
-      .eq('id', userId)
-      .single();
+    // Fetch user details via Auth Admin API (cannot query auth.users directly)
+    const { data: authUser, error: userError } = await supabaseAdmin.auth.admin.getUserById(userId);
 
-    if (userError || !user) {
+    if (userError || !authUser.user) {
       res.status(404).json({
         success: false,
         error: {
@@ -704,6 +753,13 @@ router.get(
       });
       return;
     }
+
+    const user = {
+      id: authUser.user.id,
+      email: authUser.user.email,
+      created_at: authUser.user.created_at,
+      last_sign_in_at: authUser.user.last_sign_in_at,
+    };
 
     // Fetch user role
     const { data: userRole } = await supabaseAdmin
@@ -951,85 +1007,81 @@ router.get(
 router.get(
   '/metrics/global',
   autoLogSuperAdminAction('view_global_metrics', 'metrics'),
-  asyncHandler(async (req, res) => {
-    const daysBack = parseInt(req.query.days_back as string) || 30;
+  asyncHandler(async (_req, res) => {
+    // Total users (via Auth Admin API)
+    const { data: authUsers } = await supabaseAdmin.auth.admin.listUsers();
+    const totalUsers = authUsers?.users.length || 0;
 
-    // Get business stats from existing RPC
-    const { data: businessStats, error: businessError } = await supabaseAdmin.rpc('get_business_stats', {
-      days_back: daysBack,
+    // Users by role
+    const { data: userRoles } = await supabaseAdmin
+      .from('user_roles')
+      .select('role');
+
+    const usersByRole: Record<string, number> = { user: 0, admin: 0, super_admin: 0 };
+    userRoles?.forEach((r: any) => {
+      usersByRole[r.role] = (usersByRole[r.role] || 0) + 1;
     });
 
-    if (businessError) {
-      res.status(500).json({
-        success: false,
-        error: {
-          message: 'Failed to fetch business metrics',
-          code: 'BUSINESS_METRICS_ERROR',
-          details: businessError.message,
-        },
-      });
-      return;
-    }
-
-    // Get active users (7 days)
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const { count: activeUsers7d } = await supabaseAdmin
-      .from('auth.users')
-      .select('*', { count: 'exact', head: true })
-      .gte('last_sign_in_at', sevenDaysAgo.toISOString());
-
-    // Get active users (30 days)
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const { count: activeUsers30d } = await supabaseAdmin
-      .from('auth.users')
-      .select('*', { count: 'exact', head: true })
-      .gte('last_sign_in_at', thirtyDaysAgo.toISOString());
-
-    // Get CSAT if satisfaction table exists
-    const { data: csatData } = await supabaseAdmin
-      .from('ticket_satisfaction')
-      .select('rating')
-      .gte('created_at', thirtyDaysAgo.toISOString());
-
-    const avgCsat = csatData && csatData.length > 0
-      ? csatData.reduce((sum, item) => sum + item.rating, 0) / csatData.length
-      : null;
-
-    // Get ticket volume trend (last 30 days)
-    const { data: ticketTrend } = await supabaseAdmin
+    // Total tickets
+    const { count: totalTickets } = await supabaseAdmin
       .from('support_tickets')
-      .select('created_at')
-      .gte('created_at', thirtyDaysAgo.toISOString())
-      .order('created_at', { ascending: true });
+      .select('*', { count: 'exact', head: true });
 
-    // Group by day
-    const trendByDay: Record<string, number> = {};
-    ticketTrend?.forEach((ticket: any) => {
-      const day = new Date(ticket.created_at).toISOString().split('T')[0];
-      trendByDay[day] = (trendByDay[day] || 0) + 1;
+    // Tickets by status
+    const { data: ticketStatuses } = await supabaseAdmin
+      .from('support_tickets')
+      .select('status');
+
+    const ticketsByStatus: Record<string, number> = {};
+    ticketStatuses?.forEach((t: any) => {
+      ticketsByStatus[t.status] = (ticketsByStatus[t.status] || 0) + 1;
     });
+
+    // Tickets by priority
+    const { data: ticketPriorities } = await supabaseAdmin
+      .from('support_tickets')
+      .select('priority');
+
+    const ticketsByPriority: Record<string, number> = {};
+    ticketPriorities?.forEach((t: any) => {
+      ticketsByPriority[t.priority] = (ticketsByPriority[t.priority] || 0) + 1;
+    });
+
+    // Active users today
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const { data: activeToday } = await supabaseAdmin.auth.admin.listUsers();
+    const activeUsersToday = activeToday?.users.filter(u => {
+      if (!u.last_sign_in_at) return false;
+      return new Date(u.last_sign_in_at) >= todayStart;
+    }).length || 0;
+
+    // Average response time (calculate from tickets with first_response_at)
+    const { data: ticketsWithResponse } = await supabaseAdmin
+      .from('support_tickets')
+      .select('created_at, first_response_at')
+      .not('first_response_at', 'is', null);
+
+    let avgResponseTimeHours = 0;
+    if (ticketsWithResponse && ticketsWithResponse.length > 0) {
+      const totalResponseTime = ticketsWithResponse.reduce((sum, ticket: any) => {
+        const created = new Date(ticket.created_at).getTime();
+        const responded = new Date(ticket.first_response_at).getTime();
+        return sum + (responded - created);
+      }, 0);
+      avgResponseTimeHours = totalResponseTime / ticketsWithResponse.length / (1000 * 60 * 60);
+    }
 
     res.json({
       success: true,
       data: {
-        business_stats: businessStats || {},
-        active_users: {
-          last_7_days: activeUsers7d || 0,
-          last_30_days: activeUsers30d || 0,
-        },
-        csat: {
-          average: avgCsat,
-          responses_count: csatData?.length || 0,
-        },
-        ticket_volume: {
-          last_30_days: ticketTrend?.length || 0,
-          trend_by_day: trendByDay,
-        },
-        period: {
-          days_back: daysBack,
-          from: thirtyDaysAgo.toISOString(),
-          to: new Date().toISOString(),
-        },
+        total_users: totalUsers,
+        total_tickets: totalTickets || 0,
+        active_users_today: activeUsersToday,
+        avg_response_time_hours: avgResponseTimeHours,
+        users_by_role: usersByRole,
+        tickets_by_status: ticketsByStatus,
+        tickets_by_priority: ticketsByPriority,
       },
     });
   })

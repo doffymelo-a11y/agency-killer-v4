@@ -35,16 +35,18 @@ export default function LogsView() {
     setError('');
 
     if (activeTab === 'audit') {
-      const response = await api.get<AuditLog[]>('/api/superadmin/logs/audit');
+      const response = await api.get<{ logs: AuditLog[]; pagination: any }>('/api/superadmin/logs/audit');
       if (response.success && response.data) {
-        setAuditLogs(response.data);
+        // Backend returns { data: { logs: [...], pagination: {...} } }
+        setAuditLogs(response.data.logs || []);
       } else {
         setError(response.error?.message || 'Failed to load audit logs');
       }
     } else {
-      const response = await api.get<SystemLog[]>('/api/superadmin/logs/system');
+      const response = await api.get<{ logs: SystemLog[] }>('/api/superadmin/logs/system');
       if (response.success && response.data) {
-        setSystemLogs(response.data);
+        // Backend returns { data: { logs: [...] } }
+        setSystemLogs(response.data.logs || []);
       } else {
         setError(response.error?.message || 'Failed to load system logs');
       }
