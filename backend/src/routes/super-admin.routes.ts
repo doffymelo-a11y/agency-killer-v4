@@ -532,9 +532,6 @@ router.get(
         return { data: counts };
       });
 
-    // Average response time (first admin message)
-    const { data: avgResponseTime } = await supabaseAdmin.rpc('get_avg_response_time');
-
     // Total tickets
     const { count: totalTickets } = await supabaseAdmin
       .from('support_tickets')
@@ -546,7 +543,7 @@ router.get(
         total: totalTickets || 0,
         by_status: statusCounts || {},
         by_priority: priorityCounts || {},
-        avg_response_time_hours: avgResponseTime || 0,
+        avg_response_time_hours: 0, // TODO: Calculate avg response time
       },
     });
   })
@@ -571,24 +568,95 @@ router.get(
     const limit = parseInt(req.query.limit as string) || 50;
     const offset = parseInt(req.query.offset as string) || 0;
 
-    let query = supabaseAdmin
-      .from('auth.users')
-      .select('id, email, created_at, last_sign_in_at')
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+    // Use Supabase Auth Admin API to list users
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.listUsers({
+      page: Math.floor(offset / limit) + 1,
+      perPage: limit,
+    });
 
-    if (search) {
-      query = query.ilike('email', `%${search}%`);
-    }
-
-    const { data: users, error, count } = await query;
-
-    if (error) {
+    if (authError) {
       res.status(500).json({
         success: false,
         error: {
           message: 'Failed to fetch users',
           code: 'USERS_FETCH_ERROR',
+          details: authError.message,
+        },
+      });
+      return;
+    }
+
+    // Get user roles
+    const userIds = authData.users.map((u) => u.id);
+    const { data: roles } = await supabaseAdmin
+      .from('user_roles')
+      .select('user_id, role')
+      .in('user_id', userIds);
+
+    const rolesMap = new Map(roles?.map((r: any) => [r.user_id, r.role]) || []);
+
+    const users = authData.users.map((u: any) => ({
+      id: u.id,
+      email: u.email,
+      created_at: u.created_at,
+      last_sign_in_at: u.last_sign_in_at,
+      role: rolesMap.get(u.id) || 'user',
+    }));
+
+    // Filter by search if provided
+    const filteredUsers = search
+      ? users.filter((u: any) => u.email.toLowerCase().includes(search.toLowerCase()))
+      : users;
+
+    const count = filteredUsers.length;
+
+    res.json({
+      success: true,
+      data: filteredUsers,
+      pagination: {
+        total: count,
+        limit,
+        offset,
+      },
+    });
+  })
+);
+
+/**
+ * PATCH /api/superadmin/users/:id/role - Update user role
+ */
+router.patch(
+  '/users/:id/role',
+  autoLogSuperAdminAction('update_user_role', 'user'),
+  asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { role } = req.body;
+
+    // Validate role
+    if (!['user', 'admin', 'super_admin'].includes(role)) {
+      res.status(400).json({
+        success: false,
+        error: {
+          message: 'Invalid role',
+          code: 'INVALID_ROLE',
+        },
+      });
+      return;
+    }
+
+    // Update user role
+    const { data, error } = await supabaseAdmin
+      .from('user_roles')
+      .upsert({ user_id: id, role })
+      .select()
+      .single();
+
+    if (error) {
+      res.status(500).json({
+        success: false,
+        error: {
+          message: 'Failed to update role',
+          code: 'ROLE_UPDATE_ERROR',
           details: error.message,
         },
       });
