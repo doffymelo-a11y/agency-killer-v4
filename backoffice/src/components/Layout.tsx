@@ -40,9 +40,9 @@ export default function Layout() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div className="flex min-h-screen bg-slate-950">
       {/* Sidebar - Fixed Left */}
-      <aside className="fixed left-0 top-0 bottom-0 w-64 bg-slate-900 border-r border-slate-800 flex flex-col z-50">
+      <aside className="w-64 flex-shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col sticky top-0 h-screen">
         {/* Logo + Title */}
         <div className="p-6 border-b border-slate-800">
           <div className="flex items-center gap-3 mb-1">
@@ -110,8 +110,8 @@ export default function Layout() {
         </div>
       </aside>
 
-      {/* Main Content - Padding left to account for fixed sidebar */}
-      <main className="pl-64 min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      {/* Main Content */}
+      <main className="flex-1 min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 overflow-auto">
         <Outlet />
       </main>
     </div>
