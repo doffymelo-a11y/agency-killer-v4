@@ -27,6 +27,9 @@ import { isSupabaseConfigured } from './services/supabase.service.js';
 import { isClaudeConfigured } from './services/claude.service.js';
 import { isMCPBridgeConfigured } from './services/mcp-bridge.service.js';
 
+// Setup
+import { ensureRPCFunctions } from './setup/ensure-rpc-functions.js';
+
 dotenv.config();
 
 // ─────────────────────────────────────────────────────────────────
@@ -152,6 +155,9 @@ async function start() {
       console.warn('[Backend] Warning: MCP Bridge not reachable');
       console.warn('[Backend] Make sure MCP Bridge is running on port 3456');
     }
+
+    // Ensure RPC functions exist
+    await ensureRPCFunctions();
 
     // Start server
     app.listen(PORT, () => {

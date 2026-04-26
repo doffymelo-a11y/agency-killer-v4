@@ -159,20 +159,16 @@ export async function sendMessage(params: CreateMessageParams): Promise<SupportM
 
   if (!user) throw new Error('Not authenticated');
 
-  const { data, error } = await supabase
-    .from('support_messages')
-    .insert({
-      ticket_id: params.ticket_id,
-      sender_id: user.id,
-      sender_type: params.sender_type,
-      message: params.message,
-      attachments: params.attachments || [],
-    })
-    .select()
-    .single();
+  // Use RPC function to bypass RLS issues
+  // Always creates a USER message (even if user is admin)
+  const { data, error } = await supabase.rpc('create_user_support_message', {
+    p_ticket_id: params.ticket_id,
+    p_message: params.message,
+    p_attachments: params.attachments || [],
+  });
 
   if (error) throw error;
-  return data;
+  return data as SupportMessage;
 }
 
 /**

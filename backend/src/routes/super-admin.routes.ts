@@ -317,9 +317,12 @@ router.patch(
     const ticketId = req.params.id;
     const { status } = req.body;
 
+    console.log(`[DEBUG] PATCH /tickets/${ticketId}/status - status: ${status}`);
+
     // Validate status
-    const validStatuses = ['open', 'in_progress', 'resolved', 'closed'];
+    const validStatuses = ['open', 'in_progress', 'resolved', 'closed', 'waiting_user'];
     if (!status || !validStatuses.includes(status)) {
+      console.log(`[DEBUG] Invalid status: ${status}`);
       res.status(400).json({
         success: false,
         error: {
@@ -332,28 +335,32 @@ router.patch(
     }
 
     // Get current ticket status for logging
-    const { data: oldTicket } = await supabaseAdmin
+    console.log(`[DEBUG] Fetching current ticket...`);
+    const { data: oldTicket, error: fetchError } = await supabaseAdmin
       .from('support_tickets')
       .select('status')
       .eq('id', ticketId)
       .single();
 
-    // Update ticket status
-    const updateData: any = { status };
-
-    // Set resolved_at if status is resolved
-    if (status === 'resolved') {
-      updateData.resolved_at = new Date().toISOString();
+    if (fetchError) {
+      console.log(`[DEBUG] Error fetching ticket:`, fetchError);
+    } else {
+      console.log(`[DEBUG] Current status: ${oldTicket?.status}`);
     }
 
-    const { data: ticket, error } = await supabaseAdmin
-      .from('support_tickets')
-      .update(updateData)
-      .eq('id', ticketId)
-      .select()
-      .single();
+    // Update ticket status using RPC function (bypasses RLS)
+    const resolved_at = status === 'resolved' ? new Date().toISOString() : null;
+
+    console.log(`[DEBUG] Calling RPC update_ticket_status with:`, { ticketId, status, resolved_at });
+
+    const { data: result, error } = await supabaseAdmin.rpc('update_ticket_status', {
+      p_ticket_id: ticketId,
+      p_status: status,
+      p_resolved_at: resolved_at,
+    });
 
     if (error) {
+      console.log(`[DEBUG] RPC error:`, error);
       res.status(500).json({
         success: false,
         error: {
@@ -365,12 +372,14 @@ router.patch(
       return;
     }
 
+    console.log(`[DEBUG] RPC successful, result:`, result);
+
     res.json({
       success: true,
       data: {
-        ticket,
-        old_status: oldTicket?.status,
-        new_status: status,
+        ticket: result.ticket,
+        old_status: result.old_status,
+        new_status: result.new_status,
       },
     });
   })
@@ -387,7 +396,10 @@ router.post(
     const ticketId = req.params.id;
     const { message, attachments } = req.body;
 
+    console.log(`[DEBUG] POST /tickets/${ticketId}/reply - message length: ${message?.length || 0}`);
+
     if (!message || typeof message !== 'string' || message.trim().length === 0) {
+      console.log(`[DEBUG] Invalid message`);
       res.status(400).json({
         success: false,
         error: {
@@ -398,20 +410,17 @@ router.post(
       return;
     }
 
-    // Create admin message
-    const { data: newMessage, error } = await supabaseAdmin
-      .from('support_messages')
-      .insert({
-        ticket_id: ticketId,
-        sender_id: req.user!.id,
-        sender_type: 'admin',
-        message: message.trim(),
-        attachments: attachments || [],
-      })
-      .select()
-      .single();
+    console.log(`[DEBUG] Inserting message for user ${req.user!.id}`);
+
+    // Create admin message using RPC function (bypasses RLS, sets sender_type='admin')
+    const { data: newMessage, error } = await supabaseAdmin.rpc('create_admin_support_message', {
+      p_ticket_id: ticketId,
+      p_message: message.trim(),
+      p_attachments: attachments || [],
+    });
 
     if (error) {
+      console.log(`[DEBUG] RPC error:`, error);
       res.status(500).json({
         success: false,
         error: {
@@ -423,12 +432,20 @@ router.post(
       return;
     }
 
+    console.log(`[DEBUG] Message inserted successfully`);
+
     // Update ticket status to in_progress if still open
-    await supabaseAdmin
+    const { error: updateError } = await supabaseAdmin
       .from('support_tickets')
       .update({ status: 'in_progress' })
       .eq('id', ticketId)
       .eq('status', 'open');
+
+    if (updateError) {
+      console.log(`[DEBUG] Status update error (non-fatal):`, updateError);
+    }
+
+    console.log(`[DEBUG] Sending success response`);
 
     res.json({
       success: true,
