@@ -638,7 +638,7 @@ export default function SupportView() {
                     className="px-6 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                   >
                     {(creating || uploading) && <Loader2 className="w-4 h-4 animate-spin" />}
-                    {uploading ? 'Upload en cours...' : creating ? 'Création...' : 'Créer le ticket'}
+                    {uploading ? 'Upload en cours...' : creating ? 'Création...' : 'Créerrr le ticket'}
                   </button>
                 </div>
               </form>
