@@ -13,6 +13,13 @@ import { supabaseAdmin } from '../services/supabase.service.js';
 import type { AgentConfig } from '../types/agent.types.js';
 import type { AgentId, SharedProjectContext } from '../types/api.types.js';
 import type { Anthropic } from '@anthropic-ai/sdk';
+import { readFile } from 'fs/promises';
+import { join } from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // ─────────────────────────────────────────────────────────────────
 // Agent Execution Context
@@ -84,8 +91,11 @@ export async function executeAgent(context: AgentExecutionContext) {
   });
 
   try {
-    // Step 1: Build system prompt
-    const systemPrompt = buildSystemPrompt(context);
+    // Step 1: Load relevant skills based on user message context
+    const skills = await loadRelevantSkills(context.userMessage, context.agentId);
+
+    // Step 2: Build system prompt with skills injection
+    const systemPrompt = buildSystemPrompt(context, skills);
 
   // Step 2: Build MCP tools definitions for Claude
   const tools = buildMCPToolsDefinitions(context.agentConfig.mcpTools);
@@ -245,13 +255,154 @@ export async function executeAgent(context: AgentExecutionContext) {
 }
 
 // ─────────────────────────────────────────────────────────────────
+// Skills Loading & Context Detection (Phase 5)
+// ─────────────────────────────────────────────────────────────────
+
+interface Skill {
+  name: string;
+  agent: string;
+  fileName: string;
+  content: string;
+}
+
+/**
+ * Context detection patterns for skill matching
+ */
+const SKILL_PATTERNS: Record<string, string[]> = {
+  // Luna skills
+  'luna/seo-audit-complete': ['audit seo', 'analyse seo', 'seo complet', 'audit de site'],
+  'luna/content-strategy-builder': ['stratégie de contenu', 'calendrier éditorial', 'content strategy', 'planning contenu'],
+  'luna/competitor-deep-dive': ['analyse concurrence', 'concurrent', 'compétiteur', 'swot'],
+  'luna/landing-page-optimizer': ['landing page', 'page d\'atterrissage', 'optimise.*page'],
+  'luna/cms-content-publisher': ['publie', 'publish', 'wordpress', 'cms'],
+
+  // Sora skills
+  'sora/performance-report-generator': ['rapport', 'report', 'performance', 'kpi', 'analytics'],
+  'sora/anomaly-detective': ['anomalie', 'bug', 'problème tracking', 'donnée bizarre'],
+  'sora/tracking-setup-auditor': ['tracking', 'pixel', 'ga4', 'gtm', 'tag manager'],
+  'sora/attribution-analyst': ['attribution', 'source', 'canal', 'conversion path'],
+  'sora/kpi-dashboard-builder': ['dashboard', 'tableau de bord', 'visualisation'],
+
+  // Marcus skills
+  'marcus/campaign-launch-checklist': ['lance.*campagne', 'nouvelle campagne', 'créer campagne'],
+  'marcus/budget-optimizer-weekly': ['optimise budget', 'budget', 'répartition budget'],
+  'marcus/creative-testing-framework': ['test.*créatif', 'a/b test', 'test visuel'],
+  'marcus/scaling-playbook': ['scale', 'augmente budget', 'scaling'],
+  'marcus/cross-platform-budget-allocator': ['multi.*plateforme', 'répartis budget', 'allocation'],
+
+  // Milo skills
+  'milo/ad-copy-frameworks': ['écris.*pub', 'copywriting', 'texte publicitaire', 'ad copy'],
+  'milo/visual-brief-creator': ['crée.*visuel', 'image', 'design', 'visual'],
+  'milo/video-ad-producer': ['vidéo', 'video', 'clip'],
+  'milo/multi-platform-adapter': ['adapte', 'multi.*plateforme', 'formats'],
+  'milo/brand-voice-guardian': ['brand voice', 'cohérence', 'marque', 'tone'],
+
+  // Doffy skills
+  'doffy/social-content-calendar': ['calendrier.*social', 'planning.*social', 'posts'],
+  'doffy/hashtag-strategist': ['hashtag', '#'],
+  'doffy/engagement-playbook': ['engagement', 'interaction', 'commentaire'],
+  'doffy/social-analytics-interpreter': ['stats.*social', 'analytics.*social', 'reach', 'impressions'],
+  'doffy/trend-surfer': ['tendance', 'trend', 'viral'],
+
+  // Orchestrator skills
+  'orchestrator/inter-agent-handoff': ['multi.*agent', 'plusieurs.*agents', 'workflow'],
+  'orchestrator/client-report-orchestrator': ['rapport.*client', 'rapport.*mensuel'],
+  'orchestrator/onboarding-new-client': ['onboarding', 'nouveau.*projet', 'démarrage'],
+};
+
+/**
+ * Load a skill from disk
+ */
+async function loadSkillFile(agentFolder: string, skillFileName: string): Promise<Skill | null> {
+  try {
+    // Path: backend/src/agents -> backend -> root -> agents/skills
+    const skillsBasePath = join(__dirname, '../../../agents/skills');
+    const skillPath = join(skillsBasePath, agentFolder, skillFileName);
+
+    const content = await readFile(skillPath, 'utf-8');
+
+    return {
+      name: skillFileName.replace('.skill.md', ''),
+      agent: agentFolder,
+      fileName: skillFileName,
+      content,
+    };
+  } catch (error) {
+    console.warn(`[Skills] Could not load skill ${agentFolder}/${skillFileName}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Detect which skills are relevant based on user message context
+ */
+function detectRelevantSkills(userMessage: string, agentId: AgentId): string[] {
+  const messageLower = userMessage.toLowerCase();
+  const relevantSkills: string[] = [];
+
+  // Filter patterns by agent
+  const agentFolder = agentId.toLowerCase();
+
+  for (const [skillKey, patterns] of Object.entries(SKILL_PATTERNS)) {
+    // Check if skill belongs to current agent or orchestrator (always available)
+    if (!skillKey.startsWith(agentFolder) && !skillKey.startsWith('orchestrator')) {
+      continue;
+    }
+
+    // Check if any pattern matches the user message
+    for (const pattern of patterns) {
+      const regex = new RegExp(pattern, 'i');
+      if (regex.test(messageLower)) {
+        relevantSkills.push(skillKey);
+        break; // Don't add same skill multiple times
+      }
+    }
+  }
+
+  return relevantSkills;
+}
+
+/**
+ * Load relevant skills based on context
+ */
+async function loadRelevantSkills(
+  userMessage: string,
+  agentId: AgentId
+): Promise<Skill[]> {
+  const relevantSkillKeys = detectRelevantSkills(userMessage, agentId);
+
+  if (relevantSkillKeys.length === 0) {
+    console.log('[Skills] No relevant skills detected for message');
+    return [];
+  }
+
+  console.log(`[Skills] Detected ${relevantSkillKeys.length} relevant skills:`, relevantSkillKeys);
+
+  const skills: Skill[] = [];
+
+  for (const skillKey of relevantSkillKeys) {
+    const [agentFolder, skillName] = skillKey.split('/');
+    const skillFileName = `${skillName}.skill.md`;
+
+    const skill = await loadSkillFile(agentFolder, skillFileName);
+    if (skill) {
+      skills.push(skill);
+    }
+  }
+
+  console.log(`[Skills] Loaded ${skills.length} skills successfully`);
+
+  return skills;
+}
+
+// ─────────────────────────────────────────────────────────────────
 // System Prompt Builder
 // ─────────────────────────────────────────────────────────────────
 
 /**
  * Build system prompt by injecting context into template
  */
-function buildSystemPrompt(context: AgentExecutionContext): string {
+function buildSystemPrompt(context: AgentExecutionContext, skills: Skill[] = []): string {
   let prompt = context.agentConfig.systemPromptTemplate;
 
   // Replace template variables
@@ -307,6 +458,26 @@ function buildSystemPrompt(context: AgentExecutionContext): string {
   for (const [key, value] of Object.entries(replacements)) {
     const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
     prompt = prompt.replace(regex, value);
+  }
+
+  // Phase 5: Inject relevant skills into system prompt
+  if (skills.length > 0) {
+    const skillsSection = `
+
+# ────────────────────────────────────────────────────────────────
+# SKILLS DISPONIBLES (Méthodologies expertes)
+# ────────────────────────────────────────────────────────────────
+
+Tu as accès aux méthodologies suivantes. Utilise-les pour garantir un output professionnel et structuré.
+
+${skills.map(skill => skill.content).join('\n\n---\n\n')}
+
+**IMPORTANT :** Ces skills sont des méthodologies step-by-step à suivre. Quand une requête correspond à un skill, applique la méthodologie exactement comme décrite pour garantir la qualité.
+`;
+
+    prompt += skillsSection;
+
+    console.log(`[Skills] Injected ${skills.length} skills into system prompt:`, skills.map(s => s.name));
   }
 
   // Add system instruction override if provided
