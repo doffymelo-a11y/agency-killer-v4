@@ -30,12 +30,12 @@ import {
   fetchAnalytics as apiFetchAnalytics,
 } from '../services/api';
 
-// Keep n8n types for compatibility (will be migrated later)
-import {
-  type SharedProjectContext,
-  type TaskExecutionContext,
-  type WriteBackCommand,
-} from '../services/n8n';
+// Import shared types (migrated from n8n.ts to types/index.ts)
+import type {
+  SharedProjectContext,
+  TaskExecutionContext,
+  WriteBackCommand,
+} from '../types';
 // @ts-expect-error - checkUsageLimit is used but TypeScript doesn't detect it
 import { checkUsageLimit, incrementUsage } from '../services/stripe';
 

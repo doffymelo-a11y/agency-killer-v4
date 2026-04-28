@@ -1,5 +1,31 @@
 // ============================================
-// THE HIVE OS V4 - N8N SERVICE
+// ⚠️ DEPRECATED - DO NOT USE IN NEW CODE ⚠️
+// ============================================
+// This service is being phased out as part of Phase 4 Chantier C.
+//
+// **Migration Status:**
+// - ✅ All types moved to /cockpit/src/types/index.ts
+// - ✅ api.ts imports updated to use types/index.ts
+// - ✅ useHiveStore.ts imports updated to use types/index.ts
+//
+// **What to use instead:**
+// - For types: import from '../types' (SharedProjectContext, WriteBackCommand, etc.)
+// - For API calls: import from '../services/api' (sendChatMessage, etc.)
+//
+// **Why deprecated:**
+// This n8n webhook service will be replaced by the TypeScript backend API
+// as outlined in CLAUDE.md (Phase V5 migration plan).
+//
+// **Timeline:**
+// - Phase 4: Types migrated ✅ CURRENT
+// - Phase 5: Backend TypeScript replaces n8n webhooks
+// - Phase 6: This file will be deleted
+//
+// Do NOT add new features or modify this file.
+// ============================================
+//
+// ============================================
+// THE HIVE OS V4 - N8N SERVICE (LEGACY)
 // PM (Project Manager) as Central Entry Point
 // Architecture V4.3 - PM calls Orchestrator as tool
 // ============================================

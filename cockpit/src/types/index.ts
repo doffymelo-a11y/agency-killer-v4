@@ -709,4 +709,202 @@ export interface ProjectFile {
   updated_at: string;
 }
 
+// ─────────────────────────────────────────────────────────────────
+// API/N8N Integration Types (migrated from n8n.ts)
+// ─────────────────────────────────────────────────────────────────
+
+// PM Action types for routing
+export type PMAction = 'genesis' | 'task_launch' | 'quick_action' | 'write_back';
+
+// Shared Memory Types (Context complet pour agents)
+export interface SharedProjectContext {
+  project_id: string;
+  project_name: string;
+  project_status: string;
+  current_phase: string;
+  scope: string;
+  state_flags: ProjectStateFlags;
+  metadata: ProjectMetadata;
+}
+
+export interface TaskExecutionContext {
+  task_id: string;
+  task_title: string;
+  task_description?: string;
+  task_phase: string;
+  context_questions: string[];
+  user_inputs: Record<string, string>;
+  depends_on: string[];
+}
+
+export interface WriteBackCommand {
+  type: 'UPDATE_TASK_STATUS' | 'UPDATE_STATE_FLAG' | 'SET_DELIVERABLE' | 'COMPLETE_TASK' | 'ADD_FILE';
+  task_id?: string;
+  status?: TaskStatus;
+  flag_name?: string;
+  flag_value?: boolean;
+  deliverable_url?: string;
+  deliverable_type?: string;
+  // ADD_FILE specific fields
+  file?: {
+    filename: string;
+    url: string;
+    file_type: string;
+    mime_type: string;
+    size_bytes: number;
+    tags?: string[];
+    metadata?: Record<string, any>;
+    agent_id?: string;
+  };
+}
+
+// Genesis Types - Project Creation
+export interface GenesisWizardAnswer {
+  questionId: string;
+  value: string | boolean | number;
+}
+
+export interface GenesisRequest {
+  scope: ProjectScope;
+  answers: GenesisWizardAnswer[];
+  project_name: string;
+  deadline: string; // ISO date string
+  context_data: {
+    website_url?: string;
+    usp?: string;
+    target_persona?: string;
+    pain_point?: string;
+    competitors?: string;
+    monthly_budget?: string;
+    business_goal?: string;
+    [key: string]: string | undefined;
+  };
+}
+
+export interface GenesisResponse {
+  success: boolean;
+  project: {
+    id: string;
+    name: string;
+    scope: ProjectScope;
+    status: string;
+    current_phase: string;
+    state_flags: ProjectStateFlags;
+    metadata: ProjectMetadata;
+  };
+  tasks: Array<{
+    id: string;
+    title: string;
+    description: string;
+    assignee: AgentRole;
+    phase: string;
+    status: TaskStatus;
+    estimated_hours: number;
+    due_date: string;
+    context_questions: string[];
+    depends_on: string[];
+  }>;
+  chat_message: {
+    content: string;
+    tone: 'positive' | 'neutral' | 'warning';
+  };
+  meta: {
+    agent_id: 'pm';
+    version: string;
+    tasks_generated: number;
+    calendar_optimized: boolean;
+  };
+}
+
+// Task Launch Types - Execute task
+export interface TaskLaunchRequest {
+  task_id: string;
+  task_title: string;
+  task_description?: string;
+  task_phase: string;
+  assignee: AgentRole;
+  context_questions: string[];
+  user_inputs: Record<string, string>;
+  depends_on: string[];
+  // Full project context for injection
+  shared_memory: SharedProjectContext;
+}
+
+export interface TaskLaunchResponse {
+  success: boolean;
+  agent_response: {
+    message: string;
+    agent_used: AgentRole;
+    ui_components?: UIComponent[];
+  };
+  write_back?: WriteBackCommand[];
+  state_update?: {
+    task_status?: TaskStatus;
+    state_flags?: Partial<ProjectStateFlags>;
+    deliverable_url?: string;
+    deliverable_type?: string;
+  };
+}
+
+// N8N Response Types
+export interface N8NResponse {
+  success?: boolean;
+  message?: string;
+  chat_message?: string | { content?: string; text?: string; message?: string };
+  response?: string;
+  text?: string;
+  output?: string;
+  content?: string;
+  agent_used?: AgentRole;
+  agentUsed?: AgentRole;
+  agent?: AgentRole;
+  agent_id?: AgentRole;
+  meta?: {
+    agent_id?: AgentRole;
+    responding_agent?: string;
+  };
+  ui_components?: UIComponent[];
+  uiComponents?: UIComponent[];
+  components?: UIComponent[];
+  widgets?: UIComponent[];
+  ui_component?: string;
+  creative_result?: {
+    image_url?: string;
+    prompt_used?: string;
+    copy?: {
+      headline?: string;
+      body?: string;
+    };
+    deliverables?: {
+      image_url?: string;
+    };
+  };
+  prompt_used?: string;
+  // Write-back commands from agent
+  write_back?: WriteBackCommand[];
+  writeBack?: WriteBackCommand[];
+  state_update?: {
+    task_status?: TaskStatus;
+    state_flags?: Partial<ProjectStateFlags>;
+    deliverable_url?: string;
+    deliverable_type?: string;
+  };
+}
+
+// Parsed Orchestrator Response
+export interface ParsedOrchestratorResponse {
+  message: string;
+  agentUsed?: AgentRole;
+  respondingAgent?: AgentRole;
+  uiComponents: UIComponent[];
+  // Write-back commands
+  writeBackCommands: WriteBackCommand[];
+  stateUpdate?: {
+    task_status?: TaskStatus;
+    state_flags?: Partial<ProjectStateFlags>;
+    deliverable_url?: string;
+    deliverable_type?: string;
+  };
+}
+
 // Database types are in ./database.ts

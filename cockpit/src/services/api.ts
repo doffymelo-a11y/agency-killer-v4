@@ -35,8 +35,8 @@ const DEBUG_MODE = import.meta.env.DEV && import.meta.env.VITE_DEBUG_API === 'tr
 // Types (matching backend API)
 // ============================================
 
-// Import types from n8n for compatibility (TODO: move to shared types)
-import type { SharedProjectContext, WriteBackCommand, UIComponent } from './n8n';
+// Import types from shared types (migrated from n8n.ts)
+import type { SharedProjectContext, WriteBackCommand, UIComponent } from '../types';
 
 export interface ChatRequest {
   action: 'task_launch' | 'quick_action' | 'chat';
@@ -274,8 +274,8 @@ export const sendChatMessage = async (
 // Parse Response (for compatibility with existing code)
 // ============================================
 
-// Import types from n8n for compatibility
-import type { ParsedOrchestratorResponse } from './n8n';
+// Import types from shared types (migrated from n8n.ts)
+import type { ParsedOrchestratorResponse } from '../types';
 
 // Re-export for convenience
 export type ParsedChatResponse = ParsedOrchestratorResponse;
