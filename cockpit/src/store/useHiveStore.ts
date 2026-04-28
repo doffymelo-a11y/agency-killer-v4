@@ -21,6 +21,7 @@ import type {
   AnalyticsData,
   AnalyticsSource,
   AnalyticsDateRange,
+  ProjectFile,
 } from '../types';
 // V5 - TypeScript Backend API (New)
 import {
@@ -85,6 +86,10 @@ interface HiveState {
   analyticsDateRange: AnalyticsDateRange;
   analyticsLoading: boolean;
 
+  // Phase 4 - Files
+  projectFiles: ProjectFile[];
+  filesLoading: boolean;
+
   // Actions - Data
   fetchProjects: () => Promise<void>;
   fetchProjectWithTasks: (projectId: string) => Promise<void>;
@@ -136,6 +141,11 @@ interface HiveState {
   fetchAnalytics: (projectId: string, source: AnalyticsSource, dateRange: AnalyticsDateRange) => Promise<void>;
   setAnalyticsSource: (source: AnalyticsSource) => void;
   setAnalyticsDateRange: (dateRange: AnalyticsDateRange) => void;
+
+  // Actions - Files (Phase 4)
+  fetchProjectFiles: (projectId: string) => Promise<void>;
+  addFile: (file: Omit<ProjectFile, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  deleteFile: (fileId: string) => Promise<void>;
 
   // Realtime
   subscribeToProject: (projectId: string) => () => void;
@@ -320,6 +330,10 @@ export const useHiveStore = create<HiveState>()(
         preset: '30d',
       },
       analyticsLoading: false,
+
+      // Files (Phase 4)
+      projectFiles: [],
+      filesLoading: false,
 
       // ─────────────────────────────────────────────────────────────
       // Data Actions
@@ -954,6 +968,37 @@ export const useHiveStore = create<HiveState>()(
               }
               break;
 
+            case 'ADD_FILE':
+              if (cmd.file && state.currentProject) {
+                try {
+                  const { error } = await supabase
+                    .from('project_files')
+                    .insert({
+                      project_id: state.currentProject.id,
+                      task_id: cmd.task_id || null,
+                      agent_id: cmd.file.agent_id || null,
+                      uploaded_by: null, // Agent-generated
+                      filename: cmd.file.filename,
+                      url: cmd.file.url,
+                      file_type: cmd.file.file_type,
+                      mime_type: cmd.file.mime_type,
+                      size_bytes: cmd.file.size_bytes,
+                      tags: cmd.file.tags || [],
+                      metadata: cmd.file.metadata || {},
+                    });
+
+                  if (error) throw error;
+
+                  console.log('[HIVE] File added to project:', cmd.file.filename);
+
+                  // Optionally: update local state with new file
+                  // (would need to add files array to store first)
+                } catch (err) {
+                  console.error('[HIVE] Error adding file:', err);
+                }
+              }
+              break;
+
             default:
               console.warn('[HIVE] Unknown write-back command type:', cmd.type);
           }
@@ -1169,6 +1214,87 @@ export const useHiveStore = create<HiveState>()(
       setAnalyticsDateRange: (dateRange: AnalyticsDateRange) => {
         console.log('[HIVE] setAnalyticsDateRange:', dateRange);
         set({ analyticsDateRange: dateRange });
+      },
+
+      // ─────────────────────────────────────────────────────────────
+      // Files Actions (Phase 4)
+      // ─────────────────────────────────────────────────────────────
+
+      fetchProjectFiles: async (projectId: string) => {
+        console.log('[HIVE] fetchProjectFiles: Starting...', projectId);
+        set({ filesLoading: true, error: null });
+
+        try {
+          const { data: files, error } = await supabase
+            .from('project_files')
+            .select('*')
+            .eq('project_id', projectId)
+            .order('created_at', { ascending: false });
+
+          if (error) throw error;
+
+          console.log('[HIVE] fetchProjectFiles: Success', files?.length || 0);
+
+          set({
+            projectFiles: files || [],
+            filesLoading: false,
+          });
+        } catch (err) {
+          console.error('[HIVE] fetchProjectFiles: Error', err);
+          set({
+            error: (err as Error).message,
+            filesLoading: false,
+          });
+        }
+      },
+
+      addFile: async (file: Omit<ProjectFile, 'id' | 'created_at' | 'updated_at'>) => {
+        console.log('[HIVE] addFile: Adding file...', file.filename);
+
+        try {
+          const { data: newFile, error } = await supabase
+            .from('project_files')
+            .insert(file)
+            .select()
+            .single();
+
+          if (error) throw error;
+
+          console.log('[HIVE] addFile: Success', newFile.id);
+
+          // Optimistic update
+          set((state) => ({
+            projectFiles: [newFile, ...state.projectFiles],
+          }));
+        } catch (err) {
+          console.error('[HIVE] addFile: Error', err);
+          set({ error: (err as Error).message });
+          throw err;
+        }
+      },
+
+      deleteFile: async (fileId: string) => {
+        console.log('[HIVE] deleteFile: Deleting file...', fileId);
+
+        try {
+          const { error } = await supabase
+            .from('project_files')
+            .delete()
+            .eq('id', fileId);
+
+          if (error) throw error;
+
+          console.log('[HIVE] deleteFile: Success');
+
+          // Optimistic update
+          set((state) => ({
+            projectFiles: state.projectFiles.filter((f) => f.id !== fileId),
+          }));
+        } catch (err) {
+          console.error('[HIVE] deleteFile: Error', err);
+          set({ error: (err as Error).message });
+          throw err;
+        }
       },
 
       // ─────────────────────────────────────────────────────────────

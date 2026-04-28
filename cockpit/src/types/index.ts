@@ -688,4 +688,25 @@ export interface AnalyticsData {
   lastUpdated?: string; // ISO timestamp
 }
 
+// ─────────────────────────────────────────────────────────────────
+// Files Types (Phase 4 - Chantier A)
+// ─────────────────────────────────────────────────────────────────
+
+export interface ProjectFile {
+  id: string;
+  project_id: string;
+  task_id?: string | null;
+  agent_id?: string | null;
+  uploaded_by?: string | null;
+  filename: string;
+  url: string;
+  file_type: string; // image, video, audio, document, code, data
+  mime_type: string; // image/png, video/mp4, etc.
+  size_bytes: number;
+  tags: string[];
+  metadata: Record<string, any>;
+  created_at: string;
+  updated_at: string;
+}
+
 // Database types are in ./database.ts

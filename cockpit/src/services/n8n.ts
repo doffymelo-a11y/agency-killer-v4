@@ -49,13 +49,24 @@ export interface TaskExecutionContext {
 }
 
 export interface WriteBackCommand {
-  type: 'UPDATE_TASK_STATUS' | 'UPDATE_STATE_FLAG' | 'SET_DELIVERABLE' | 'COMPLETE_TASK';
+  type: 'UPDATE_TASK_STATUS' | 'UPDATE_STATE_FLAG' | 'SET_DELIVERABLE' | 'COMPLETE_TASK' | 'ADD_FILE';
   task_id?: string;
   status?: TaskStatus;
   flag_name?: string;
   flag_value?: boolean;
   deliverable_url?: string;
   deliverable_type?: string;
+  // ADD_FILE specific fields
+  file?: {
+    filename: string;
+    url: string;
+    file_type: string;
+    mime_type: string;
+    size_bytes: number;
+    tags?: string[];
+    metadata?: Record<string, any>;
+    agent_id?: string;
+  };
 }
 
 // ============================================
