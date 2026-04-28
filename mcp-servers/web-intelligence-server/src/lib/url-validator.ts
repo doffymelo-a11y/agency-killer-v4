@@ -16,6 +16,10 @@ const BLOCKED_DOMAINS = [
   '0.0.0.0',
   '::1',
 
+  // SECURITY FIX: IPv4-mapped IPv6 loopback
+  '::ffff:127.',
+  '::ffff:0.',
+
   // Private IP ranges (SSRF protection)
   '10.', // 10.0.0.0/8
   '172.16.', '172.17.', '172.18.', '172.19.', // 172.16.0.0/12
@@ -24,6 +28,15 @@ const BLOCKED_DOMAINS = [
   '172.28.', '172.29.', '172.30.', '172.31.',
   '192.168.', // 192.168.0.0/16
   '169.254.', // Link-local
+
+  // SECURITY FIX: IPv4-mapped IPv6 private ranges
+  '::ffff:10.', // 10.0.0.0/8
+  '::ffff:172.16.', '::ffff:172.17.', '::ffff:172.18.', '::ffff:172.19.',
+  '::ffff:172.20.', '::ffff:172.21.', '::ffff:172.22.', '::ffff:172.23.',
+  '::ffff:172.24.', '::ffff:172.25.', '::ffff:172.26.', '::ffff:172.27.',
+  '::ffff:172.28.', '::ffff:172.29.', '::ffff:172.30.', '::ffff:172.31.',
+  '::ffff:192.168.', // 192.168.0.0/16
+  '::ffff:169.254.', // Link-local
 
   // Meta addresses
   '0.0.0.0',
@@ -112,25 +125,69 @@ export function validateURL(urlString: string): URLValidationResult {
 
 /**
  * Check if hostname is a private IP address
+ * SECURITY: Also detects IPv4-mapped IPv6 addresses (::ffff:192.168.1.1)
  */
 function isPrivateIP(hostname: string): boolean {
+  // IPv6 check FIRST (includes IPv4-mapped IPv6)
+  if (hostname.includes(':')) {
+    const lowerHost = hostname.toLowerCase();
+
+    // fc00::/7 (Unique Local Addresses)
+    if (lowerHost.startsWith('fc') || lowerHost.startsWith('fd')) {
+      return true;
+    }
+
+    // fe80::/10 (Link-local)
+    if (lowerHost.startsWith('fe80')) {
+      return true;
+    }
+
+    // ::1 (loopback)
+    if (lowerHost === '::1' || lowerHost === '0:0:0:0:0:0:0:1') {
+      return true;
+    }
+
+    // SECURITY FIX: IPv4-mapped IPv6 addresses (::ffff:x.x.x.x)
+    // Format: ::ffff:192.168.1.1 or ::ffff:c0a8:0101 (hex)
+    const ipv4MappedRegex = /::ffff:(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/i;
+    const mappedMatch = lowerHost.match(ipv4MappedRegex);
+
+    if (mappedMatch) {
+      // Extract IPv4 octets and check if private
+      const octets = mappedMatch.slice(1, 5).map(Number);
+
+      // 10.0.0.0/8
+      if (octets[0] === 10) return true;
+
+      // 172.16.0.0/12
+      if (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) return true;
+
+      // 192.168.0.0/16
+      if (octets[0] === 192 && octets[1] === 168) return true;
+
+      // 127.0.0.0/8 (loopback)
+      if (octets[0] === 127) return true;
+
+      // 169.254.0.0/16 (link-local)
+      if (octets[0] === 169 && octets[1] === 254) return true;
+
+      // 0.0.0.0/8
+      if (octets[0] === 0) return true;
+
+      // Broadcast
+      if (octets.every(o => o === 255)) return true;
+    }
+
+    // No private IPv6 detected
+    return false;
+  }
+
   // IPv4 regex
   const ipv4Regex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
   const match = hostname.match(ipv4Regex);
 
   if (!match) {
-    // Not an IPv4 address (could be domain or IPv6)
-    // IPv6 private ranges check (simplified)
-    if (hostname.includes(':')) {
-      // fc00::/7 (Unique Local Addresses)
-      if (hostname.startsWith('fc') || hostname.startsWith('fd')) {
-        return true;
-      }
-      // fe80::/10 (Link-local)
-      if (hostname.startsWith('fe80')) {
-        return true;
-      }
-    }
+    // Not an IP address (domain name)
     return false;
   }
 

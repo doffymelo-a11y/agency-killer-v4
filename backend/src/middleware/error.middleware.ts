@@ -94,12 +94,14 @@ export function errorHandler(
       },
     };
 
-    if (error.details) {
-      errorResponse.error.details = error.details;
-    }
-
-    if (process.env.NODE_ENV === 'development' && error.stack) {
-      errorResponse.error.stack = error.stack;
+    // SECURITY: Only expose details in development
+    if (process.env.NODE_ENV === 'development') {
+      if (error.details) {
+        errorResponse.error.details = error.details;
+      }
+      if (error.stack) {
+        errorResponse.error.stack = error.stack;
+      }
     }
 
     res.status(error.statusCode).json(errorResponse);
@@ -108,20 +110,27 @@ export function errorHandler(
 
   // Handle unknown errors
   const statusCode = 500;
-  const message =
-    process.env.NODE_ENV === 'production'
-      ? 'Internal server error'
-      : error.message || 'An unexpected error occurred';
 
+  // SECURITY: In production, NEVER expose error details, stack traces, or internal messages
+  if (process.env.NODE_ENV === 'production') {
+    res.status(statusCode).json({
+      success: false,
+      error: {
+        message: 'Internal server error',
+        code: 'INTERNAL_ERROR',
+      },
+    });
+    return;
+  }
+
+  // Development only: show full error details
   res.status(statusCode).json({
     success: false,
     error: {
-      message,
+      message: error.message || 'An unexpected error occurred',
       code: 'INTERNAL_ERROR',
-      ...(process.env.NODE_ENV === 'development' && {
-        stack: error.stack,
-        details: error,
-      }),
+      stack: error.stack,
+      details: error,
     },
   });
 }

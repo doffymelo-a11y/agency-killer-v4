@@ -29,13 +29,41 @@ export default function ChatInput({ activeAgent, isThinking, onSendMessage }: Ch
     setImagePreview(null);
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
+    // SECURITY: Validate file size (5MB max)
+    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+    if (file.size > MAX_FILE_SIZE) {
+      alert('L\'image est trop volumineuse (max 5MB)');
+      return;
+    }
+
+    // SECURITY: Validate file type
     if (!file.type.startsWith('image/')) {
       alert('Veuillez selectionner une image');
+      return;
+    }
+
+    // SECURITY: Verify magic numbers (first bytes of file)
+    try {
+      const arrayBuffer = await file.slice(0, 8).arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+
+      // Check magic numbers for common image formats
+      const isPNG = bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47;
+      const isJPEG = bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF;
+      const isGIF = bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46;
+      const isWEBP = bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50;
+
+      if (!isPNG && !isJPEG && !isGIF && !isWEBP) {
+        alert('Format d\'image non supporté. Utilisez PNG, JPEG, GIF ou WEBP.');
+        return;
+      }
+    } catch (error) {
+      console.error('Error validating image:', error);
+      alert('Erreur lors de la validation de l\'image');
       return;
     }
 

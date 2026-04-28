@@ -5,6 +5,7 @@
 
 import { v2 as cloudinary } from 'cloudinary';
 import * as dotenv from 'dotenv';
+import * as path from 'path';
 
 dotenv.config();
 
@@ -63,6 +64,12 @@ export async function uploadScreenshot(
     );
   }
 
+  // SECURITY: Validate buffer size (10MB max)
+  const MAX_BUFFER_SIZE = 10 * 1024 * 1024; // 10MB
+  if (buffer.length > MAX_BUFFER_SIZE) {
+    throw new Error('Image buffer too large (max 10MB)');
+  }
+
   const { filename = 'screenshot', folder = 'hive-os/screenshots', tags = [] } = options;
 
   try {
@@ -105,6 +112,14 @@ export async function uploadBase64Image(
 ): Promise<UploadResult> {
   if (!CLOUDINARY_ENABLED) {
     throw new Error('Cloudinary not configured');
+  }
+
+  // SECURITY: Validate base64 string size (10MB max when decoded)
+  const MAX_BUFFER_SIZE = 10 * 1024 * 1024; // 10MB
+  const base64Data = base64Image.split(',')[1] || base64Image;
+  const estimatedSize = (base64Data.length * 3) / 4; // Base64 is ~33% larger than binary
+  if (estimatedSize > MAX_BUFFER_SIZE) {
+    throw new Error('Image data too large (max 10MB)');
   }
 
   const { filename = 'image', folder = 'hive-os/images', tags = [] } = options;
@@ -158,16 +173,28 @@ export async function deleteImage(publicId: string): Promise<void> {
 
 /**
  * Generate a unique public ID for uploads
+ * SECURITY: Sanitizes filename to prevent path traversal and injection
  */
 function generatePublicId(filename: string): string {
   const timestamp = Date.now();
   const random = Math.random().toString(36).substring(2, 8);
-  const sanitized = filename
-    .replace(/[^a-zA-Z0-9-_]/g, '-')
+
+  // SECURITY: Use path.basename() to prevent path traversal (../../etc/passwd)
+  const basename = path.basename(filename);
+
+  // SECURITY: Remove extension and sanitize with strict whitelist [a-zA-Z0-9._-]
+  const nameWithoutExt = basename.replace(/\.[^.]+$/, '');
+  const sanitized = nameWithoutExt
+    .replace(/[^a-zA-Z0-9._-]/g, '-')
+    .replace(/^\.+/, '') // Remove leading dots (hidden files)
+    .replace(/\.{2,}/g, '.') // Collapse multiple dots
     .toLowerCase()
     .substring(0, 50);
 
-  return `${sanitized}-${timestamp}-${random}`;
+  // Fallback if sanitization results in empty string
+  const finalName = sanitized || 'upload';
+
+  return `${finalName}-${timestamp}-${random}`;
 }
 
 /**

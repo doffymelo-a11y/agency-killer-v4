@@ -9,6 +9,15 @@ import { getNextPhase } from '../services/task-generation.service.js';
 import { simpleChat } from '../services/claude.service.js';
 import type { WriteBackCommand } from '../types/api.types.js';
 
+// SECURITY: Whitelist of allowed write-back command types
+const ALLOWED_COMMAND_TYPES = [
+  'UPDATE_TASK_STATUS',
+  'SET_DELIVERABLE',
+  'ADD_FILE',
+  'UPDATE_PROJECT_PHASE',
+  'NOTIFY_USER',
+] as const;
+
 /**
  * Execute a batch of write-back commands
  * Returns number of successful executions
@@ -18,6 +27,19 @@ export async function executeWriteBackCommands(
   projectId: string,
   userId?: string
 ): Promise<number> {
+  // SECURITY: Limit to 50 commands per request (prevent DoS)
+  const MAX_COMMANDS = 50;
+  if (commands.length > MAX_COMMANDS) {
+    throw new Error(`Too many write-back commands (max ${MAX_COMMANDS}, got ${commands.length})`);
+  }
+
+  // SECURITY: Validate all commands are whitelisted types
+  for (const command of commands) {
+    if (!ALLOWED_COMMAND_TYPES.includes(command.type as any)) {
+      throw new Error(`Invalid write-back command type: ${command.type}`);
+    }
+  }
+
   // SECURITY: Verify project ownership BEFORE executing any commands
   if (userId && projectId) {
     const { data: project, error } = await supabaseAdmin

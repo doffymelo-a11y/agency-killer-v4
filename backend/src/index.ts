@@ -18,9 +18,11 @@ import taskExplainerRoutes from './routes/task-explainer.routes.js';
 import cmsRoutes from './routes/cms.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import superAdminRoutes from './routes/super-admin.routes.js';
+import telegramRoutes from './routes/telegram.routes.js';
 
 // Middleware
 import { errorHandler } from './middleware/error.middleware.js';
+import { csrfProtection } from './middleware/csrf.middleware.js';
 
 // Services
 import { isSupabaseConfigured } from './services/supabase.service.js';
@@ -29,6 +31,7 @@ import { isMCPBridgeConfigured } from './services/mcp-bridge.service.js';
 
 // Setup
 import { ensureRPCFunctions } from './setup/ensure-rpc-functions.js';
+import { startTelegramRealtimeListener } from './setup/telegram-realtime.js';
 
 dotenv.config();
 
@@ -54,8 +57,54 @@ const ALLOWED_ORIGINS = NODE_ENV === 'development'
 
 const app = express();
 
-// Security middleware
-app.use(helmet());
+// Security middleware - Helmet with strict configuration
+app.use(
+  helmet({
+    // Content Security Policy
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"], // Allow inline styles for frontend
+        imgSrc: ["'self'", 'data:', 'https:'], // Allow data URIs and HTTPS images
+        fontSrc: ["'self'", 'data:'],
+        connectSrc: ["'self'"], // API calls to same origin only
+        frameSrc: ["'none'"], // No iframes
+        objectSrc: ["'none'"], // No Flash, Java, etc.
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
+        upgradeInsecureRequests: [], // Upgrade HTTP to HTTPS
+      },
+    },
+    // Strict Transport Security - Force HTTPS for 1 year
+    hsts: {
+      maxAge: 31536000,
+      includeSubDomains: true,
+      preload: true,
+    },
+    // Referrer Policy - Strict origin when cross-origin
+    referrerPolicy: {
+      policy: 'strict-origin-when-cross-origin',
+    },
+    // X-Frame-Options - Prevent clickjacking
+    frameguard: {
+      action: 'deny',
+    },
+    // X-Content-Type-Options - Prevent MIME sniffing
+    noSniff: true,
+    // X-XSS-Protection - Legacy XSS protection
+    xssFilter: true,
+  })
+);
+
+// Permissions-Policy header (not part of helmet config in current version)
+app.use((_req, res, next) => {
+  res.setHeader(
+    'Permissions-Policy',
+    "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+  );
+  next();
+});
 
 // CORS - Allow both cockpit and backoffice
 app.use(
@@ -73,6 +122,9 @@ app.use(
     credentials: true,
   })
 );
+
+// CSRF Protection - Validate Origin header on POST/PUT/DELETE requests
+app.use(csrfProtection);
 
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
@@ -120,6 +172,7 @@ app.use('/api/task-explainer', taskExplainerRoutes);
 app.use('/api/cms', cmsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/superadmin', superAdminRoutes);
+app.use('/api/telegram', telegramRoutes);
 
 // Fallback 404
 app.use((req, res) => {
@@ -158,6 +211,15 @@ async function start() {
 
     // Ensure RPC functions exist
     await ensureRPCFunctions();
+
+    // Initialize Telegram bot and Realtime listener
+    if (process.env.TELEGRAM_BOT_TOKEN) {
+      const { initTelegramBot } = await import('./services/telegram.service.js');
+      await initTelegramBot();
+      await startTelegramRealtimeListener();
+    } else {
+      console.warn('[Backend] Warning: Telegram bot not configured');
+    }
 
     // Start server
     app.listen(PORT, () => {
