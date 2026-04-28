@@ -311,3 +311,48 @@ export const checkBackendHealth = async (): Promise<boolean> => {
 };
 
 export const getBackendUrl = (): string => BACKEND_API_URL;
+
+// ============================================
+// Analytics API
+// ============================================
+
+import type { AnalyticsData, AnalyticsSource, AnalyticsDateRange } from '../types';
+
+export interface AnalyticsRequest {
+  project_id: string;
+  source: AnalyticsSource;
+  date_range: AnalyticsDateRange;
+}
+
+export const fetchAnalytics = async (
+  projectId: string,
+  source: AnalyticsSource,
+  dateRange: AnalyticsDateRange
+): Promise<AnalyticsData> => {
+  const payload: AnalyticsRequest = {
+    project_id: projectId,
+    source,
+    date_range: dateRange,
+  };
+
+  debugLog('Analytics Request', payload);
+
+  try {
+    const response = await axios.post<AnalyticsData>(ENDPOINTS.analytics, payload, AXIOS_CONFIG);
+    debugLog('Analytics Response', response.data);
+    return response.data;
+  } catch (error) {
+    const parsedError = parseError(error);
+    debugLog('Analytics Error', parsedError);
+    console.error("[API] Erreur analytics:", parsedError.technical);
+
+    const enrichedError = new Error(parsedError.message) as Error & {
+      technical: string;
+      type: string;
+    };
+    enrichedError.technical = parsedError.technical;
+    enrichedError.type = parsedError.type;
+
+    throw enrichedError;
+  }
+};

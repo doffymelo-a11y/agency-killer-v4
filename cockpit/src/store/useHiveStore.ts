@@ -18,11 +18,15 @@ import type {
   Notification,
   PhaseTransitionProposal,
   ProjectStateFlags,
+  AnalyticsData,
+  AnalyticsSource,
+  AnalyticsDateRange,
 } from '../types';
 // V5 - TypeScript Backend API (New)
 import {
   sendChatMessage,
   parseChatResponse,
+  fetchAnalytics as apiFetchAnalytics,
 } from '../services/api';
 
 // Keep n8n types for compatibility (will be migrated later)
@@ -75,6 +79,12 @@ interface HiveState {
   // Phase 2.11 - Phase Transition
   phaseTransitionProposal: PhaseTransitionProposal | null;
 
+  // Phase 3 - Analytics
+  analyticsData: AnalyticsData | null;
+  analyticsActiveSource: AnalyticsSource;
+  analyticsDateRange: AnalyticsDateRange;
+  analyticsLoading: boolean;
+
   // Actions - Data
   fetchProjects: () => Promise<void>;
   fetchProjectWithTasks: (projectId: string) => Promise<void>;
@@ -121,6 +131,11 @@ interface HiveState {
   // Actions - Phase Transition (Phase 2.11)
   acceptPhaseTransition: () => Promise<void>;
   dismissPhaseTransition: () => Promise<void>;
+
+  // Actions - Analytics (Phase 3)
+  fetchAnalytics: (projectId: string, source: AnalyticsSource, dateRange: AnalyticsDateRange) => Promise<void>;
+  setAnalyticsSource: (source: AnalyticsSource) => void;
+  setAnalyticsDateRange: (dateRange: AnalyticsDateRange) => void;
 
   // Realtime
   subscribeToProject: (projectId: string) => () => void;
@@ -295,6 +310,16 @@ export const useHiveStore = create<HiveState>()(
       isDeckCollapsed: false,
       taskContext: null,
       phaseTransitionProposal: null,
+
+      // Analytics (Phase 3)
+      analyticsData: null,
+      analyticsActiveSource: 'overview',
+      analyticsDateRange: {
+        start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        end: new Date().toISOString().split('T')[0],
+        preset: '30d',
+      },
+      analyticsLoading: false,
 
       // ─────────────────────────────────────────────────────────────
       // Data Actions
@@ -1108,6 +1133,42 @@ export const useHiveStore = create<HiveState>()(
         } catch (error) {
           console.error('[HIVE] Error dismissing phase transition:', error);
         }
+      },
+
+      // ─────────────────────────────────────────────────────────────
+      // Analytics Actions (Phase 3)
+      // ─────────────────────────────────────────────────────────────
+
+      fetchAnalytics: async (projectId: string, source: AnalyticsSource, dateRange: AnalyticsDateRange) => {
+        console.log('[HIVE] fetchAnalytics: Starting...', { projectId, source, dateRange });
+        set({ analyticsLoading: true, error: null });
+
+        try {
+          const data = await apiFetchAnalytics(projectId, source, dateRange);
+
+          console.log('[HIVE] fetchAnalytics: Success', data);
+
+          set({
+            analyticsData: data,
+            analyticsLoading: false,
+          });
+        } catch (err) {
+          console.error('[HIVE] fetchAnalytics: Error', err);
+          set({
+            error: (err as Error).message,
+            analyticsLoading: false,
+          });
+        }
+      },
+
+      setAnalyticsSource: (source: AnalyticsSource) => {
+        console.log('[HIVE] setAnalyticsSource:', source);
+        set({ analyticsActiveSource: source });
+      },
+
+      setAnalyticsDateRange: (dateRange: AnalyticsDateRange) => {
+        console.log('[HIVE] setAnalyticsDateRange:', dateRange);
+        set({ analyticsDateRange: dateRange });
       },
 
       // ─────────────────────────────────────────────────────────────

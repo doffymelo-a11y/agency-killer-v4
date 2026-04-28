@@ -623,4 +623,69 @@ export interface PhaseTransitionProposal {
   proposedAt: string; // ISO timestamp
 }
 
+// ─────────────────────────────────────────────────────────────────
+// Analytics Hub Types
+// ─────────────────────────────────────────────────────────────────
+
+export type AnalyticsSource = 'ga4' | 'meta_ads' | 'google_ads' | 'gsc' | 'overview';
+
+export type TrendDirection = 'up' | 'down' | 'neutral';
+
+export interface AnalyticsKPI {
+  id: string;
+  label: string;
+  value: string | number;
+  previousValue?: string | number;
+  trend?: number; // Percentage change (e.g., 15.5 for +15.5%)
+  trendDirection?: TrendDirection;
+  period: string; // e.g., "Last 7 days", "vs. previous period"
+  source: AnalyticsSource;
+  format?: 'number' | 'currency' | 'percentage' | 'duration'; // Display format
+}
+
+export type ChartType = 'line' | 'bar' | 'area' | 'pie';
+
+export interface AnalyticsChart {
+  id: string;
+  type: ChartType;
+  title: string;
+  data: Record<string, any>[]; // Recharts data format
+  xKey: string; // Key for X axis (e.g., "date")
+  yKeys: string[]; // Keys for Y axis (e.g., ["sessions", "users"])
+  colors?: string[]; // Colors for each yKey
+  height?: number;
+  showLegend?: boolean;
+  showGrid?: boolean;
+}
+
+export type InsightType = 'success' | 'warning' | 'danger' | 'info';
+
+export interface AnalyticsInsight {
+  id: string;
+  type: InsightType;
+  message: string;
+  action?: string; // Optional CTA text
+  actionUrl?: string; // Optional CTA link
+  agent: AgentRole; // Which agent generated this insight (usually sora)
+  source: AnalyticsSource;
+  priority?: number; // 1 = highest, used for sorting
+  createdAt?: string;
+}
+
+export interface AnalyticsDateRange {
+  start: string; // ISO date
+  end: string; // ISO date
+  preset?: '7d' | '30d' | '90d' | 'custom';
+}
+
+export interface AnalyticsData {
+  source: AnalyticsSource;
+  dateRange: AnalyticsDateRange;
+  kpis: AnalyticsKPI[];
+  charts: AnalyticsChart[];
+  insights: AnalyticsInsight[];
+  isConnected: boolean; // Whether the data source is connected
+  lastUpdated?: string; // ISO timestamp
+}
+
 // Database types are in ./database.ts
