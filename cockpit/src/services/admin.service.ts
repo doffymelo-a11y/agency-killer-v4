@@ -3,7 +3,7 @@
  * Sprint 2.1 - Admin Monitoring Dashboard
  */
 
-import axios, { AxiosError } from 'axios';
+import axios from 'axios';
 import { supabase } from '../lib/supabase';
 
 // Backend API URL
@@ -241,7 +241,7 @@ export async function isCurrentUserAdmin(): Promise<boolean> {
       .eq('user_id', user.id)
       .single();
 
-    return userRole && ['admin', 'super_admin'].includes(userRole.role);
+    return !!(userRole && ['admin', 'super_admin'].includes(userRole.role));
   } catch (error) {
     console.error('[Admin Service] Error checking admin status:', error);
     return false;

@@ -147,7 +147,7 @@ export default function ProjectBreakdownChart({ stats, isLoading }: ProjectBreak
             fill="#8884d8"
             dataKey="value"
           >
-            {chartData.map((entry, index) => {
+            {chartData.map((_entry, index) => {
               const scope = projectsByScope[index].scope;
               const color = SCOPE_COLORS[scope] || '#64748b'; // fallback to slate-500
               return <Cell key={`cell-${index}`} fill={color} />;

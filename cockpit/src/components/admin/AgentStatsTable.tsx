@@ -4,7 +4,7 @@
  */
 
 import { formatDistanceToNow } from 'date-fns';
-import { CheckCircle2, XCircle, TrendingUp, DollarSign, Clock } from 'lucide-react';
+import { CheckCircle2, XCircle, DollarSign, Clock } from 'lucide-react';
 import type { AgentStats } from '../../services/admin.service';
 
 interface AgentStatsTableProps {

@@ -11,23 +11,6 @@ interface MCPServerGridProps {
   isLoading?: boolean;
 }
 
-const SERVER_AGENTS: Record<string, 'luna' | 'sora' | 'marcus' | 'milo' | 'doffy' | 'ALL'> = {
-  'web-intelligence': 'ALL',
-  'cms-connector': 'luna',
-  'seo-audit': 'luna',
-  'keyword-research': 'luna',
-  'google-ads': 'sora',
-  'meta-ads': 'sora',
-  'google-ads-launcher': 'marcus',
-  'budget-optimizer': 'marcus',
-  'gtm': 'sora',
-  'looker': 'sora',
-  'elevenlabs': 'milo',
-  'nano-banana-pro': 'milo',
-  'veo3': 'milo',
-  'social-media': 'doffy',
-};
-
 const AGENT_CONFIG: Record<string, { name: string; color: string; bg: string }> = {
   luna: { name: 'Luna', color: 'text-purple-700', bg: 'bg-purple-100' },
   sora: { name: 'Sora', color: 'text-blue-700', bg: 'bg-blue-100' },

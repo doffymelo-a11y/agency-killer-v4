@@ -4,7 +4,7 @@
  */
 
 import { formatDistanceToNow } from 'date-fns';
-import { Brain, TrendingUp, Clock, DollarSign } from 'lucide-react';
+import { Brain, Clock, DollarSign } from 'lucide-react';
 import type { AgentStats } from '../../services/admin.service';
 
 interface AgentStatsCardsProps {

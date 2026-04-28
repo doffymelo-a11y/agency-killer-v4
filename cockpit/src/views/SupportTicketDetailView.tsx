@@ -40,7 +40,6 @@ import type {
 } from '../types/support.types';
 import {
   TICKET_STATUS_CONFIG,
-  TICKET_PRIORITY_CONFIG,
   TICKET_CATEGORY_CONFIG,
 } from '../types/support.types';
 
