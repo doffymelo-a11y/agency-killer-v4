@@ -11,6 +11,7 @@ export interface AuthenticatedRequest extends Request {
     id: string;
     email?: string;
     role?: string;
+    plan?: 'free' | 'pro' | 'enterprise'; // Subscription tier from billing
   };
 }
 
@@ -55,11 +56,19 @@ export async function authMiddleware(
       return;
     }
 
+    // Get user subscription plan for rate limiting
+    const { data: subscription } = await supabaseAdmin
+      .from('subscriptions')
+      .select('plan')
+      .eq('user_id', data.user.id)
+      .single();
+
     // Attach user to request
     req.user = {
       id: data.user.id,
       email: data.user.email,
       role: data.user.user_metadata?.role || 'user',
+      plan: subscription?.plan || 'free', // Default to free tier
     };
 
     next();
@@ -98,10 +107,18 @@ export async function optionalAuthMiddleware(
     const { data, error } = await supabaseAdmin.auth.getUser(token);
 
     if (!error && data.user) {
+      // Get user subscription plan for rate limiting
+      const { data: subscription } = await supabaseAdmin
+        .from('subscriptions')
+        .select('plan')
+        .eq('user_id', data.user.id)
+        .single();
+
       req.user = {
         id: data.user.id,
         email: data.user.email,
         role: data.user.user_metadata?.role || 'user',
+        plan: subscription?.plan || 'free', // Default to free tier
       };
     }
 

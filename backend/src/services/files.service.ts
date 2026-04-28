@@ -143,7 +143,7 @@ export async function deleteFile(fileId: string, userId: string): Promise<void> 
     .eq('id', fileId);
 
   if (deleteError) {
-    console.error('[Files Service] Error deleting file:', error);
+    console.error('[Files Service] Error deleting file:', deleteError);
     throw deleteError;
   }
 

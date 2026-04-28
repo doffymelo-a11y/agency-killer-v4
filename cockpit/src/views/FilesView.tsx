@@ -4,7 +4,7 @@
 // Drive intelligent - Fichiers classés automatiquement par projet
 // ═══════════════════════════════════════════════════════════════
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -24,11 +24,11 @@ import {
   X,
   MessageSquare,
   ArrowLeft,
+  Loader2,
 } from 'lucide-react';
 import {
   useHiveStore,
   useCurrentProject,
-  useTasks,
 } from '../store/useHiveStore';
 import { AGENTS, type AgentRole, type DeliverableType } from '../types';
 
@@ -362,7 +362,7 @@ function EmptyState() {
 export default function FilesView() {
   const navigate = useNavigate();
   const project = useCurrentProject();
-  const tasks = useTasks();
+  const { projectFiles, filesLoading, fetchProjectFiles } = useHiveStore();
 
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [searchQuery, setSearchQuery] = useState('');
@@ -370,22 +370,39 @@ export default function FilesView() {
   const [filterType, setFilterType] = useState<FilterType>('all');
   const [previewFile, setPreviewFile] = useState<FileAsset | null>(null);
 
-  // Extract files from completed tasks with deliverables
+  // Fetch files from Supabase when component mounts
+  useEffect(() => {
+    if (project?.id) {
+      fetchProjectFiles(project.id);
+    }
+  }, [project?.id, fetchProjectFiles]);
+
+  // Map ProjectFile to FileAsset for UI compatibility
   const files = useMemo<FileAsset[]>(() => {
-    return tasks
-      .filter((task) => task.deliverable_url && task.status === 'done')
-      .map((task) => ({
-        id: task.id,
-        name: task.title,
-        url: task.deliverable_url!,
-        type: task.deliverable_type || 'text',
-        agent: task.assignee,
-        taskTitle: task.title,
-        taskId: task.id,
-        createdAt: task.completed_at || task.created_at,
-        phase: task.phase,
-      }));
-  }, [tasks]);
+    return projectFiles.map((file) => {
+      // Determine DeliverableType from file_type
+      let deliverableType: DeliverableType = 'text';
+      if (file.file_type === 'image') deliverableType = 'image';
+      else if (file.file_type === 'video') deliverableType = 'video';
+      else if (file.file_type === 'document' && file.mime_type === 'application/pdf') deliverableType = 'pdf';
+      else if (file.file_type === 'document') deliverableType = 'report';
+
+      // Determine agent from agent_id (fallback to orchestrator)
+      const agentId = (file.agent_id as AgentRole) || 'orchestrator';
+
+      return {
+        id: file.id,
+        name: file.filename,
+        url: file.url,
+        type: deliverableType,
+        agent: agentId,
+        taskTitle: file.metadata?.task_title as string || 'Fichier généré',
+        taskId: file.task_id || '',
+        createdAt: file.created_at,
+        phase: file.metadata?.phase as string || 'Production',
+      };
+    });
+  }, [projectFiles]);
 
   // Filtered files
   const filteredFiles = useMemo(() => {
@@ -534,7 +551,11 @@ export default function FilesView() {
 
       {/* Content */}
       <main className="max-w-7xl mx-auto px-6 py-8">
-        {files.length === 0 ? (
+        {filesLoading ? (
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="w-8 h-8 text-slate-400 animate-spin" />
+          </div>
+        ) : files.length === 0 ? (
           <EmptyState />
         ) : filteredFiles.length === 0 ? (
           <div className="text-center py-16">

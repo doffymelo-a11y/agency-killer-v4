@@ -31,10 +31,10 @@ export const createRateLimiter = () => {
     windowMs: WINDOW_MS,
     max: async (req: Request) => {
       const authReq = req as AuthenticatedRequest;
-      const userTier = authReq.user?.role || 'free';
+      const userPlan = authReq.user?.plan || 'free'; // Use plan from subscriptions
 
-      // Return limit based on tier
-      switch (userTier) {
+      // Return limit based on plan tier
+      switch (userPlan) {
         case 'enterprise':
           return LIMITS.enterprise;
         case 'pro':
@@ -50,16 +50,16 @@ export const createRateLimiter = () => {
     },
     handler: (req: Request, res: Response) => {
       const authReq = req as AuthenticatedRequest;
-      const userTier = authReq.user?.role || 'free';
-      const limit = LIMITS[userTier as keyof typeof LIMITS] || LIMITS.free;
+      const userPlan = authReq.user?.plan || 'free'; // Use plan from subscriptions
+      const limit = LIMITS[userPlan as keyof typeof LIMITS] || LIMITS.free;
 
       res.status(429).json({
         success: false,
         error: {
-          message: `Rate limit exceeded. Maximum ${limit} requests per minute for ${userTier} tier.`,
+          message: `Rate limit exceeded. Maximum ${limit} requests per minute for ${userPlan} tier.`,
           code: 'RATE_LIMIT_EXCEEDED',
           details: {
-            tier: userTier,
+            tier: userPlan,
             limit,
             windowMs: WINDOW_MS,
           },
@@ -82,10 +82,10 @@ export const chatRateLimiter = rateLimit({
   windowMs: WINDOW_MS,
   max: async (req: Request) => {
     const authReq = req as AuthenticatedRequest;
-    const userTier = authReq.user?.role || 'free';
+    const userPlan = authReq.user?.plan || 'free'; // Use plan from subscriptions
 
     // Chat endpoint is more resource-intensive, so lower limits
-    switch (userTier) {
+    switch (userPlan) {
       case 'enterprise':
         return 100; // 100/min
       case 'pro':
