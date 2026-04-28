@@ -270,9 +270,9 @@ interface Skill {
  */
 const SKILL_PATTERNS: Record<string, string[]> = {
   // Luna skills
-  'luna/seo-audit-complete': ['audit seo', 'analyse seo', 'seo complet', 'audit de site'],
+  'luna/seo-audit-complete': ['audit seo', 'analyse seo', 'seo complet', 'audit de site', '\\bréférencé', 'référencement', 'seo audit'],
   'luna/content-strategy-builder': ['stratégie de contenu', 'calendrier éditorial', 'content strategy', 'planning contenu'],
-  'luna/competitor-deep-dive': ['analyse concurrence', 'concurrent', 'compétiteur', 'swot'],
+  'luna/competitor-deep-dive': ['analyse concurrence', 'concurrent', 'compétiteur', 'swot', 'battre.*concurrent', 'vs.*concurrent', 'comment.*battre'],
   'luna/landing-page-optimizer': ['landing page', 'page d\'atterrissage', 'optimise.*page'],
   'luna/cms-content-publisher': ['publie', 'publish', 'wordpress', 'cms'],
 
@@ -285,22 +285,22 @@ const SKILL_PATTERNS: Record<string, string[]> = {
 
   // Marcus skills
   'marcus/campaign-launch-checklist': ['lance.*campagne', 'nouvelle campagne', 'créer campagne'],
-  'marcus/budget-optimizer-weekly': ['optimise budget', 'budget', 'répartition budget'],
-  'marcus/creative-testing-framework': ['test.*créatif', 'a/b test', 'test visuel'],
-  'marcus/scaling-playbook': ['scale', 'augmente budget', 'scaling'],
-  'marcus/cross-platform-budget-allocator': ['multi.*plateforme', 'répartis budget', 'allocation'],
+  'marcus/budget-optimizer-weekly': ['optimise.*budget', 'budget.*optimi', 'répartition budget'],
+  'marcus/creative-testing-framework': ['test.*créatif', 'a/b test', 'test visuel', 'tester.*créatif', 'creative.*test', 'testing.*framework'],
+  'marcus/scaling-playbook': ['scale', 'scaling', 'augmente budget', 'playbook'],
+  'marcus/cross-platform-budget-allocator': ['multi.*plateforme', 'répartis.*budget', 'allocation', 'entre.*meta.*google', 'entre.*google.*meta', 'plusieurs.*plateformes'],
 
   // Milo skills
-  'milo/ad-copy-frameworks': ['écris.*pub', 'copywriting', 'texte publicitaire', 'ad copy'],
-  'milo/visual-brief-creator': ['crée.*visuel', 'image', 'design', 'visual'],
-  'milo/video-ad-producer': ['vidéo', 'video', 'clip'],
-  'milo/multi-platform-adapter': ['adapte', 'multi.*plateforme', 'formats'],
-  'milo/brand-voice-guardian': ['brand voice', 'cohérence', 'marque', 'tone'],
+  'milo/ad-copy-frameworks': ['écris.*pub', 'copywriting', 'texte publicitaire', 'ad copy', '\\bpub\\b', '\\btexte\\b.*pub', 'rédige', 'textes.*pub', 'textes.*publicitaires'],
+  'milo/visual-brief-creator': ['crée.*visuel', 'image', 'design', 'visual', '\\bvisuel\\b', 'graphique', 'bannière', 'visuels.*impact'],
+  'milo/video-ad-producer': ['vidéo', 'video', 'clip', 'film', 'vidéos.*court'],
+  'milo/multi-platform-adapter': ['adapte', 'multi.*plateforme', 'formats', 'meta.*linkedin', 'linkedin.*meta', 'toutes.*plateformes'],
+  'milo/brand-voice-guardian': ['brand voice', 'cohérence', 'marque', 'tone', 'vérifie.*marque', 'brand.*voice', 'cohérent.*avec'],
 
   // Doffy skills
-  'doffy/social-content-calendar': ['calendrier.*social', 'planning.*social', 'posts'],
-  'doffy/hashtag-strategist': ['hashtag', '#'],
-  'doffy/engagement-playbook': ['engagement', 'interaction', 'commentaire'],
+  'doffy/social-content-calendar': ['calendrier.*social', 'planning.*social', 'posts', 'calendrier.*contenu', 'calendrier.*de.*contenu'],
+  'doffy/hashtag-strategist': ['hashtag', '#', 'stratégie.*hashtag', 'hashtags.*optimi'],
+  'doffy/engagement-playbook': ['engagement', 'interaction', 'commentaire', 'suivi.*engagement', 'playbook'],
   'doffy/social-analytics-interpreter': ['stats.*social', 'analytics.*social', 'reach', 'impressions'],
   'doffy/trend-surfer': ['tendance', 'trend', 'viral'],
 
