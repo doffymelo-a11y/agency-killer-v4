@@ -9,6 +9,7 @@ import { recordCMSChange } from '../services/cms.service.js';
 import { parseAgentResponse } from '../shared/response-parser.js';
 import { detectComplexity, logComplexityDecision } from '../services/complexity-detector.js';
 import { logToSystem } from '../services/logging.service.js';
+import { supabaseAdmin } from '../services/supabase.service.js';
 import type { AgentConfig } from '../types/agent.types.js';
 import type { AgentId, SharedProjectContext } from '../types/api.types.js';
 import type { Anthropic } from '@anthropic-ai/sdk';
@@ -39,6 +40,33 @@ export interface AgentExecutionContext {
 export async function executeAgent(context: AgentExecutionContext) {
   const startTime = Date.now();
   console.log(`[Agent Executor] Executing ${context.agentId}`);
+
+  // SECURITY: Verify project ownership BEFORE execution
+  if (context.userId && context.projectContext.project_id) {
+    const { data: project, error } = await supabaseAdmin
+      .from('projects')
+      .select('id')
+      .eq('id', context.projectContext.project_id)
+      .eq('user_id', context.userId)
+      .single();
+
+    if (error || !project) {
+      console.warn(`[Agent Executor] SECURITY: User ${context.userId} attempted to access project ${context.projectContext.project_id} without ownership`);
+
+      await logToSystem({
+        level: 'warn',
+        source: 'agent-executor',
+        agent_id: context.agentId,
+        user_id: context.userId,
+        project_id: context.projectContext.project_id,
+        action: 'unauthorized_project_access',
+        message: `User attempted to execute agent on project they don't own`,
+        metadata: { session_id: context.sessionId },
+      });
+
+      throw new Error('Unauthorized: You do not have access to this project');
+    }
+  }
 
   // Log agent start
   await logToSystem({

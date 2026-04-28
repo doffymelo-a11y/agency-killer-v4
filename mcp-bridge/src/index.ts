@@ -23,7 +23,13 @@ const logger = createLogger('BridgeServer');
 const app = express();
 
 // Middleware
-app.use(cors());
+// SECURITY: Restrict CORS to backend only - MCP Bridge should NEVER be called from browser
+app.use(cors({
+  origin: process.env.BACKEND_URL || 'http://localhost:3457',
+  credentials: true,
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 

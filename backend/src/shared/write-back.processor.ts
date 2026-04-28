@@ -15,8 +15,24 @@ import type { WriteBackCommand } from '../types/api.types.js';
  */
 export async function executeWriteBackCommands(
   commands: WriteBackCommand[],
-  projectId: string
+  projectId: string,
+  userId?: string
 ): Promise<number> {
+  // SECURITY: Verify project ownership BEFORE executing any commands
+  if (userId && projectId) {
+    const { data: project, error } = await supabaseAdmin
+      .from('projects')
+      .select('id')
+      .eq('id', projectId)
+      .eq('user_id', userId)
+      .single();
+
+    if (error || !project) {
+      console.warn(`[Write-Back] SECURITY: User ${userId} attempted to execute write-back commands on project ${projectId} without ownership`);
+      throw new Error('Unauthorized: You do not have access to this project');
+    }
+  }
+
   let successCount = 0;
 
   for (const command of commands) {

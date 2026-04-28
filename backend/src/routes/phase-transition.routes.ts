@@ -4,6 +4,8 @@
 // ═══════════════════════════════════════════════════════════════
 
 import { Router, Request, Response } from 'express';
+import { authMiddleware } from '../middleware/auth.middleware.js';
+import { asyncHandler } from '../middleware/error.middleware.js';
 import { supabaseAdmin } from '../services/supabase.service.js';
 import { generateTasksForPhase } from '../services/task-generation.service.js';
 
@@ -14,15 +16,21 @@ const router = Router();
 // Accept a phase transition proposal and create tasks for next phase
 // ─────────────────────────────────────────────────────────────────
 
-router.post('/accept', async (req: Request, res: Response) => {
-  try {
-    const { project_id } = req.body;
+router.post('/accept', authMiddleware, asyncHandler(async (req: Request, res: Response) => {
+  const { project_id } = req.body;
+  const userId = (req as any).user?.id;
 
-    if (!project_id) {
-      return res.status(400).json({ error: 'Missing project_id' });
-    }
+  if (!userId) {
+    res.status(401).json({ error: 'Unauthorized - No user ID found' });
+    return;
+  }
 
-    console.log(`[PhaseTransition] Accepting transition for project: ${project_id}`);
+  if (!project_id) {
+    res.status(400).json({ error: 'Missing project_id' });
+    return;
+  }
+
+  console.log(`[PhaseTransition] Accepting transition for project: ${project_id}`);
 
     // 1. Get project with pending transition
     const { data: project, error: projectError } = await supabaseAdmin
@@ -32,13 +40,15 @@ router.post('/accept', async (req: Request, res: Response) => {
       .single();
 
     if (projectError || !project) {
-      return res.status(404).json({ error: 'Project not found' });
+      res.status(404).json({ error: 'Project not found' });
+      return;
     }
 
     const transition = project.state_flags?.pending_phase_transition;
 
     if (!transition) {
-      return res.status(400).json({ error: 'No pending phase transition' });
+      res.status(400).json({ error: 'No pending phase transition' });
+      return;
     }
 
     const { nextPhase } = transition;
@@ -55,7 +65,8 @@ router.post('/accept', async (req: Request, res: Response) => {
 
     if (newTasks.length === 0) {
       console.warn(`[PhaseTransition] No tasks generated for phase: ${nextPhase}`);
-      return res.status(500).json({ error: `No tasks available for phase: ${nextPhase}` });
+      res.status(500).json({ error: `No tasks available for phase: ${nextPhase}` });
+      return;
     }
 
     // 3. Insert tasks into database
@@ -65,7 +76,8 @@ router.post('/accept', async (req: Request, res: Response) => {
 
     if (tasksError) {
       console.error('[PhaseTransition] Error inserting tasks:', tasksError);
-      return res.status(500).json({ error: 'Failed to create tasks' });
+      res.status(500).json({ error: 'Failed to create tasks' });
+      return;
     }
 
     console.log(`[PhaseTransition] ✅ Created ${newTasks.length} tasks for phase: ${nextPhase}`);
@@ -85,36 +97,39 @@ router.post('/accept', async (req: Request, res: Response) => {
 
     if (updateError) {
       console.error('[PhaseTransition] Error updating project phase:', updateError);
-      return res.status(500).json({ error: 'Failed to update project phase' });
+      res.status(500).json({ error: 'Failed to update project phase' });
+      return;
     }
 
     console.log(`[PhaseTransition] ✅ Project updated to phase: ${nextPhase}`);
 
-    return res.json({
+    res.json({
       success: true,
       phase: nextPhase,
       tasksCreated: newTasks.length,
     });
-  } catch (error: any) {
-    console.error('[PhaseTransition] Error in accept endpoint:', error);
-    return res.status(500).json({ error: error.message || 'Internal server error' });
-  }
-});
+}));
 
 // ─────────────────────────────────────────────────────────────────
 // POST /api/phase-transition/dismiss
 // Dismiss a phase transition proposal without transitioning
 // ─────────────────────────────────────────────────────────────────
 
-router.post('/dismiss', async (req: Request, res: Response) => {
-  try {
-    const { project_id } = req.body;
+router.post('/dismiss', authMiddleware, asyncHandler(async (req: Request, res: Response) => {
+  const { project_id } = req.body;
+  const userId = (req as any).user?.id;
 
-    if (!project_id) {
-      return res.status(400).json({ error: 'Missing project_id' });
-    }
+  if (!userId) {
+    res.status(401).json({ error: 'Unauthorized - No user ID found' });
+    return;
+  }
 
-    console.log(`[PhaseTransition] Dismissing transition for project: ${project_id}`);
+  if (!project_id) {
+    res.status(400).json({ error: 'Missing project_id' });
+    return;
+  }
+
+  console.log(`[PhaseTransition] Dismissing transition for project: ${project_id}`);
 
     // Get current project
     const { data: project, error: projectError } = await supabaseAdmin
@@ -124,7 +139,8 @@ router.post('/dismiss', async (req: Request, res: Response) => {
       .single();
 
     if (projectError || !project) {
-      return res.status(404).json({ error: 'Project not found' });
+      res.status(404).json({ error: 'Project not found' });
+      return;
     }
 
     // Clear pending_phase_transition from state_flags
@@ -141,16 +157,13 @@ router.post('/dismiss', async (req: Request, res: Response) => {
 
     if (updateError) {
       console.error('[PhaseTransition] Error dismissing transition:', updateError);
-      return res.status(500).json({ error: 'Failed to dismiss transition' });
+      res.status(500).json({ error: 'Failed to dismiss transition' });
+      return;
     }
 
     console.log(`[PhaseTransition] ✅ Transition dismissed for project: ${project_id}`);
 
-    return res.json({ success: true });
-  } catch (error: any) {
-    console.error('[PhaseTransition] Error in dismiss endpoint:', error);
-    return res.status(500).json({ error: error.message || 'Internal server error' });
-  }
-});
+    res.json({ success: true });
+}));
 
 export default router;

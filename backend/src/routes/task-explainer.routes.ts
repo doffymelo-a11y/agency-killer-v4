@@ -4,6 +4,9 @@
  */
 
 import { Router } from 'express';
+import { authMiddleware } from '../middleware/auth.middleware.js';
+import { chatRateLimiter } from '../middleware/rate-limit.middleware.js';
+import { asyncHandler } from '../middleware/error.middleware.js';
 import { explainTask } from '../services/task-explainer.service.js';
 import type { AgentId } from '../types/api.types.js';
 
@@ -13,32 +16,34 @@ const router = Router();
 // POST /api/task-explainer/explain
 // ─────────────────────────────────────────────────────────────────
 
-router.post('/explain', async (req, res) => {
-  try {
-    const { task_id, project_id, agent_id } = req.body;
+router.post('/explain', authMiddleware, chatRateLimiter, asyncHandler(async (req, res) => {
+  const userId = (req as any).user?.id;
 
-    // Validation
-    if (!task_id || !project_id || !agent_id) {
-      return res.status(400).json({
-        success: false,
-        error: 'Missing required fields: task_id, project_id, agent_id',
-      });
-    }
-
-    // Generate explanation
-    const explanation = await explainTask(task_id, project_id, agent_id as AgentId);
-
-    return res.json({
-      success: true,
-      explanation,
-    });
-  } catch (error: any) {
-    console.error('[Task Explainer Routes] Error:', error);
-    return res.status(500).json({
-      success: false,
-      error: error.message || 'Failed to generate task explanation',
-    });
+  if (!userId) {
+    res.status(401).json({ error: 'Unauthorized - No user ID found' });
+    return;
   }
-});
+
+  const { task_id, project_id, agent_id } = req.body;
+
+  // Validation
+  if (!task_id || !project_id || !agent_id) {
+    res.status(400).json({
+      success: false,
+      error: 'Missing required fields: task_id, project_id, agent_id',
+    });
+    return;
+  }
+
+  console.log(`[Task Explainer] User ${userId} requesting explanation for task ${task_id}`);
+
+  // Generate explanation
+  const explanation = await explainTask(task_id, project_id, agent_id as AgentId);
+
+  res.json({
+    success: true,
+    explanation,
+  });
+}));
 
 export default router;

@@ -267,7 +267,8 @@ export async function processChat(
     if (agentResponse.write_back_commands && agentResponse.write_back_commands.length > 0) {
       const successCount = await executeWriteBackCommands(
         agentResponse.write_back_commands,
-        request.project_id
+        request.project_id,
+        userId
       );
       console.log(`[Orchestrator] Executed ${successCount} write-back commands`);
     }

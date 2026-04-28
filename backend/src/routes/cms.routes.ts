@@ -6,6 +6,7 @@
  */
 
 import { Router } from 'express';
+import { authMiddleware } from '../middleware/auth.middleware.js';
 import { validate, schemas } from '../middleware/validation.middleware.js';
 import { asyncHandler } from '../middleware/error.middleware.js';
 import { chatRateLimiter } from '../middleware/rate-limit.middleware.js';
@@ -24,12 +25,17 @@ const router = Router();
 
 router.post(
   '/execute',
-  // authMiddleware, // TODO: Re-enable after testing
+  authMiddleware,
   chatRateLimiter,
   validate(schemas.cmsExecuteRequest),
   asyncHandler(async (req, res) => {
     const executeRequest = req.body as CMSExecuteRequest;
-    const userId = (req as any).user?.id || 'test-user';
+    const userId = (req as any).user?.id;
+
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized - No user ID found' });
+      return;
+    }
 
     console.log(`[CMS] Executing change ${executeRequest.change_id}`);
 
@@ -46,12 +52,17 @@ router.post(
 
 router.post(
   '/rollback',
-  // authMiddleware, // TODO: Re-enable after testing
+  authMiddleware,
   chatRateLimiter,
   validate(schemas.cmsRollbackRequest),
   asyncHandler(async (req, res) => {
     const rollbackRequest = req.body as CMSRollbackRequest;
-    const userId = (req as any).user?.id || 'test-user';
+    const userId = (req as any).user?.id;
+
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized - No user ID found' });
+      return;
+    }
 
     console.log(`[CMS] Rolling back change ${rollbackRequest.change_id}`);
 
@@ -68,9 +79,14 @@ router.post(
 
 router.get(
   '/pending',
-  // authMiddleware, // TODO: Re-enable after testing
+  authMiddleware,
   asyncHandler(async (req, res) => {
-    const userId = (req as any).user?.id || 'test-user';
+    const userId = (req as any).user?.id;
+
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized - No user ID found' });
+      return;
+    }
 
     console.log(`[CMS] Fetching pending approvals for user ${userId}`);
 

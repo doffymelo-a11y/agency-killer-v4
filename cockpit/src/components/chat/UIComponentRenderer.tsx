@@ -12,6 +12,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Download, Image, Video, FileText, BarChart3, TrendingUp, ExternalLink, AlertCircle, XCircle, Target, DollarSign, Activity, PlayCircle, Clock, CheckCircle, Shield, Monitor, Smartphone, Tablet, Award, Check, X, Globe, Code, Eye, Share2, Calendar, MessageCircle, Heart, Users } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
+import DOMPurify from 'dompurify';
 import type { UIComponent, WebScreenshotData, CompetitorAnalysisData, LandingPageAuditData, PixelVerificationData, SocialPostPreviewData, ContentCalendarData, SocialAnalyticsData } from '../../types';
 import { approveRequest, rejectRequest } from '../../services/approvals';
 // import { useHiveStore } from '../../store/useHiveStore'; // unused after user removal
@@ -41,7 +42,22 @@ interface ComponentData {
 }
 
 // ============================================
+// HTML Escaping Helper (Security)
+// Prevents XSS in template literals
+// ============================================
+function escapeHtml(unsafe: string): string {
+  if (!unsafe) return '';
+  return unsafe
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+// ============================================
 // Markdown to HTML Parser (Professional Rendering)
+// SECURITY: Sanitized with DOMPurify to prevent XSS
 // ============================================
 function parseMarkdownToHTML(markdown: string): string {
   if (!markdown) return '';
@@ -87,7 +103,14 @@ function parseMarkdownToHTML(markdown: string): string {
   // Clean up multiple consecutive breaks
   html = html.replace(/(<p><\/p>\n?)+/g, '');
 
-  return html;
+  // SECURITY: Sanitize with DOMPurify AFTER all transformations
+  // Blocks XSS including javascript: protocol in links
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ['h1', 'h2', 'h3', 'p', 'strong', 'em', 'ul', 'li', 'br'],
+    ALLOWED_ATTR: [],
+    FORBID_ATTR: ['onerror', 'onclick', 'onload'],
+    FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'style']
+  });
 }
 
 export default function UIComponentRenderer({ components }: UIComponentRendererProps) {
@@ -383,7 +406,7 @@ function CopywritingComponent({ data, title }: { data: ComponentData; title?: st
         <div className="p-6 max-h-[500px] overflow-y-auto">
           <div
             className="prose prose-slate max-w-none"
-            dangerouslySetInnerHTML={{ __html: htmlContent }}
+            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(htmlContent) }}
             style={{
               fontFamily: 'Georgia, serif',
               fontSize: '15px',
@@ -486,10 +509,10 @@ function ReportComponent({ data, title }: { data: ComponentData; title?: string 
         <!-- Header with brand styling -->
         <div style="border-bottom: 4px solid #8b5cf6; padding-bottom: 20px; margin-bottom: 40px;">
           <h1 style="color: #6d28d9; font-size: 32px; font-weight: 700; margin: 0 0 10px 0; letter-spacing: -0.5px;">
-            ${reportTitle}
+            ${escapeHtml(reportTitle)}
           </h1>
           <p style="color: #64748b; font-size: 14px; margin: 0;">
-            Généré par Luna - ${new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+            Généré par Luna - ${escapeHtml(new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }))}
           </p>
         </div>
 
@@ -508,7 +531,7 @@ function ReportComponent({ data, title }: { data: ComponentData; title?: string 
               ${recommendations.map(r => `
                 <li style="padding: 12px 0; border-bottom: 1px solid #ddd6fe; color: #475569; font-size: 15px;">
                   <span style="color: #8b5cf6; font-weight: 600; margin-right: 8px;">→</span>
-                  ${typeof r === 'string' ? r : r}
+                  ${escapeHtml(typeof r === 'string' ? r : String(r))}
                 </li>
               `).join('')}
             </ul>
@@ -617,10 +640,10 @@ function AnalyticsDashboardComponent({ data, title }: { data: ComponentData; tit
         <!-- Header with analytics styling -->
         <div style="border-bottom: 4px solid #0891b2; padding-bottom: 20px; margin-bottom: 40px;">
           <h1 style="color: #0369a1; font-size: 32px; font-weight: 700; margin: 0 0 10px 0; letter-spacing: -0.5px;">
-            ${dashboardTitle}
+            ${escapeHtml(dashboardTitle)}
           </h1>
           <p style="color: #64748b; font-size: 14px; margin: 0;">
-            Généré par Sora - ${new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+            Généré par Sora - ${escapeHtml(new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }))}
           </p>
         </div>
 
@@ -630,14 +653,14 @@ function AnalyticsDashboardComponent({ data, title }: { data: ComponentData; tit
             ${kpis.map(kpi => `
               <div style="background: linear-gradient(135deg, #ecfeff 0%, #cffafe 100%); padding: 20px; border-radius: 12px; border-left: 4px solid #0891b2;">
                 <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; font-weight: 600; margin-bottom: 8px;">
-                  ${kpi.label}
+                  ${escapeHtml(String(kpi.label))}
                 </div>
                 <div style="font-size: 28px; font-weight: 700; color: #0369a1; margin-bottom: 4px;">
-                  ${kpi.value}
+                  ${escapeHtml(String(kpi.value))}
                 </div>
                 ${kpi.trend !== undefined ? `
                   <div style="font-size: 13px; font-weight: 600; color: ${kpi.trend > 0 ? '#10b981' : '#ef4444'};">
-                    ${kpi.trend > 0 ? '↗' : '↘'} ${kpi.trend > 0 ? '+' : ''}${kpi.trend}%
+                    ${kpi.trend > 0 ? '↗' : '↘'} ${kpi.trend > 0 ? '+' : ''}${escapeHtml(String(kpi.trend))}%
                   </div>
                 ` : ''}
               </div>
@@ -660,7 +683,7 @@ function AnalyticsDashboardComponent({ data, title }: { data: ComponentData; tit
               ${recommendations.map(r => `
                 <li style="padding: 12px 0; border-bottom: 1px solid #bae6fd; color: #475569; font-size: 15px;">
                   <span style="color: #0891b2; font-weight: 600; margin-right: 8px;">→</span>
-                  ${typeof r === 'string' ? r : r}
+                  ${escapeHtml(typeof r === 'string' ? r : String(r))}
                 </li>
               `).join('')}
             </ul>
