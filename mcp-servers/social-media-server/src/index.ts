@@ -25,36 +25,31 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
 import * as dotenv from 'dotenv';
+import { LinkedInProvider } from './providers/linkedin.provider.js';
+import { InstagramProvider } from './providers/instagram.provider.js';
+import type {
+  PostContent,
+  IntegrationCredentials,
+  SocialPlatform,
+  PostPerformance
+} from './types.js';
 
 dotenv.config();
+
+// Initialize providers
+const linkedInProvider = new LinkedInProvider();
+const instagramProvider = new InstagramProvider();
+
+// Backend API base URL (for scheduling)
+const BACKEND_API_URL = process.env.BACKEND_API_URL || 'http://localhost:3457';
 
 // ─────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────
 
-type SocialPlatform = 'linkedin' | 'instagram' | 'twitter' | 'tiktok' | 'facebook';
-
-interface PostContent {
-  text: string;
-  media_urls?: string[];
-  hashtags?: string[];
-  mentions?: string[];
-}
-
 interface ScheduledPost extends PostContent {
   platform: SocialPlatform;
   scheduled_time: string;
-}
-
-interface PostPerformance {
-  platform: SocialPlatform;
-  post_id: string;
-  likes: number;
-  comments: number;
-  shares: number;
-  impressions: number;
-  engagement_rate: number;
-  posted_at: string;
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -323,78 +318,194 @@ const TOOLS: Tool[] = [
 ];
 
 // ─────────────────────────────────────────────────────────────────
-// Helper Functions (Phase 2: Mock implementations)
+// Helper Functions (Phase 3: Real API implementations)
 // ─────────────────────────────────────────────────────────────────
 
+/**
+ * Create and publish a post
+ * Supports LinkedIn and Instagram (real APIs), mock for others
+ */
 async function createPost(params: any) {
-  const { platform, text, media_urls = [], hashtags = [] } = params;
+  const { platform, text, media_urls = [], hashtags = [], credentials } = params;
 
-  // Phase 2: Mock implementation
-  // Phase 3: Real API calls with OAuth tokens
-  const mockPostId = `${platform}_${Date.now()}`;
+  // Validate credentials for LinkedIn and Instagram
+  if ((platform === 'linkedin' || platform === 'instagram') && !credentials) {
+    throw new Error(`${platform} requires credentials. Please connect your ${platform} account first.`);
+  }
 
-  return {
-    success: true,
-    post: {
-      id: mockPostId,
-      platform,
-      text,
-      media_urls,
-      hashtags,
-      url: `https://${platform}.com/p/${mockPostId}`,
-      created_at: new Date().toISOString(),
-      status: 'published',
-    },
-    note: '⚠️ Phase 2: Mock implementation. Real posting will be available in Phase 3 with OAuth.',
+  // Build post content
+  const content: PostContent = {
+    text,
+    media_urls,
+    hashtags,
   };
+
+  try {
+    let result;
+
+    switch (platform) {
+      case 'linkedin':
+        result = await linkedInProvider.createPost(content, credentials);
+        break;
+
+      case 'instagram':
+        result = await instagramProvider.createPost(content, credentials);
+        break;
+
+      case 'twitter':
+      case 'tiktok':
+      case 'facebook':
+        // Mock for not yet implemented platforms
+        const mockPostId = `${platform}_${Date.now()}`;
+        result = {
+          id: mockPostId,
+          platform,
+          text,
+          media_urls,
+          hashtags,
+          url: `https://${platform}.com/p/${mockPostId}`,
+          created_at: new Date().toISOString(),
+          status: 'published' as const,
+        };
+        break;
+
+      default:
+        throw new Error(`Unknown platform: ${platform}`);
+    }
+
+    return {
+      success: true,
+      post: result,
+      note: (platform === 'linkedin' || platform === 'instagram')
+        ? '✅ Posted via real API'
+        : '⚠️ Mock implementation (platform not yet integrated)',
+    };
+  } catch (error: any) {
+    console.error(`[Social Media Server] Create post error:`, error.message);
+    return {
+      success: false,
+      error: error.message,
+      platform,
+    };
+  }
 }
 
+/**
+ * Schedule a post for future publication
+ * Uses backend API /api/social/schedule
+ */
 async function schedulePost(params: any) {
-  const { platform, text, media_urls = [], hashtags = [], scheduled_time } = params;
+  const { platform, text, media_urls = [], hashtags = [], scheduled_time, project_id, access_token } = params;
 
   const scheduledDate = new Date(scheduled_time);
   if (isNaN(scheduledDate.getTime())) {
     throw new Error('Invalid scheduled_time format. Use ISO 8601 (e.g., 2026-03-20T14:00:00Z)');
   }
 
-  const mockScheduleId = `schedule_${platform}_${Date.now()}`;
+  if (!project_id) {
+    throw new Error('project_id is required for scheduling posts');
+  }
 
-  return {
-    success: true,
-    scheduled_post: {
-      id: mockScheduleId,
+  if (!access_token) {
+    throw new Error('access_token is required for scheduling posts');
+  }
+
+  try {
+    // Call backend API to schedule the post
+    const response = await axios.post(
+      `${BACKEND_API_URL}/api/social/schedule`,
+      {
+        project_id,
+        platform,
+        content: text,
+        media_urls,
+        hashtags,
+        scheduled_at: scheduled_time,
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${access_token}`,
+        },
+      }
+    );
+
+    return {
+      success: true,
+      scheduled_post: response.data.scheduled_post,
+      message: `Post scheduled for ${scheduled_time}`,
+      note: '✅ Scheduled via backend API - will be published automatically',
+    };
+  } catch (error: any) {
+    console.error('[Social Media Server] Schedule post error:', error.response?.data || error.message);
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message,
       platform,
-      text,
-      media_urls,
-      hashtags,
-      scheduled_time,
-      status: 'scheduled',
-      created_at: new Date().toISOString(),
-    },
-    note: '⚠️ Phase 2: Mock implementation. Real scheduling will be available in Phase 3.',
-  };
+    };
+  }
 }
 
+/**
+ * Get post performance metrics
+ * Supports LinkedIn and Instagram (real APIs), mock for others
+ */
 async function getPostPerformance(params: any) {
-  const { platform, post_id } = params;
+  const { platform, post_id, credentials } = params;
 
-  // Phase 2: Generate realistic mock data
-  const mockData: PostPerformance = {
-    platform,
-    post_id,
-    likes: Math.floor(Math.random() * 500) + 50,
-    comments: Math.floor(Math.random() * 50) + 5,
-    shares: Math.floor(Math.random() * 30) + 2,
-    impressions: Math.floor(Math.random() * 5000) + 500,
-    engagement_rate: parseFloat((Math.random() * 10 + 2).toFixed(2)),
-    posted_at: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
-  };
+  // Validate credentials for LinkedIn and Instagram
+  if ((platform === 'linkedin' || platform === 'instagram') && !credentials) {
+    throw new Error(`${platform} requires credentials. Please connect your ${platform} account first.`);
+  }
 
-  return {
-    success: true,
-    performance: mockData,
-    note: '⚠️ Phase 2: Mock data. Real analytics will be available in Phase 3.',
-  };
+  try {
+    let performance;
+
+    switch (platform) {
+      case 'linkedin':
+        performance = await linkedInProvider.getPostPerformance(post_id, credentials);
+        break;
+
+      case 'instagram':
+        performance = await instagramProvider.getPostPerformance(post_id, credentials);
+        break;
+
+      case 'twitter':
+      case 'tiktok':
+      case 'facebook':
+        // Mock data for not yet implemented platforms
+        performance = {
+          platform,
+          post_id,
+          likes: Math.floor(Math.random() * 500) + 50,
+          comments: Math.floor(Math.random() * 50) + 5,
+          shares: Math.floor(Math.random() * 30) + 2,
+          impressions: Math.floor(Math.random() * 5000) + 500,
+          engagement_rate: parseFloat((Math.random() * 10 + 2).toFixed(2)),
+          posted_at: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
+        };
+        break;
+
+      default:
+        throw new Error(`Unknown platform: ${platform}`);
+    }
+
+    return {
+      success: true,
+      performance,
+      note: (platform === 'linkedin' || platform === 'instagram')
+        ? '✅ Real analytics from API'
+        : '⚠️ Mock data (platform not yet integrated)',
+    };
+  } catch (error: any) {
+    console.error(`[Social Media Server] Get performance error:`, error.message);
+    return {
+      success: false,
+      error: error.message,
+      platform,
+      post_id,
+    };
+  }
 }
 
 async function createContentCalendar(params: any) {
