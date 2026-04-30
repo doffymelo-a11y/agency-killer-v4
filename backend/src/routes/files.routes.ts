@@ -4,6 +4,8 @@
  */
 
 import { Router } from 'express';
+import archiver from 'archiver';
+import axios from 'axios';
 import { authMiddleware } from '../middleware/auth.middleware.js';
 import { asyncHandler } from '../middleware/error.middleware.js';
 import {
@@ -134,6 +136,133 @@ router.delete(
       success: true,
       message: 'File deleted successfully',
     });
+  })
+);
+
+// ─────────────────────────────────────────────────────────────────
+// POST /api/files/:projectId/search - AI-powered file search
+// ─────────────────────────────────────────────────────────────────
+
+router.post(
+  '/:projectId/search',
+  authMiddleware,
+  asyncHandler(async (req, res) => {
+    const { projectId } = req.params;
+    const userId = (req as any).user?.id;
+    const { query, filters } = req.body;
+
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized - No user ID found' });
+      return;
+    }
+
+    if (!query || typeof query !== 'string') {
+      res.status(400).json({ error: 'query must be a non-empty string' });
+      return;
+    }
+
+    console.log(`[Files API] POST /${projectId}/search - Query: "${query}" - User: ${userId}`);
+
+    // Get all project files to verify ownership
+    const allFiles = await getProjectFiles(projectId, userId);
+
+    // Parse query into keywords (split by space, lowercase)
+    const keywords = query.toLowerCase().split(/\s+/).filter(Boolean);
+
+    // Search files by keywords in filename, tags, metadata
+    const matchedFiles = allFiles.filter((file) => {
+      const searchableText = [
+        file.filename.toLowerCase(),
+        ...(file.tags || []).map((t: string) => t.toLowerCase()),
+        JSON.stringify(file.metadata || {}).toLowerCase(),
+      ].join(' ');
+
+      // Match if any keyword is found
+      const matchesQuery = keywords.some((keyword) => searchableText.includes(keyword));
+
+      // Apply filters if provided
+      if (filters?.agent && file.agent_id !== filters.agent) return false;
+      if (filters?.file_type && file.file_type !== filters.file_type) return false;
+      if (filters?.phase && file.metadata?.phase !== filters.phase) return false;
+
+      return matchesQuery;
+    });
+
+    console.log(`[Files Search] Found ${matchedFiles.length} matches for "${query}"`);
+
+    res.json({
+      success: true,
+      files: matchedFiles,
+      total: matchedFiles.length,
+      query,
+    });
+  })
+);
+
+// ─────────────────────────────────────────────────────────────────
+// POST /api/files/:projectId/bulk-download - Download multiple files as ZIP
+// ─────────────────────────────────────────────────────────────────
+
+router.post(
+  '/:projectId/bulk-download',
+  authMiddleware,
+  asyncHandler(async (req, res) => {
+    const { projectId } = req.params;
+    const userId = (req as any).user?.id;
+    const { fileIds } = req.body;
+
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized - No user ID found' });
+      return;
+    }
+
+    if (!Array.isArray(fileIds) || fileIds.length === 0) {
+      res.status(400).json({ error: 'fileIds must be a non-empty array' });
+      return;
+    }
+
+    console.log(`[Files API] POST /${projectId}/bulk-download - ${fileIds.length} files - User: ${userId}`);
+
+    // Get all project files to verify ownership
+    const allFiles = await getProjectFiles(projectId, userId);
+    const filesToDownload = allFiles.filter((file) => fileIds.includes(file.id));
+
+    if (filesToDownload.length === 0) {
+      res.status(404).json({ error: 'No valid files found to download' });
+      return;
+    }
+
+    // Set response headers for ZIP download
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="hive-files-${projectId.slice(0, 8)}.zip"`);
+
+    // Create ZIP archive
+    const archive = archiver('zip', { zlib: { level: 9 } });
+
+    // Pipe archive to response
+    archive.pipe(res);
+
+    // Add each file to archive
+    for (const file of filesToDownload) {
+      try {
+        console.log(`[Bulk Download] Fetching: ${file.filename} from ${file.url}`);
+
+        // Download file from URL (Cloudinary/etc)
+        const response = await axios.get(file.url, { responseType: 'arraybuffer', timeout: 30000 });
+
+        // Add to ZIP with safe filename (sanitize for ZIP compatibility)
+        const safeFilename = file.filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+        archive.append(Buffer.from(response.data), { name: safeFilename });
+      } catch (error: any) {
+        console.error(`[Bulk Download] Failed to fetch ${file.filename}:`, error.message);
+        // Skip failed files, continue with others
+      }
+    }
+
+    // Finalize the archive
+    await archive.finalize();
+
+    console.log(`[Bulk Download] ZIP created with ${filesToDownload.length} files`);
   })
 );
 

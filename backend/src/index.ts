@@ -19,6 +19,7 @@ import cmsRoutes from './routes/cms.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import superAdminRoutes from './routes/super-admin.routes.js';
 import telegramRoutes from './routes/telegram.routes.js';
+import socialRoutes from './routes/social.routes.js';
 
 // Middleware
 import { errorHandler } from './middleware/error.middleware.js';
@@ -173,6 +174,7 @@ app.use('/api/cms', cmsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/superadmin', superAdminRoutes);
 app.use('/api/telegram', telegramRoutes);
+app.use('/api/social', socialRoutes);
 
 // Fallback 404
 app.use((req, res) => {

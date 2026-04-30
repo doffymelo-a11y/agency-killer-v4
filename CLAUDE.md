@@ -44,9 +44,12 @@ OpenClaw est un agent IA open-source (MIT license, 200K+ GitHub stars) créé pa
 
 ---
 
-### Décision 2 : Migration Backend n8n → TypeScript
+### Décision 2 : Migration Backend n8n → TypeScript ✅ **TERMINÉ**
 
-**Problème identifié :** n8n est le backend actuel de Hive OS (orchestration des 4 agents IA, routing, memory). Une analyse objective a révélé que n8n ne tiendra PAS pour 100 clients SaaS :
+**STATUT : Migration COMPLÈTE depuis mars 2026**
+Le backend TypeScript est en production dans `/backend/` avec Express, Telegraf, agents orchestrés.
+
+**Historique - Problème identifié :** n8n était le backend initial de Hive OS (orchestration des 4 agents IA, routing, memory). Une analyse objective avait révélé que n8n ne tiendrait PAS pour 100 clients SaaS :
 
 **Benchmarks n8n :**
 - Single mode (setup actuel) : plafonne à ~100 users virtuels, latence 12s à 200 users, 1% failure rate

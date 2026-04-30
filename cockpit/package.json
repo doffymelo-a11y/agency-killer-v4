@@ -29,7 +29,7 @@
     "framer-motion": "^12.30.0",
     "html2pdf.js": "^0.14.0",
     "lucide-react": "^0.563.0",
-    "pg": "^8.18.0",
+    "pg": "^8.20.0",
     "react": "^19.2.0",
     "react-confetti": "^6.4.0",
     "react-dom": "^19.2.0",

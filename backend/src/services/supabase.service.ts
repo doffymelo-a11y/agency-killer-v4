@@ -38,6 +38,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 /**
  * Admin client (uses service role key)
  * Bypasses RLS - use with caution!
+ * Configured for Realtime subscriptions
  */
 export const supabaseAdmin = createClient(
   SUPABASE_URL,
@@ -46,6 +47,11 @@ export const supabaseAdmin = createClient(
     auth: {
       autoRefreshToken: false,
       persistSession: false,
+    },
+    realtime: {
+      params: {
+        eventsPerSecond: 10,
+      },
     },
   }
 );

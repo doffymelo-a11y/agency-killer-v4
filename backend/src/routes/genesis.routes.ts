@@ -24,9 +24,14 @@ router.post(
   validate(schemas.genesisRequest),
   asyncHandler(async (req, res) => {
     const genesisRequest = req.body as GenesisRequest;
-    // const userId = (req as any).user.id; // Will be used in Phase 2.2
+    const userId = (req as any).user?.id;
 
-    console.log(`[Genesis] Creating project: ${genesisRequest.project_name}`);
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized - No user ID found' });
+      return;
+    }
+
+    console.log(`[Genesis] Creating project: ${genesisRequest.project_name} for user ${userId}`);
 
     // TODO Phase 2.2: Replace with actual genesis orchestrator
     // const response = await executeGenesis(genesisRequest, userId);
