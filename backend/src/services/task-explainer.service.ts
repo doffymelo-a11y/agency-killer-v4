@@ -126,7 +126,7 @@ export async function explainTask(
       whatThisEnables: 'Continuer la progression du projet.',
       agentRole: getAgentRoleDescription(agentId),
     };
-  } catch (error: unknown) {
+  } catch (error: any) {
     console.error('[Task Explainer] Error generating explanation:', error);
 
     // Return basic fallback
@@ -376,7 +376,7 @@ Réponds UNIQUEMENT en JSON valide avec cette structure :
 
     // Fallback if JSON parsing fails
     return getFallbackExplanation(agentId);
-  } catch (error: unknown) {
+  } catch (error: any) {
     console.error('[Task Explainer] Error in lightweight explanation:', error);
     return getFallbackExplanation(agentId);
   }

@@ -68,7 +68,7 @@ export async function buildProjectContext(
     };
 
     return context;
-  } catch (error: unknown) {
+  } catch (error: any) {
     console.error('[Context Builder] Error building context:', error);
     throw error;
   }

@@ -19,7 +19,7 @@ const router = Router();
 
 router.post('/accept', authMiddleware, asyncHandler(async (req: Request, res: Response) => {
   const { project_id } = req.body;
-  const userId = req.user?.id;
+  const userId = (req as any).user?.id;
 
   if (!userId) {
     res.status(401).json({ error: 'Unauthorized - No user ID found' });
@@ -118,7 +118,7 @@ router.post('/accept', authMiddleware, asyncHandler(async (req: Request, res: Re
 
 router.post('/dismiss', authMiddleware, asyncHandler(async (req: Request, res: Response) => {
   const { project_id } = req.body;
-  const userId = req.user?.id;
+  const userId = (req as any).user?.id;
 
   if (!userId) {
     res.status(401).json({ error: 'Unauthorized - No user ID found' });

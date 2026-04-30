@@ -25,7 +25,7 @@ router.post(
   validate(schemas.genesisRequest),
   asyncHandler(async (req, res) => {
     const genesisRequest = req.body as GenesisRequest;
-    const userId = req.user?.id;
+    const userId = (req as any).user?.id;
 
     if (!userId) {
       res.status(401).json({ error: 'Unauthorized - No user ID found' });

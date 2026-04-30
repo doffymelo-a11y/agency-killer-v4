@@ -87,7 +87,7 @@ class MCPBridgeClient {
         success: true,
         data: response.data,
       };
-    } catch (error: unknown) {
+    } catch (error: any) {
       console.error(`[MCP Bridge] Error calling ${server}.${tool}:`, error.message);
 
       // Log MCP call error (network/timeout error)
@@ -130,7 +130,7 @@ class MCPBridgeClient {
     try {
       const response = await this.client.get(`/api/${server}/tools`);
       return response.data.tools || [];
-    } catch (error: unknown) {
+    } catch (error: any) {
       console.error(`[MCP Bridge] Error listing tools for ${server}:`, error.message);
       return [];
     }

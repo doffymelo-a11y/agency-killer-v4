@@ -49,7 +49,7 @@ router.post(
   '/schedule',
   authMiddleware,
   asyncHandler(async (req, res) => {
-    const userId = req.user?.id;
+    const userId = (req as any).user?.id;
     const {
       project_id,
       platform,
@@ -135,7 +135,7 @@ router.get(
   authMiddleware,
   asyncHandler(async (req, res) => {
     const { projectId } = req.params;
-    const userId = req.user?.id;
+    const userId = (req as any).user?.id;
 
     if (!userId) {
       res.status(401).json({ error: 'Unauthorized' });
@@ -175,7 +175,7 @@ router.patch(
   authMiddleware,
   asyncHandler(async (req, res) => {
     const { postId } = req.params;
-    const userId = req.user?.id;
+    const userId = (req as any).user?.id;
 
     if (!userId) {
       res.status(401).json({ error: 'Unauthorized' });

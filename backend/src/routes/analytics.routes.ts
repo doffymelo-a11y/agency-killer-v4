@@ -23,7 +23,7 @@ router.post(
   validate(schemas.analyticsRequest),
   asyncHandler(async (req, res) => {
     const analyticsRequest = req.body as AnalyticsRequest;
-    const userId = req.user?.id;
+    const userId = (req as any).user?.id;
 
     if (!userId) {
       res.status(401).json({ error: 'Unauthorized - No user ID found' });

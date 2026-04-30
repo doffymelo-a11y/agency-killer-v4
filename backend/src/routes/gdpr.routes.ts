@@ -155,7 +155,7 @@ router.post(
         scheduled_deletion_at: scheduledDeletionAt.toISOString(),
         grace_period_days: 30,
       });
-    } catch (error: unknown) {
+    } catch (error: any) {
       console.error('[GDPR] Error processing account deletion:', error);
 
       // Log error
@@ -339,7 +339,7 @@ router.post(
         success: true,
         message: 'La suppression de votre compte a été annulée avec succès.',
       });
-    } catch (error: unknown) {
+    } catch (error: any) {
       console.error('[GDPR] Error cancelling deletion:', error);
 
       await logToSystem({
@@ -412,7 +412,7 @@ router.get(
           ? Math.ceil((new Date(scheduledDeletionAt).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
           : null,
       });
-    } catch (error: unknown) {
+    } catch (error: any) {
       console.error('[GDPR] Error fetching deletion status:', error);
 
       res.status(500).json({

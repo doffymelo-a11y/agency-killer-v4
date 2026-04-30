@@ -275,7 +275,7 @@ export async function processChat(
     }
 
     return agentResponse;
-  } catch (error: unknown) {
+  } catch (error: any) {
     console.error('[Orchestrator] Error processing chat:', error);
     throw error;
   }

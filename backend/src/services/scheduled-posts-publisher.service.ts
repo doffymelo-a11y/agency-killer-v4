@@ -63,10 +63,11 @@ export async function publishScheduledPosts(): Promise<{
     try {
       await publishSinglePost(post);
       published++;
-    } catch (error: unknown) {
+    } catch (error: any) {
       failed++;
-      errors.push(`Post ${post.id}: ${error.message}`);
-      console.error(`[Scheduled Posts] Failed to publish ${post.id}:`, error.message);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      errors.push(`Post ${post.id}: ${errorMessage}`);
+      console.error(`[Scheduled Posts] Failed to publish ${post.id}:`, errorMessage);
     }
   }
 
@@ -133,8 +134,9 @@ async function publishSinglePost(post: ScheduledPost): Promise<void> {
     });
 
     logger.log(`[Scheduled Posts] ✓ Published ${post.platform} post ${post.id}: ${result.url}`);
-  } catch (error: unknown) {
-    console.error(`[Scheduled Posts] ✗ Failed to publish ${post.id}:`, error.message);
+  } catch (error: any) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`[Scheduled Posts] ✗ Failed to publish ${post.id}:`, errorMessage);
 
     // Determine if we should retry
     const shouldRetry = post.retry_count < 3 && !isUnrecoverableError(error);
@@ -142,7 +144,7 @@ async function publishSinglePost(post: ScheduledPost): Promise<void> {
     await supabaseAdmin.rpc('update_scheduled_post_status', {
       p_post_id: post.id,
       p_status: shouldRetry ? 'scheduled' : 'failed', // Retry if < 3 attempts
-      p_error_message: error.message,
+      p_error_message: errorMessage,
     });
 
     throw error;

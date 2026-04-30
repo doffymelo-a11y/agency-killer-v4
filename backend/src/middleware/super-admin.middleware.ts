@@ -76,7 +76,7 @@ export async function requireSuperAdmin(
     }
 
     next();
-  } catch (error: unknown) {
+  } catch (error: any) {
     console.error('[SuperAdmin] Authorization error:', error);
     res.status(500).json({
       success: false,

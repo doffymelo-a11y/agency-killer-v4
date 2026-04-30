@@ -67,8 +67,8 @@ router.post(
   validate(schemas.chatRequest),
   asyncHandler(async (req, res) => {
     const chatRequest = req.body as ChatRequest;
-    const userId = req.user?.id;
-    const userPlan = req.user?.plan || 'free';
+    const userId = (req as any).user?.id;
+    const userPlan = (req as any).user?.plan || 'free';
 
     if (!userId) {
       res.status(401).json({ error: 'Unauthorized - No user ID found' });

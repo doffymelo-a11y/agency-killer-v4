@@ -99,7 +99,7 @@ async function runCronJob() {
         }
       );
     }
-  } catch (error: unknown) {
+  } catch (error: any) {
     console.error('[Scheduled Posts Cron] Fatal error:', error);
 
     await logError(

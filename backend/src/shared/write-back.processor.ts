@@ -64,7 +64,7 @@ export async function executeWriteBackCommands(
       if (success) {
         successCount++;
       }
-    } catch (error: unknown) {
+    } catch (error: any) {
       console.error('[Write-Back] Error executing command:', command.type, error);
     }
   }

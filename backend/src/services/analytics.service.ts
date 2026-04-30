@@ -183,7 +183,7 @@ export async function fetchAnalytics(
 
     // Format data based on source
     return formatAnalyticsData(source, result.data, date_range, isConnected);
-  } catch (error: unknown) {
+  } catch (error: any) {
     console.error(`[Analytics] Error fetching ${source}:`, error);
     return getEmptyAnalyticsData(source, date_range, isConnected, error.message);
   }

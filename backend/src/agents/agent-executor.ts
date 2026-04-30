@@ -231,7 +231,7 @@ export async function executeAgent(context: AgentExecutionContext) {
       memory_contribution: parsedResponse.memory_contribution,
       session_id: context.sessionId,
     };
-  } catch (error: unknown) {
+  } catch (error: any) {
     const durationMs = Date.now() - startTime;
 
     // Log agent error
@@ -586,7 +586,7 @@ async function executeMCPToolCalls(toolCalls: any[], context: AgentExecutionCont
         tool_use_id: toolCall.id,
         result: result.success ? result.data : { error: result.error },
       });
-    } catch (error: unknown) {
+    } catch (error: any) {
       console.error(`[Agent Executor] Error executing ${toolName}:`, error);
       results.push({
         tool_use_id: toolCall.id,

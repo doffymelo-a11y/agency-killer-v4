@@ -28,7 +28,7 @@ router.get(
   authMiddleware,
   asyncHandler(async (req, res) => {
     const { projectId } = req.params;
-    const userId = req.user?.id;
+    const userId = (req as any).user?.id;
 
     if (!userId) {
       res.status(401).json({ error: 'Unauthorized - No user ID found' });
@@ -56,7 +56,7 @@ router.post(
   authMiddleware,
   asyncHandler(async (req, res) => {
     const { projectId } = req.params;
-    const userId = req.user?.id;
+    const userId = (req as any).user?.id;
 
     if (!userId) {
       res.status(401).json({ error: 'Unauthorized - No user ID found' });
@@ -122,7 +122,7 @@ router.delete(
   authMiddleware,
   asyncHandler(async (req, res) => {
     const { fileId } = req.params;
-    const userId = req.user?.id;
+    const userId = (req as any).user?.id;
 
     if (!userId) {
       res.status(401).json({ error: 'Unauthorized - No user ID found' });
@@ -149,7 +149,7 @@ router.post(
   authMiddleware,
   asyncHandler(async (req, res) => {
     const { projectId } = req.params;
-    const userId = req.user?.id;
+    const userId = (req as any).user?.id;
     const { query, filters } = req.body;
 
     if (!userId) {
@@ -209,7 +209,7 @@ router.post(
   authMiddleware,
   asyncHandler(async (req, res) => {
     const { projectId } = req.params;
-    const userId = req.user?.id;
+    const userId = (req as any).user?.id;
     const { fileIds } = req.body;
 
     if (!userId) {
@@ -254,7 +254,7 @@ router.post(
         // Add to ZIP with safe filename (sanitize for ZIP compatibility)
         const safeFilename = file.filename.replace(/[^a-zA-Z0-9._-]/g, '_');
         archive.append(Buffer.from(response.data), { name: safeFilename });
-      } catch (error: unknown) {
+      } catch (error: any) {
         console.error(`[Bulk Download] Failed to fetch ${file.filename}:`, error.message);
         // Skip failed files, continue with others
       }

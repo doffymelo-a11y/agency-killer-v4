@@ -31,7 +31,7 @@ router.post(
   validate(schemas.cmsExecuteRequest),
   asyncHandler(async (req, res) => {
     const executeRequest = req.body as CMSExecuteRequest;
-    const userId = req.user?.id;
+    const userId = (req as any).user?.id;
 
     if (!userId) {
       res.status(401).json({ error: 'Unauthorized - No user ID found' });
@@ -58,7 +58,7 @@ router.post(
   validate(schemas.cmsRollbackRequest),
   asyncHandler(async (req, res) => {
     const rollbackRequest = req.body as CMSRollbackRequest;
-    const userId = req.user?.id;
+    const userId = (req as any).user?.id;
 
     if (!userId) {
       res.status(401).json({ error: 'Unauthorized - No user ID found' });
@@ -82,7 +82,7 @@ router.get(
   '/pending',
   authMiddleware,
   asyncHandler(async (req, res) => {
-    const userId = req.user?.id;
+    const userId = (req as any).user?.id;
 
     if (!userId) {
       res.status(401).json({ error: 'Unauthorized - No user ID found' });

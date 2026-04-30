@@ -72,7 +72,7 @@ export async function authMiddleware(
     };
 
     next();
-  } catch (error: unknown) {
+  } catch (error: any) {
     console.error('[Auth Middleware] Error:', error);
     res.status(500).json({
       success: false,
@@ -123,7 +123,7 @@ export async function optionalAuthMiddleware(
     }
 
     next();
-  } catch (error: unknown) {
+  } catch (error: any) {
     // Log error but continue without failing
     console.error('[Optional Auth Middleware] Error:', error);
     next();

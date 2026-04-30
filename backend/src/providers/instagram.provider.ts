@@ -99,7 +99,7 @@ export class InstagramProvider implements SocialMediaProvider {
         created_at: new Date().toISOString(),
         status: 'published',
       };
-    } catch (error: unknown) {
+    } catch (error: any) {
       console.error('[Instagram Provider] Create post error:', error.response?.data || error.message);
       throw new Error(`Instagram post failed: ${error.response?.data?.error?.message || error.message}`);
     }
@@ -142,7 +142,7 @@ export class InstagramProvider implements SocialMediaProvider {
         engagement_rate: parseFloat(engagementRate.toFixed(2)),
         posted_at: new Date().toISOString(),
       };
-    } catch (error: unknown) {
+    } catch (error: any) {
       console.error('[Instagram Provider] Get performance error:', error.response?.data || error.message);
 
       // Fallback to basic metrics if insights fail
@@ -212,7 +212,7 @@ export class InstagramProvider implements SocialMediaProvider {
         follower_growth: '+0', // Requires historical tracking
         avg_engagement_rate: 0, // Requires aggregating post stats
       };
-    } catch (error: unknown) {
+    } catch (error: any) {
       console.error('[Instagram Provider] Get engagement metrics error:', error.response?.data || error.message);
       return {
         platform: 'instagram',
@@ -292,7 +292,7 @@ export class InstagramProvider implements SocialMediaProvider {
         // Wait 1 second before retry
         await new Promise((resolve) => setTimeout(resolve, 1000));
         attempts++;
-      } catch (error: unknown) {
+      } catch (error: any) {
         console.error('[Instagram Provider] Container status check error:', error.response?.data || error.message);
         throw error;
       }
@@ -335,7 +335,7 @@ export class InstagramProvider implements SocialMediaProvider {
       }
 
       return igUserId;
-    } catch (error: unknown) {
+    } catch (error: any) {
       console.error('[Instagram Provider] Get IG user ID error:', error.response?.data || error.message);
       throw new Error('Failed to get Instagram Business Account ID');
     }

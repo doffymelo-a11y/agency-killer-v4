@@ -18,7 +18,7 @@ const router = Router();
 // ─────────────────────────────────────────────────────────────────
 
 router.post('/explain', authMiddleware, chatRateLimiter, asyncHandler(async (req, res) => {
-  const userId = req.user?.id;
+  const userId = (req as any).user?.id;
 
   if (!userId) {
     res.status(401).json({ error: 'Unauthorized - No user ID found' });

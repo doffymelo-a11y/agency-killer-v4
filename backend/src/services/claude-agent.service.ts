@@ -147,7 +147,7 @@ export class ClaudeAgentService {
         report
       };
 
-    } catch (error: unknown) {
+    } catch (error: any) {
       console.error(`[Claude Agent] ✗ Fix failed:`, error);
 
       await this.updateSession(sessionId, {
@@ -591,7 +591,7 @@ You are on branch auto-fix/ticket-${ticket.id.slice(0, 8)}. Work autonomously.`;
       logger.log(`[Agent] ✓ SDK completed`);
       return finalText;
 
-    } catch (error: unknown) {
+    } catch (error: any) {
       console.warn(`[Agent] SDK not available, using fallback:`, error.message);
       return await this.runAgentFallback(worktreePath, systemPrompt, userMessage);
     }
@@ -714,7 +714,7 @@ You are on branch auto-fix/ticket-${ticket.id.slice(0, 8)}. Work autonomously.`;
         try {
           const content = await fs.readFile(path.join(worktreePath, input.path), 'utf-8');
           return content;
-        } catch (error: unknown) {
+        } catch (error: any) {
           return `Error reading file: ${error.message}`;
         }
 
@@ -758,7 +758,7 @@ You are on branch auto-fix/ticket-${ticket.id.slice(0, 8)}. Work autonomously.`;
           logger.log(`[Tool] ✓ File edited successfully: ${input.path}`);
 
           return `File edited successfully: ${input.path}. Replaced ${input.old_string.length} characters with ${input.new_string.length} characters.`;
-        } catch (error: unknown) {
+        } catch (error: any) {
           console.error(`[Tool] Error editing file:`, error);
           return `Error editing file: ${error.message}`;
         }
@@ -793,7 +793,7 @@ You are on branch auto-fix/ticket-${ticket.id.slice(0, 8)}. Work autonomously.`;
             timeout: 120000 // 2 min max
           });
           return stdout + stderr;
-        } catch (error: unknown) {
+        } catch (error: any) {
           return `Command failed: ${error.message}\nStdout: ${error.stdout}\nStderr: ${error.stderr}`;
         }
 
@@ -838,7 +838,7 @@ You are on branch auto-fix/ticket-${ticket.id.slice(0, 8)}. Work autonomously.`;
         output: stdout + '\n' + stderr
       };
 
-    } catch (error: unknown) {
+    } catch (error: any) {
       console.error(`[Tests] ✗ Tests failed`);
 
       return {
