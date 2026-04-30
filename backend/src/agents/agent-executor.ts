@@ -17,6 +17,7 @@ import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import { logger } from '../lib/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -46,7 +47,7 @@ export interface AgentExecutionContext {
  */
 export async function executeAgent(context: AgentExecutionContext) {
   const startTime = Date.now();
-  console.log(`[Agent Executor] Executing ${context.agentId}`);
+  logger.log(`[Agent Executor] Executing ${context.agentId}`);
 
   // SECURITY: Verify project ownership BEFORE execution
   if (context.userId && context.projectContext.project_id) {
@@ -137,7 +138,7 @@ export async function executeAgent(context: AgentExecutionContext) {
     timeout: complexity.timeout, // Custom timeout based on complexity
   });
 
-  console.log(`[Agent Executor] Claude response received, stop_reason: ${response.stop_reason}`);
+  logger.log(`[Agent Executor] Claude response received, stop_reason: ${response.stop_reason}`);
 
   // Step 5: Handle tool use (MCP calls)
   let iterationCount = 0;
@@ -145,7 +146,7 @@ export async function executeAgent(context: AgentExecutionContext) {
 
   while (response.stop_reason === 'tool_use' && iterationCount < MAX_ITERATIONS) {
     iterationCount++;
-    console.log(`[Agent Executor] Tool use iteration ${iterationCount}`);
+    logger.log(`[Agent Executor] Tool use iteration ${iterationCount}`);
 
     // Extract tool calls from response
     const toolCalls = response.content.filter((block: any) => block.type === 'tool_use');
@@ -183,7 +184,7 @@ export async function executeAgent(context: AgentExecutionContext) {
       temperature: 1.0,
     });
 
-    console.log(
+    logger.log(
       `[Agent Executor] Claude response after tool use, stop_reason: ${response.stop_reason}`
     );
   }
@@ -230,7 +231,7 @@ export async function executeAgent(context: AgentExecutionContext) {
       memory_contribution: parsedResponse.memory_contribution,
       session_id: context.sessionId,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     const durationMs = Date.now() - startTime;
 
     // Log agent error
@@ -372,11 +373,11 @@ async function loadRelevantSkills(
   const relevantSkillKeys = detectRelevantSkills(userMessage, agentId);
 
   if (relevantSkillKeys.length === 0) {
-    console.log('[Skills] No relevant skills detected for message');
+    logger.log('[Skills] No relevant skills detected for message');
     return [];
   }
 
-  console.log(`[Skills] Detected ${relevantSkillKeys.length} relevant skills:`, relevantSkillKeys);
+  logger.log(`[Skills] Detected ${relevantSkillKeys.length} relevant skills:`, relevantSkillKeys);
 
   const skills: Skill[] = [];
 
@@ -390,7 +391,7 @@ async function loadRelevantSkills(
     }
   }
 
-  console.log(`[Skills] Loaded ${skills.length} skills successfully`);
+  logger.log(`[Skills] Loaded ${skills.length} skills successfully`);
 
   return skills;
 }
@@ -435,7 +436,7 @@ function buildSystemPrompt(context: AgentExecutionContext, skills: Skill[] = [])
   };
 
   // DEBUGGING: Log extracted context to verify Genesis answers are injected
-  console.log('[Agent Executor] Context injected into system prompt:', {
+  logger.log('[Agent Executor] Context injected into system prompt:', {
     project_name: replacements.project_name,
     industry: replacements.industry || '(empty)',
     target_audience: replacements.target_audience || '(empty)',
@@ -477,7 +478,7 @@ ${skills.map(skill => skill.content).join('\n\n---\n\n')}
 
     prompt += skillsSection;
 
-    console.log(`[Skills] Injected ${skills.length} skills into system prompt:`, skills.map(s => s.name));
+    logger.log(`[Skills] Injected ${skills.length} skills into system prompt:`, skills.map(s => s.name));
   }
 
   // Add system instruction override if provided
@@ -556,7 +557,7 @@ async function executeMCPToolCalls(toolCalls: any[], context: AgentExecutionCont
     const toolName = toolCall.name;
     const [server, tool] = toolName.split('__');
 
-    console.log(`[Agent Executor] Executing MCP tool: ${server}.${tool}`);
+    logger.log(`[Agent Executor] Executing MCP tool: ${server}.${tool}`);
 
     // Log MCP tool call
     await logToSystem({
@@ -585,7 +586,7 @@ async function executeMCPToolCalls(toolCalls: any[], context: AgentExecutionCont
         tool_use_id: toolCall.id,
         result: result.success ? result.data : { error: result.error },
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(`[Agent Executor] Error executing ${toolName}:`, error);
       results.push({
         tool_use_id: toolCall.id,
@@ -626,7 +627,7 @@ async function recordCMSChangeIfNeeded(
 
   // Check if result contains change tracking data
   if (!toolResult.change_id || !toolResult.requires_approval === undefined) {
-    console.log(`[Agent Executor] CMS tool ${toolName} did not return change tracking data`);
+    logger.log(`[Agent Executor] CMS tool ${toolName} did not return change tracking data`);
     return;
   }
 
@@ -657,7 +658,7 @@ async function recordCMSChangeIfNeeded(
       mcp_tool_name: `cms-connector__${toolName}`,
     });
 
-    console.log(`[Agent Executor] Recorded CMS change: ${toolResult.change_id}`);
+    logger.log(`[Agent Executor] Recorded CMS change: ${toolResult.change_id}`);
   } catch (error) {
     console.error('[Agent Executor] Error recording CMS change:', error);
     // Don't throw - we don't want to fail the entire execution if recording fails

@@ -16,6 +16,7 @@ import {
   getPendingCMSApprovals,
 } from '../services/cms.service.js';
 import type { CMSExecuteRequest, CMSRollbackRequest } from '../types/api.types.js';
+import { logger } from '../lib/logger.js';
 
 const router = Router();
 
@@ -30,14 +31,14 @@ router.post(
   validate(schemas.cmsExecuteRequest),
   asyncHandler(async (req, res) => {
     const executeRequest = req.body as CMSExecuteRequest;
-    const userId = (req as any).user?.id;
+    const userId = req.user?.id;
 
     if (!userId) {
       res.status(401).json({ error: 'Unauthorized - No user ID found' });
       return;
     }
 
-    console.log(`[CMS] Executing change ${executeRequest.change_id}`);
+    logger.log(`[CMS] Executing change ${executeRequest.change_id}`);
 
     // Execute the CMS change
     const result = await executeCMSChange(executeRequest, userId);
@@ -57,14 +58,14 @@ router.post(
   validate(schemas.cmsRollbackRequest),
   asyncHandler(async (req, res) => {
     const rollbackRequest = req.body as CMSRollbackRequest;
-    const userId = (req as any).user?.id;
+    const userId = req.user?.id;
 
     if (!userId) {
       res.status(401).json({ error: 'Unauthorized - No user ID found' });
       return;
     }
 
-    console.log(`[CMS] Rolling back change ${rollbackRequest.change_id}`);
+    logger.log(`[CMS] Rolling back change ${rollbackRequest.change_id}`);
 
     // Rollback the CMS change
     const result = await rollbackCMSChange(rollbackRequest, userId);
@@ -81,14 +82,14 @@ router.get(
   '/pending',
   authMiddleware,
   asyncHandler(async (req, res) => {
-    const userId = (req as any).user?.id;
+    const userId = req.user?.id;
 
     if (!userId) {
       res.status(401).json({ error: 'Unauthorized - No user ID found' });
       return;
     }
 
-    console.log(`[CMS] Fetching pending approvals for user ${userId}`);
+    logger.log(`[CMS] Fetching pending approvals for user ${userId}`);
 
     // Get pending CMS approvals
     const pending = await getPendingCMSApprovals(userId);

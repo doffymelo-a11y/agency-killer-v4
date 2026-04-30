@@ -11,6 +11,7 @@ import { chatRateLimiter } from '../middleware/rate-limit.middleware.js';
 import { processChat } from '../agents/orchestrator.js';
 import { supabaseAdmin } from '../services/supabase.service.js';
 import type { ChatRequest } from '../types/api.types.js';
+import { logger } from '../lib/logger.js';
 
 const router = Router();
 
@@ -66,21 +67,21 @@ router.post(
   validate(schemas.chatRequest),
   asyncHandler(async (req, res) => {
     const chatRequest = req.body as ChatRequest;
-    const userId = (req as any).user?.id;
-    const userPlan = (req as any).user?.plan || 'free';
+    const userId = req.user?.id;
+    const userPlan = req.user?.plan || 'free';
 
     if (!userId) {
       res.status(401).json({ error: 'Unauthorized - No user ID found' });
       return;
     }
 
-    console.log(`[Chat] Processing message for project ${chatRequest.project_id} - User plan: ${userPlan}`);
+    logger.log(`[Chat] Processing message for project ${chatRequest.project_id} - User plan: ${userPlan}`);
 
     // Check usage limit before processing
     const usageCheck = await checkAgentCallLimit(userId);
 
     if (!usageCheck.allowed) {
-      console.log(`[Chat] Usage limit reached for user ${userId} (${usageCheck.current}/${usageCheck.limit})`);
+      logger.log(`[Chat] Usage limit reached for user ${userId} (${usageCheck.current}/${usageCheck.limit})`);
 
       res.status(429).json({
         success: false,

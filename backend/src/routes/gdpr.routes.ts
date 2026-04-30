@@ -8,6 +8,7 @@ import { authMiddleware, AuthenticatedRequest } from '../middleware/auth.middlew
 import { asyncHandler } from '../middleware/error.middleware.js';
 import { supabaseAdmin } from '../services/supabase.service.js';
 import { logToSystem } from '../services/logging.service.js';
+import { logger } from '../lib/logger.js';
 
 const router = Router();
 
@@ -20,7 +21,7 @@ router.post(
   '/delete-account',
   authMiddleware,
   asyncHandler(async (req: AuthenticatedRequest, res) => {
-    const userId = (req as any).user?.id;
+    const userId = req.user?.id;
 
     if (!userId) {
       res.status(401).json({
@@ -33,7 +34,7 @@ router.post(
       return;
     }
 
-    console.log(`[GDPR] Account deletion requested by user ${userId}`);
+    logger.log(`[GDPR] Account deletion requested by user ${userId}`);
 
     try {
       // Get user details for logging
@@ -146,7 +147,7 @@ router.post(
         },
       });
 
-      console.log(`[GDPR] ✅ User ${userId} marked for deletion. Scheduled: ${scheduledDeletionAt.toISOString()}`);
+      logger.log(`[GDPR] ✅ User ${userId} marked for deletion. Scheduled: ${scheduledDeletionAt.toISOString()}`);
 
       res.json({
         success: true,
@@ -154,7 +155,7 @@ router.post(
         scheduled_deletion_at: scheduledDeletionAt.toISOString(),
         grace_period_days: 30,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[GDPR] Error processing account deletion:', error);
 
       // Log error
@@ -190,7 +191,7 @@ router.post(
   '/cancel-deletion',
   authMiddleware,
   asyncHandler(async (req: AuthenticatedRequest, res) => {
-    const userId = (req as any).user?.id;
+    const userId = req.user?.id;
 
     if (!userId) {
       res.status(401).json({
@@ -203,7 +204,7 @@ router.post(
       return;
     }
 
-    console.log(`[GDPR] Cancellation of deletion requested by user ${userId}`);
+    logger.log(`[GDPR] Cancellation of deletion requested by user ${userId}`);
 
     try {
       // Get user metadata
@@ -332,13 +333,13 @@ router.post(
         },
       });
 
-      console.log(`[GDPR] ✅ Deletion cancelled for user ${userId}`);
+      logger.log(`[GDPR] ✅ Deletion cancelled for user ${userId}`);
 
       res.json({
         success: true,
         message: 'La suppression de votre compte a été annulée avec succès.',
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[GDPR] Error cancelling deletion:', error);
 
       await logToSystem({
@@ -372,7 +373,7 @@ router.get(
   '/deletion-status',
   authMiddleware,
   asyncHandler(async (req: AuthenticatedRequest, res) => {
-    const userId = (req as any).user?.id;
+    const userId = req.user?.id;
 
     if (!userId) {
       res.status(401).json({
@@ -411,7 +412,7 @@ router.get(
           ? Math.ceil((new Date(scheduledDeletionAt).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
           : null,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[GDPR] Error fetching deletion status:', error);
 
       res.status(500).json({

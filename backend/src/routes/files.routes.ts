@@ -8,6 +8,7 @@ import archiver from 'archiver';
 import axios from 'axios';
 import { authMiddleware } from '../middleware/auth.middleware.js';
 import { asyncHandler } from '../middleware/error.middleware.js';
+import { logger } from '../lib/logger.js';
 import {
   getProjectFiles,
   createFile,
@@ -27,14 +28,14 @@ router.get(
   authMiddleware,
   asyncHandler(async (req, res) => {
     const { projectId } = req.params;
-    const userId = (req as any).user?.id;
+    const userId = req.user?.id;
 
     if (!userId) {
       res.status(401).json({ error: 'Unauthorized - No user ID found' });
       return;
     }
 
-    console.log(`[Files API] GET /${projectId} - User: ${userId}`);
+    logger.log(`[Files API] GET /${projectId} - User: ${userId}`);
 
     const files = await getProjectFiles(projectId, userId);
 
@@ -55,7 +56,7 @@ router.post(
   authMiddleware,
   asyncHandler(async (req, res) => {
     const { projectId } = req.params;
-    const userId = (req as any).user?.id;
+    const userId = req.user?.id;
 
     if (!userId) {
       res.status(401).json({ error: 'Unauthorized - No user ID found' });
@@ -82,7 +83,7 @@ router.post(
       return;
     }
 
-    console.log(`[Files API] POST /${projectId} - Uploading: ${filename}`);
+    logger.log(`[Files API] POST /${projectId} - Uploading: ${filename}`);
 
     // Auto-tag if no tags provided
     const tags = providedTags && providedTags.length > 0
@@ -121,14 +122,14 @@ router.delete(
   authMiddleware,
   asyncHandler(async (req, res) => {
     const { fileId } = req.params;
-    const userId = (req as any).user?.id;
+    const userId = req.user?.id;
 
     if (!userId) {
       res.status(401).json({ error: 'Unauthorized - No user ID found' });
       return;
     }
 
-    console.log(`[Files API] DELETE /${fileId} - User: ${userId}`);
+    logger.log(`[Files API] DELETE /${fileId} - User: ${userId}`);
 
     await deleteFile(fileId, userId);
 
@@ -148,7 +149,7 @@ router.post(
   authMiddleware,
   asyncHandler(async (req, res) => {
     const { projectId } = req.params;
-    const userId = (req as any).user?.id;
+    const userId = req.user?.id;
     const { query, filters } = req.body;
 
     if (!userId) {
@@ -161,7 +162,7 @@ router.post(
       return;
     }
 
-    console.log(`[Files API] POST /${projectId}/search - Query: "${query}" - User: ${userId}`);
+    logger.log(`[Files API] POST /${projectId}/search - Query: "${query}" - User: ${userId}`);
 
     // Get all project files to verify ownership
     const allFiles = await getProjectFiles(projectId, userId);
@@ -188,7 +189,7 @@ router.post(
       return matchesQuery;
     });
 
-    console.log(`[Files Search] Found ${matchedFiles.length} matches for "${query}"`);
+    logger.log(`[Files Search] Found ${matchedFiles.length} matches for "${query}"`);
 
     res.json({
       success: true,
@@ -208,7 +209,7 @@ router.post(
   authMiddleware,
   asyncHandler(async (req, res) => {
     const { projectId } = req.params;
-    const userId = (req as any).user?.id;
+    const userId = req.user?.id;
     const { fileIds } = req.body;
 
     if (!userId) {
@@ -221,7 +222,7 @@ router.post(
       return;
     }
 
-    console.log(`[Files API] POST /${projectId}/bulk-download - ${fileIds.length} files - User: ${userId}`);
+    logger.log(`[Files API] POST /${projectId}/bulk-download - ${fileIds.length} files - User: ${userId}`);
 
     // Get all project files to verify ownership
     const allFiles = await getProjectFiles(projectId, userId);
@@ -245,7 +246,7 @@ router.post(
     // Add each file to archive
     for (const file of filesToDownload) {
       try {
-        console.log(`[Bulk Download] Fetching: ${file.filename} from ${file.url}`);
+        logger.log(`[Bulk Download] Fetching: ${file.filename} from ${file.url}`);
 
         // Download file from URL (Cloudinary/etc)
         const response = await axios.get(file.url, { responseType: 'arraybuffer', timeout: 30000 });
@@ -253,7 +254,7 @@ router.post(
         // Add to ZIP with safe filename (sanitize for ZIP compatibility)
         const safeFilename = file.filename.replace(/[^a-zA-Z0-9._-]/g, '_');
         archive.append(Buffer.from(response.data), { name: safeFilename });
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error(`[Bulk Download] Failed to fetch ${file.filename}:`, error.message);
         // Skip failed files, continue with others
       }
@@ -262,7 +263,7 @@ router.post(
     // Finalize the archive
     await archive.finalize();
 
-    console.log(`[Bulk Download] ZIP created with ${filesToDownload.length} files`);
+    logger.log(`[Bulk Download] ZIP created with ${filesToDownload.length} files`);
   })
 );
 

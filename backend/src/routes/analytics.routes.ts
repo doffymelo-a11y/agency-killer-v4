@@ -9,6 +9,7 @@ import { validate, schemas } from '../middleware/validation.middleware.js';
 import { asyncHandler } from '../middleware/error.middleware.js';
 import { fetchAnalytics } from '../services/analytics.service.js';
 import type { AnalyticsRequest } from '../services/analytics.service.js';
+import { logger } from '../lib/logger.js';
 
 const router = Router();
 
@@ -22,14 +23,14 @@ router.post(
   validate(schemas.analyticsRequest),
   asyncHandler(async (req, res) => {
     const analyticsRequest = req.body as AnalyticsRequest;
-    const userId = (req as any).user?.id;
+    const userId = req.user?.id;
 
     if (!userId) {
       res.status(401).json({ error: 'Unauthorized - No user ID found' });
       return;
     }
 
-    console.log(`[Analytics] User ${userId} fetching ${analyticsRequest.source} data for project ${analyticsRequest.project_id}`);
+    logger.log(`[Analytics] User ${userId} fetching ${analyticsRequest.source} data for project ${analyticsRequest.project_id}`);
 
     // Fetch analytics data from MCP servers
     const analyticsData = await fetchAnalytics(analyticsRequest, userId);

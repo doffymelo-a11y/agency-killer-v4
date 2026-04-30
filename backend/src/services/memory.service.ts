@@ -37,7 +37,7 @@ export async function getRecentMemory(
     }
 
     return data || [];
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Memory Service] Exception fetching memory:', error);
     return [];
   }
@@ -66,7 +66,7 @@ export async function getMemoryByAgent(
     }
 
     return data || [];
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Memory Service] Exception fetching agent memory:', error);
     return [];
   }
@@ -100,7 +100,7 @@ export async function getRecommendationsForAgent(
     }
 
     return recommendations.slice(0, limit);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Memory Service] Error fetching recommendations:', error);
     return [];
   }
@@ -135,7 +135,7 @@ export async function writeMemory(
     }
 
     return true;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Memory Service] Exception writing memory:', error);
     return false;
   }
@@ -178,7 +178,7 @@ export async function cleanupOldMemory(
     }
 
     return count || 0;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Memory Service] Exception cleaning up memory:', error);
     return 0;
   }
@@ -211,7 +211,7 @@ export async function searchMemory(
     });
 
     return matches.slice(0, limit);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Memory Service] Error searching memory:', error);
     return [];
   }

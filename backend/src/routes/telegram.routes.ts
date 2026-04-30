@@ -9,6 +9,7 @@ import { supabaseAdmin } from '../services/supabase.service.js';
 import type { AuthenticatedRequest } from '../middleware/auth.middleware.js';
 import { asyncHandler } from '../middleware/error.middleware.js';
 import { claudeAgentService } from '../services/claude-agent.service.js';
+import { logger } from '../lib/logger.js';
 
 const router = Router();
 
@@ -171,7 +172,7 @@ if (bot) {
     const firstName = ctx.from.first_name;
     const lastName = ctx.from.last_name;
 
-    console.log(`[Telegram] /start from chat ${chatId} (@${username})`);
+    logger.log(`[Telegram] /start from chat ${chatId} (@${username})`);
 
     // For Phase 1, we use the founder's user_id from env vars
     // In production, this would use a magic link token
@@ -261,7 +262,7 @@ if (bot) {
       return;
     }
 
-    console.log(`[Telegram] Callback: ${data.action} for ticket ${data.ticket_id}`);
+    logger.log(`[Telegram] Callback: ${data.action} for ticket ${data.ticket_id}`);
 
     try {
       switch (data.action) {
@@ -323,7 +324,7 @@ if (bot) {
         const ticketIdMatch = replyToText.match(/Ticket ID: `([a-f0-9-]+)`/);
         if (ticketIdMatch && ticketIdMatch[1]) {
           ticketId = ticketIdMatch[1];
-          console.log(`[Telegram] Extracted ticket ID from reply context: ${ticketId}`);
+          logger.log(`[Telegram] Extracted ticket ID from reply context: ${ticketId}`);
         }
       }
     }
@@ -364,7 +365,7 @@ async function handleViewTicket(ctx: any, ticketId: string) {
   }
 
   try {
-    console.log(`[Telegram] Fetching ticket: ${ticketId}`);
+    logger.log(`[Telegram] Fetching ticket: ${ticketId}`);
 
     // Fetch ticket by full UUID
     const { data: fullTicket, error: searchError } = await supabaseAdmin
@@ -592,14 +593,14 @@ async function handleFixTicket(ctx: any, ticketId: string) {
       return;
     }
 
-    console.log(`[Telegram] Starting Claude Agent fix for ticket ${ticketId}`);
+    logger.log(`[Telegram] Starting Claude Agent fix for ticket ${ticketId}`);
 
     claudeAgentService.fixTicket({
       ticketId,
       adminUserId: FOUNDER_USER_ID,
       repoPath: REPO_PATH
     }).then(async (result) => {
-      console.log(`[Telegram] Agent completed for ticket ${ticketId}:`, result.status);
+      logger.log(`[Telegram] Agent completed for ticket ${ticketId}:`, result.status);
 
       // Send result notification
       await sendAgentResultNotification(chatId, ticketId, result);
@@ -623,7 +624,7 @@ async function handleFixTicket(ctx: any, ticketId: string) {
       );
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Telegram] Error in handleFixTicket:', error);
     await ctx.reply(`❌ Error starting agent: ${error.message}`);
   }
@@ -654,7 +655,7 @@ async function sendTicketReply(ticketId: string, message: string) {
     throw error;
   }
 
-  console.log(`[Telegram] ✓ Reply sent to ticket ${ticketId}`);
+  logger.log(`[Telegram] ✓ Reply sent to ticket ${ticketId}`);
   return data;
 }
 

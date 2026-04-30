@@ -5,6 +5,7 @@
 
 import { mcpBridge } from './mcp-bridge.service.js';
 import { supabaseAdmin } from './supabase.service.js';
+import { logger } from '../lib/logger.js';
 
 // ─────────────────────────────────────────────────────────────────
 // Types
@@ -88,7 +89,7 @@ export async function fetchAnalytics(
 ): Promise<AnalyticsData> {
   const { source, date_range, project_id } = request;
 
-  console.log(`[Analytics] Fetching ${source} data for project ${project_id}`);
+  logger.log(`[Analytics] Fetching ${source} data for project ${project_id}`);
 
   // Check if integration is connected
   const isConnected = await checkIntegrationConnected(project_id, userId, source);
@@ -182,7 +183,7 @@ export async function fetchAnalytics(
 
     // Format data based on source
     return formatAnalyticsData(source, result.data, date_range, isConnected);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`[Analytics] Error fetching ${source}:`, error);
     return getEmptyAnalyticsData(source, date_range, isConnected, error.message);
   }
@@ -263,7 +264,7 @@ async function getIntegrationCredentials(
     .single();
 
   if (error || !data) {
-    console.log(`[Analytics] No credentials found for ${source}`);
+    logger.log(`[Analytics] No credentials found for ${source}`);
     return null;
   }
 

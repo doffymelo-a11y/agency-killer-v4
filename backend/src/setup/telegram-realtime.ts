@@ -7,6 +7,7 @@ import { supabaseAdmin } from '../services/supabase.service.js';
 import { notifyTicketCreated } from '../services/telegram.service.js';
 import { analyzeTicket } from '../services/ai-triage.service.js';
 import type { TicketNotificationData } from '../types/telegram.types.js';
+import { logger } from '../lib/logger.js';
 
 let realtimeChannel: ReturnType<typeof supabaseAdmin.channel> | null = null;
 let retryCount = 0;
@@ -27,7 +28,7 @@ function formatTicketNumber(ticketId: string): string {
  * Start listening to support_tickets INSERT events
  */
 export async function startTelegramRealtimeListener() {
-  console.log('[Telegram Realtime] Starting listener for support_tickets...');
+  logger.log('[Telegram Realtime] Starting listener for support_tickets...');
 
   // Unsubscribe existing channel if any
   if (realtimeChannel) {
@@ -45,11 +46,11 @@ export async function startTelegramRealtimeListener() {
         table: 'support_tickets',
       },
       async (payload) => {
-        console.log('[Telegram Realtime] 🔥 Received INSERT event!', payload);
+        logger.log('[Telegram Realtime] 🔥 Received INSERT event!', payload);
         try {
           const ticket = payload.new as any;
 
-          console.log(
+          logger.log(
             `[Telegram Realtime] New ticket created: ${formatTicketNumber(ticket.id)} - ${ticket.priority}`
           );
 
@@ -59,7 +60,7 @@ export async function startTelegramRealtimeListener() {
           // Phase 3: AI Triage
           let aiAnalysis = null;
           try {
-            console.log('[Telegram Realtime] 🤖 Running AI triage...');
+            logger.log('[Telegram Realtime] 🤖 Running AI triage...');
             aiAnalysis = await analyzeTicket(
               ticket.subject,
               ticket.description,
@@ -68,7 +69,7 @@ export async function startTelegramRealtimeListener() {
             );
 
             if (aiAnalysis) {
-              console.log('[Telegram Realtime] ✓ AI triage completed:', {
+              logger.log('[Telegram Realtime] ✓ AI triage completed:', {
                 category: aiAnalysis.suggested_category,
                 priority: aiAnalysis.suggested_priority,
                 confidence: aiAnalysis.confidence,
@@ -105,13 +106,13 @@ export async function startTelegramRealtimeListener() {
       }
     )
     .subscribe((status, err) => {
-      console.log(`[Telegram Realtime] 📡 Subscription status: ${status}`, err ? err : '');
+      logger.log(`[Telegram Realtime] 📡 Subscription status: ${status}`, err ? err : '');
       if (status === 'SUBSCRIBED') {
-        console.log('[Telegram Realtime] ✓ Subscribed to support_tickets INSERT events');
-        console.log('[Telegram Realtime] 🎧 Listening for new tickets...');
+        logger.log('[Telegram Realtime] ✓ Subscribed to support_tickets INSERT events');
+        logger.log('[Telegram Realtime] 🎧 Listening for new tickets...');
         retryCount = 0; // Reset retry count on successful connection
       } else if (status === 'CLOSED') {
-        console.log('[Telegram Realtime] ❌ Channel closed');
+        logger.log('[Telegram Realtime] ❌ Channel closed');
         scheduleReconnect();
       } else if (status === 'CHANNEL_ERROR') {
         console.error('[Telegram Realtime] ⚠️ Channel error:', err);
@@ -139,10 +140,10 @@ function scheduleReconnect() {
   const delay = RETRY_DELAY_MS * Math.pow(2, retryCount); // Exponential backoff
   retryCount++;
 
-  console.log(`[Telegram Realtime] 🔄 Scheduling reconnection attempt ${retryCount}/${MAX_RETRIES} in ${delay}ms...`);
+  logger.log(`[Telegram Realtime] 🔄 Scheduling reconnection attempt ${retryCount}/${MAX_RETRIES} in ${delay}ms...`);
 
   retryTimeout = setTimeout(() => {
-    console.log(`[Telegram Realtime] 🔌 Reconnection attempt ${retryCount}...`);
+    logger.log(`[Telegram Realtime] 🔌 Reconnection attempt ${retryCount}...`);
     startTelegramRealtimeListener();
   }, delay);
 }
@@ -152,7 +153,7 @@ function scheduleReconnect() {
  */
 export async function stopTelegramRealtimeListener() {
   if (realtimeChannel) {
-    console.log('[Telegram Realtime] Stopping listener...');
+    logger.log('[Telegram Realtime] Stopping listener...');
     await supabaseAdmin.removeChannel(realtimeChannel);
     realtimeChannel = null;
   }

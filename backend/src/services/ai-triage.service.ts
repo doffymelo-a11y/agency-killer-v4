@@ -8,6 +8,7 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk';
+import { logger } from '../lib/logger.js';
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY || '',
@@ -56,7 +57,7 @@ export async function analyzeTicket(
     // Parse JSON response
     const result = parseTriageResponse(responseText);
 
-    console.log('[AI Triage] Analysis completed:', {
+    logger.log('[AI Triage] Analysis completed:', {
       category: result.suggested_category,
       priority: result.suggested_priority,
       confidence: result.confidence,

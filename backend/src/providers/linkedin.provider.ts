@@ -98,7 +98,7 @@ export class LinkedInProvider implements SocialMediaProvider {
         created_at: new Date().toISOString(),
         status: 'published',
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[LinkedIn Provider] Create post error:', error.response?.data || error.message);
       throw new Error(`LinkedIn post failed: ${error.response?.data?.message || error.message}`);
     }
@@ -148,7 +148,7 @@ export class LinkedInProvider implements SocialMediaProvider {
         engagement_rate: parseFloat(engagementRate.toFixed(2)),
         posted_at: new Date().toISOString(), // LinkedIn doesn't return post date in stats
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[LinkedIn Provider] Get performance error:', error.response?.data || error.message);
 
       // Return fallback if API fails
@@ -195,7 +195,7 @@ export class LinkedInProvider implements SocialMediaProvider {
         follower_growth: '+0', // Requires historical data tracking
         avg_engagement_rate: 0, // Requires aggregating post stats
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[LinkedIn Provider] Get engagement metrics error:', error.response?.data || error.message);
       return {
         platform: 'linkedin',
@@ -250,7 +250,7 @@ export class LinkedInProvider implements SocialMediaProvider {
       });
 
       return assetUrn;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[LinkedIn Provider] Media upload error:', error.response?.data || error.message);
       throw new Error('Failed to upload media to LinkedIn');
     }
@@ -268,7 +268,7 @@ export class LinkedInProvider implements SocialMediaProvider {
       });
 
       return `urn:li:person:${response.data.id}`;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[LinkedIn Provider] Get author URN error:', error.response?.data || error.message);
       throw new Error('Failed to get LinkedIn author URN');
     }
@@ -296,7 +296,7 @@ export class LinkedInProvider implements SocialMediaProvider {
       }
 
       throw new Error('No LinkedIn organization found for this user');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[LinkedIn Provider] Get organization URN error:', error.response?.data || error.message);
       throw new Error('Failed to get LinkedIn organization URN');
     }

@@ -11,6 +11,7 @@ import { supabaseAdmin } from './supabase.service.js';
 import { LinkedInProvider } from '../providers/linkedin.provider.js';
 import { InstagramProvider } from '../providers/instagram.provider.js';
 import type { PostContent, IntegrationCredentials } from '../types/social-media.types.js';
+import { logger } from '../lib/logger.js';
 
 const linkedInProvider = new LinkedInProvider();
 const instagramProvider = new InstagramProvider();
@@ -36,7 +37,7 @@ export async function publishScheduledPosts(): Promise<{
   failed: number;
   errors: string[];
 }> {
-  console.log('[Scheduled Posts] Starting publication run...');
+  logger.log('[Scheduled Posts] Starting publication run...');
 
   // Get pending posts (scheduled_at <= NOW and status = 'scheduled')
   const { data: posts, error: fetchError } = await supabaseAdmin.rpc('get_pending_scheduled_posts');
@@ -47,11 +48,11 @@ export async function publishScheduledPosts(): Promise<{
   }
 
   if (!posts || posts.length === 0) {
-    console.log('[Scheduled Posts] No pending posts to publish');
+    logger.log('[Scheduled Posts] No pending posts to publish');
     return { published: 0, failed: 0, errors: [] };
   }
 
-  console.log(`[Scheduled Posts] Found ${posts.length} pending posts`);
+  logger.log(`[Scheduled Posts] Found ${posts.length} pending posts`);
 
   let published = 0;
   let failed = 0;
@@ -62,14 +63,14 @@ export async function publishScheduledPosts(): Promise<{
     try {
       await publishSinglePost(post);
       published++;
-    } catch (error: any) {
+    } catch (error: unknown) {
       failed++;
       errors.push(`Post ${post.id}: ${error.message}`);
       console.error(`[Scheduled Posts] Failed to publish ${post.id}:`, error.message);
     }
   }
 
-  console.log(`[Scheduled Posts] Run complete: ${published} published, ${failed} failed`);
+  logger.log(`[Scheduled Posts] Run complete: ${published} published, ${failed} failed`);
 
   return { published, failed, errors };
 }
@@ -78,7 +79,7 @@ export async function publishScheduledPosts(): Promise<{
  * Publish a single scheduled post
  */
 async function publishSinglePost(post: ScheduledPost): Promise<void> {
-  console.log(`[Scheduled Posts] Publishing ${post.platform} post ${post.id}`);
+  logger.log(`[Scheduled Posts] Publishing ${post.platform} post ${post.id}`);
 
   // Update status to 'publishing' to prevent duplicate processing
   await supabaseAdmin.rpc('update_scheduled_post_status', {
@@ -131,8 +132,8 @@ async function publishSinglePost(post: ScheduledPost): Promise<void> {
       p_platform_post_url: result.url,
     });
 
-    console.log(`[Scheduled Posts] ✓ Published ${post.platform} post ${post.id}: ${result.url}`);
-  } catch (error: any) {
+    logger.log(`[Scheduled Posts] ✓ Published ${post.platform} post ${post.id}: ${result.url}`);
+  } catch (error: unknown) {
     console.error(`[Scheduled Posts] ✗ Failed to publish ${post.id}:`, error.message);
 
     // Determine if we should retry
@@ -210,7 +211,7 @@ function isUnrecoverableError(error: any): boolean {
 if (import.meta.url === `file://${process.argv[1]}`) {
   publishScheduledPosts()
     .then((result) => {
-      console.log('[Scheduled Posts] Standalone run complete:', result);
+      logger.log('[Scheduled Posts] Standalone run complete:', result);
       process.exit(0);
     })
     .catch((error) => {

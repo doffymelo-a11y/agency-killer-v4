@@ -10,6 +10,7 @@ import { authMiddleware } from '../middleware/auth.middleware.js';
 import { asyncHandler } from '../middleware/error.middleware.js';
 import { supabaseAdmin } from '../services/supabase.service.js';
 import { publishScheduledPosts } from '../services/scheduled-posts-publisher.service.js';
+import { logger } from '../lib/logger.js';
 
 const router = Router();
 
@@ -28,7 +29,7 @@ router.post(
       return;
     }
 
-    console.log('[Social API] Running scheduled posts publisher...');
+    logger.log('[Social API] Running scheduled posts publisher...');
 
     const result = await publishScheduledPosts();
 
@@ -48,7 +49,7 @@ router.post(
   '/schedule',
   authMiddleware,
   asyncHandler(async (req, res) => {
-    const userId = (req as any).user?.id;
+    const userId = req.user?.id;
     const {
       project_id,
       platform,
@@ -91,7 +92,7 @@ router.post(
       return;
     }
 
-    console.log(`[Social API] Scheduling ${platform} post for ${scheduled_at}`);
+    logger.log(`[Social API] Scheduling ${platform} post for ${scheduled_at}`);
 
     // Insert into scheduled_posts
     const { data, error } = await supabaseAdmin
@@ -134,14 +135,14 @@ router.get(
   authMiddleware,
   asyncHandler(async (req, res) => {
     const { projectId } = req.params;
-    const userId = (req as any).user?.id;
+    const userId = req.user?.id;
 
     if (!userId) {
       res.status(401).json({ error: 'Unauthorized' });
       return;
     }
 
-    console.log(`[Social API] Fetching scheduled posts for project ${projectId}`);
+    logger.log(`[Social API] Fetching scheduled posts for project ${projectId}`);
 
     // Get scheduled posts for this project
     const { data, error } = await supabaseAdmin
@@ -174,14 +175,14 @@ router.patch(
   authMiddleware,
   asyncHandler(async (req, res) => {
     const { postId } = req.params;
-    const userId = (req as any).user?.id;
+    const userId = req.user?.id;
 
     if (!userId) {
       res.status(401).json({ error: 'Unauthorized' });
       return;
     }
 
-    console.log(`[Social API] Cancelling scheduled post ${postId}`);
+    logger.log(`[Social API] Cancelling scheduled post ${postId}`);
 
     // Update status to cancelled
     const { data, error } = await supabaseAdmin

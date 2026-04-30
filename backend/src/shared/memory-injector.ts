@@ -71,7 +71,7 @@ export async function buildMemoryContext(
     }
 
     return context;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Memory Injector] Error building memory context:', error);
     return '**Mémoire collective :** Erreur de lecture de la mémoire.\n';
   }

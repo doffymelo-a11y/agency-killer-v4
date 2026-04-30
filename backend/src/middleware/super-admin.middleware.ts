@@ -8,6 +8,7 @@
 import type { Response, NextFunction } from 'express';
 import type { AuthenticatedRequest } from './auth.middleware.js';
 import { supabaseAdmin } from '../services/supabase.service.js';
+import { logger } from '../lib/logger.js';
 
 // ─────────────────────────────────────────────────────────────────
 // Super Admin Authorization Middleware
@@ -75,7 +76,7 @@ export async function requireSuperAdmin(
     }
 
     next();
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[SuperAdmin] Authorization error:', error);
     res.status(500).json({
       success: false,
@@ -219,7 +220,7 @@ export async function logSuperAdminAction(
       return null;
     }
 
-    console.log(`[SuperAdmin] Action logged: ${actionLog.action} (log_id: ${data})`);
+    logger.log(`[SuperAdmin] Action logged: ${actionLog.action} (log_id: ${data})`);
     return data as string;
   } catch (error) {
     console.error('[SuperAdmin] Exception logging action:', error);

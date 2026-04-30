@@ -178,7 +178,7 @@ async function requireAdmin(
     }
 
     next();
-  } catch (error: any) {
+  } catch (error: unknown) {
     res.status(500).json(
       createSafeErrorResponse(error, 'ADMIN_AUTH_ERROR', 'Authorization error')
     );

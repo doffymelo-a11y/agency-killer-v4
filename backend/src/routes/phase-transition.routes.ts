@@ -8,6 +8,7 @@ import { authMiddleware } from '../middleware/auth.middleware.js';
 import { asyncHandler } from '../middleware/error.middleware.js';
 import { supabaseAdmin } from '../services/supabase.service.js';
 import { generateTasksForPhase } from '../services/task-generation.service.js';
+import { logger } from '../lib/logger.js';
 
 const router = Router();
 
@@ -18,7 +19,7 @@ const router = Router();
 
 router.post('/accept', authMiddleware, asyncHandler(async (req: Request, res: Response) => {
   const { project_id } = req.body;
-  const userId = (req as any).user?.id;
+  const userId = req.user?.id;
 
   if (!userId) {
     res.status(401).json({ error: 'Unauthorized - No user ID found' });
@@ -30,7 +31,7 @@ router.post('/accept', authMiddleware, asyncHandler(async (req: Request, res: Re
     return;
   }
 
-  console.log(`[PhaseTransition] Accepting transition for project: ${project_id}`);
+  logger.log(`[PhaseTransition] Accepting transition for project: ${project_id}`);
 
     // 1. Get project with pending transition
     const { data: project, error: projectError } = await supabaseAdmin
@@ -53,7 +54,7 @@ router.post('/accept', authMiddleware, asyncHandler(async (req: Request, res: Re
 
     const { nextPhase } = transition;
 
-    console.log(`[PhaseTransition] Transitioning from ${transition.currentPhase} to ${nextPhase}`);
+    logger.log(`[PhaseTransition] Transitioning from ${transition.currentPhase} to ${nextPhase}`);
 
     // 2. Generate tasks for the next phase
     const newTasks = generateTasksForPhase(
@@ -80,7 +81,7 @@ router.post('/accept', authMiddleware, asyncHandler(async (req: Request, res: Re
       return;
     }
 
-    console.log(`[PhaseTransition] ✅ Created ${newTasks.length} tasks for phase: ${nextPhase}`);
+    logger.log(`[PhaseTransition] ✅ Created ${newTasks.length} tasks for phase: ${nextPhase}`);
 
     // 4. Update project: change current_phase + clear pending_transition
     const updatedStateFlags = { ...project.state_flags };
@@ -101,7 +102,7 @@ router.post('/accept', authMiddleware, asyncHandler(async (req: Request, res: Re
       return;
     }
 
-    console.log(`[PhaseTransition] ✅ Project updated to phase: ${nextPhase}`);
+    logger.log(`[PhaseTransition] ✅ Project updated to phase: ${nextPhase}`);
 
     res.json({
       success: true,
@@ -117,7 +118,7 @@ router.post('/accept', authMiddleware, asyncHandler(async (req: Request, res: Re
 
 router.post('/dismiss', authMiddleware, asyncHandler(async (req: Request, res: Response) => {
   const { project_id } = req.body;
-  const userId = (req as any).user?.id;
+  const userId = req.user?.id;
 
   if (!userId) {
     res.status(401).json({ error: 'Unauthorized - No user ID found' });
@@ -129,7 +130,7 @@ router.post('/dismiss', authMiddleware, asyncHandler(async (req: Request, res: R
     return;
   }
 
-  console.log(`[PhaseTransition] Dismissing transition for project: ${project_id}`);
+  logger.log(`[PhaseTransition] Dismissing transition for project: ${project_id}`);
 
     // Get current project
     const { data: project, error: projectError } = await supabaseAdmin
@@ -161,7 +162,7 @@ router.post('/dismiss', authMiddleware, asyncHandler(async (req: Request, res: R
       return;
     }
 
-    console.log(`[PhaseTransition] ✅ Transition dismissed for project: ${project_id}`);
+    logger.log(`[PhaseTransition] ✅ Transition dismissed for project: ${project_id}`);
 
     res.json({ success: true });
 }));

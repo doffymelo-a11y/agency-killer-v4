@@ -10,6 +10,7 @@ import { writeMemory } from '../services/memory.service.js';
 import { executeAgent } from './agent-executor.js';
 import { getAgentConfig } from '../config/agents.config.js';
 import type { ChatRequest, ChatResponse, AgentId } from '../types/api.types.js';
+import { logger } from '../lib/logger.js';
 
 // ─────────────────────────────────────────────────────────────────
 // Agent Routing Configuration
@@ -197,20 +198,20 @@ export async function processChat(
   userId: string
 ): Promise<ChatResponse> {
   try {
-    console.log(`[Orchestrator] Processing chat for project ${request.project_id}`);
-    console.log(`[Orchestrator] Active agent: ${request.activeAgentId}`);
-    console.log(`[Orchestrator] Active agent type: ${typeof request.activeAgentId}`);
-    console.log(`[Orchestrator] Active agent truthy: ${!!request.activeAgentId}`);
-    console.log(`[Orchestrator] Message: "${request.chatInput}"`);
+    logger.log(`[Orchestrator] Processing chat for project ${request.project_id}`);
+    logger.log(`[Orchestrator] Active agent: ${request.activeAgentId}`);
+    logger.log(`[Orchestrator] Active agent type: ${typeof request.activeAgentId}`);
+    logger.log(`[Orchestrator] Active agent truthy: ${!!request.activeAgentId}`);
+    logger.log(`[Orchestrator] Message: "${request.chatInput}"`);
 
     // Step 1: Use provided shared_memory as context (frontend already sends complete context)
     // CRITICAL FIX: Extract Genesis answers from project_metadata if root-level fields are empty
     let projectContext = request.shared_memory;
 
     // If industry/target_audience/etc are empty BUT project_metadata exists, extract them
-    const metadata: any = projectContext.project_metadata || {};
+    const metadata: Record<string, unknown> = projectContext.project_metadata || {};
     if (!projectContext.industry && metadata.industry) {
-      console.log('[Orchestrator] Extracting Genesis context from project_metadata...');
+      logger.log('[Orchestrator] Extracting Genesis context from project_metadata...');
       projectContext = {
         ...projectContext,
         industry: (metadata.industry as string) || '',
@@ -224,7 +225,7 @@ export async function processChat(
     }
 
     // DEBUGGING: Log Genesis context received from frontend
-    console.log(`[Orchestrator] Genesis context received:`, {
+    logger.log(`[Orchestrator] Genesis context received:`, {
       project_name: projectContext.project_name,
       industry: projectContext.industry || '(empty)',
       target_audience: projectContext.target_audience || '(empty)',
@@ -235,9 +236,9 @@ export async function processChat(
     });
 
     // Step 2: Detect intent and route to agent
-    console.log(`[Orchestrator] BEFORE routeToAgent - activeAgentId: "${request.activeAgentId}"`);
+    logger.log(`[Orchestrator] BEFORE routeToAgent - activeAgentId: "${request.activeAgentId}"`);
     const targetAgent = routeToAgent(request.chatInput, request.activeAgentId);
-    console.log(`[Orchestrator] Routing to agent: ${targetAgent}`);
+    logger.log(`[Orchestrator] Routing to agent: ${targetAgent}`);
 
     // Step 3: Build memory context for target agent
     const memoryContext = await buildMemoryContext(request.project_id, targetAgent);
@@ -260,7 +261,7 @@ export async function processChat(
     // Step 5: Write memory contribution
     if (agentResponse.memory_contribution) {
       await writeMemory(request.project_id, targetAgent, agentResponse.memory_contribution);
-      console.log(`[Orchestrator] Memory contribution written`);
+      logger.log(`[Orchestrator] Memory contribution written`);
     }
 
     // Step 6: Execute write-back commands
@@ -270,11 +271,11 @@ export async function processChat(
         request.project_id,
         userId
       );
-      console.log(`[Orchestrator] Executed ${successCount} write-back commands`);
+      logger.log(`[Orchestrator] Executed ${successCount} write-back commands`);
     }
 
     return agentResponse;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Orchestrator] Error processing chat:', error);
     throw error;
   }
@@ -296,7 +297,7 @@ function routeToAgent(userMessage: string, activeAgentId?: AgentId): AgentId {
   const isTaskLaunch = userMessage.includes('# NOUVELLE TÂCHE:') || userMessage.includes('# TASK LAUNCH:');
 
   if (activeAgentId && isTaskLaunch) {
-    console.log(`[Orchestrator] Task launch detected - Using assigned agent: ${activeAgentId}`);
+    logger.log(`[Orchestrator] Task launch detected - Using assigned agent: ${activeAgentId}`);
     return activeAgentId;
   }
 
@@ -308,15 +309,15 @@ function routeToAgent(userMessage: string, activeAgentId?: AgentId): AgentId {
   const wantsToSwitch = !!matchedKeyword;
 
   if (matchedKeyword) {
-    console.log(`[Orchestrator] Switch keyword detected: "${matchedKeyword}"`);
+    logger.log(`[Orchestrator] Switch keyword detected: "${matchedKeyword}"`);
   }
 
   if (activeAgentId && !wantsToSwitch) {
-    console.log(`[Orchestrator] Using assigned agent: ${activeAgentId}`);
+    logger.log(`[Orchestrator] Using assigned agent: ${activeAgentId}`);
     return activeAgentId;
   }
 
-  console.log('[Orchestrator] No assigned agent, detecting intent from message...');
+  logger.log('[Orchestrator] No assigned agent, detecting intent from message...');
 
   // Detect intent from keywords
   const messageLower = userMessage.toLowerCase();
@@ -333,7 +334,7 @@ function routeToAgent(userMessage: string, activeAgentId?: AgentId): AgentId {
     'redige',
   ];
   if (creativeCreationKeywords.some((kw) => messageLower.includes(kw))) {
-    console.log('[Orchestrator] Creative keywords detected → milo');
+    logger.log('[Orchestrator] Creative keywords detected → milo');
     return 'milo';
   }
 
@@ -350,6 +351,6 @@ function routeToAgent(userMessage: string, activeAgentId?: AgentId): AgentId {
     }
   }
 
-  console.log(`[Orchestrator] Best match from keywords: ${bestMatch} (${maxMatches} matches)`);
+  logger.log(`[Orchestrator] Best match from keywords: ${bestMatch} (${maxMatches} matches)`);
   return bestMatch;
 }

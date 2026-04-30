@@ -8,6 +8,7 @@
 
 import { publishScheduledPosts } from '../services/scheduled-posts-publisher.service.js';
 import { logInfo, logError } from '../services/logging.service.js';
+import { logger } from '../lib/logger.js';
 
 const CRON_INTERVAL_MS = 60 * 1000; // 60 seconds
 
@@ -23,7 +24,7 @@ export function startScheduledPostsCron() {
     return;
   }
 
-  console.log('[Scheduled Posts Cron] Starting (runs every 60 seconds)...');
+  logger.log('[Scheduled Posts Cron] Starting (runs every 60 seconds)...');
 
   // Run immediately on start
   runCronJob();
@@ -33,7 +34,7 @@ export function startScheduledPostsCron() {
     runCronJob();
   }, CRON_INTERVAL_MS);
 
-  console.log('[Scheduled Posts Cron] ✓ Started successfully');
+  logger.log('[Scheduled Posts Cron] ✓ Started successfully');
 }
 
 /**
@@ -43,7 +44,7 @@ export function stopScheduledPostsCron() {
   if (cronInterval) {
     clearInterval(cronInterval);
     cronInterval = null;
-    console.log('[Scheduled Posts Cron] Stopped');
+    logger.log('[Scheduled Posts Cron] Stopped');
   }
 }
 
@@ -53,7 +54,7 @@ export function stopScheduledPostsCron() {
 async function runCronJob() {
   // Prevent concurrent runs
   if (isRunning) {
-    console.log('[Scheduled Posts Cron] Previous run still in progress, skipping...');
+    logger.log('[Scheduled Posts Cron] Previous run still in progress, skipping...');
     return;
   }
 
@@ -61,13 +62,13 @@ async function runCronJob() {
   const startTime = Date.now();
 
   try {
-    console.log('[Scheduled Posts Cron] Running publication check...');
+    logger.log('[Scheduled Posts Cron] Running publication check...');
 
     const result = await publishScheduledPosts();
 
     const duration = Date.now() - startTime;
 
-    console.log(
+    logger.log(
       `[Scheduled Posts Cron] ✓ Complete: ${result.published} published, ${result.failed} failed (${duration}ms)`
     );
 
@@ -98,7 +99,7 @@ async function runCronJob() {
         }
       );
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Scheduled Posts Cron] Fatal error:', error);
 
     await logError(
@@ -117,11 +118,11 @@ async function runCronJob() {
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
-  console.log('[Scheduled Posts Cron] SIGTERM received, stopping...');
+  logger.log('[Scheduled Posts Cron] SIGTERM received, stopping...');
   stopScheduledPostsCron();
 });
 
 process.on('SIGINT', () => {
-  console.log('[Scheduled Posts Cron] SIGINT received, stopping...');
+  logger.log('[Scheduled Posts Cron] SIGINT received, stopping...');
   stopScheduledPostsCron();
 });

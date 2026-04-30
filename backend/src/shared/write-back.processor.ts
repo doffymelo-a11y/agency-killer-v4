@@ -8,6 +8,7 @@ import { supabaseAdmin } from '../services/supabase.service.js';
 import { getNextPhase } from '../services/task-generation.service.js';
 import { simpleChat } from '../services/claude.service.js';
 import type { WriteBackCommand } from '../types/api.types.js';
+import { logger } from '../lib/logger.js';
 
 // SECURITY: Whitelist of allowed write-back command types
 const ALLOWED_COMMAND_TYPES = [
@@ -63,12 +64,12 @@ export async function executeWriteBackCommands(
       if (success) {
         successCount++;
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[Write-Back] Error executing command:', command.type, error);
     }
   }
 
-  console.log(`[Write-Back] Executed ${successCount}/${commands.length} commands`);
+  logger.log(`[Write-Back] Executed ${successCount}/${commands.length} commands`);
   return successCount;
 }
 
@@ -124,7 +125,7 @@ async function updateTaskStatus(command: WriteBackCommand, projectId: string): P
     return false;
   }
 
-  console.log(`[Write-Back] Updated task ${task_id} to ${status}`);
+  logger.log(`[Write-Back] Updated task ${task_id} to ${status}`);
 
   // Phase 2.11: Check if phase is complete when a task is marked "done"
   if (status === 'done') {
@@ -139,7 +140,7 @@ async function updateTaskStatus(command: WriteBackCommand, projectId: string): P
       const phaseComplete = await checkPhaseCompletion(projectId, project.current_phase);
 
       if (phaseComplete) {
-        console.log(`[Write-Back] 🎉 Phase "${project.current_phase}" is complete! Proposing transition...`);
+        logger.log(`[Write-Back] 🎉 Phase "${project.current_phase}" is complete! Proposing transition...`);
         await proposePhaseTransition(projectId, project.current_phase);
       }
     }
@@ -168,7 +169,7 @@ async function setDeliverable(command: WriteBackCommand, projectId: string): Pro
     return false;
   }
 
-  console.log(`[Write-Back] Created deliverable: ${deliverable_url}`);
+  logger.log(`[Write-Back] Created deliverable: ${deliverable_url}`);
   return true;
 }
 
@@ -216,7 +217,7 @@ async function addFile(command: WriteBackCommand, projectId: string): Promise<bo
     return false;
   }
 
-  console.log(`[Write-Back] ✅ Added file to project_files: ${filename} (${file_type}, ${size_bytes} bytes)`);
+  logger.log(`[Write-Back] ✅ Added file to project_files: ${filename} (${file_type}, ${size_bytes} bytes)`);
   return true;
 }
 
@@ -285,7 +286,7 @@ async function updateProjectPhase(command: WriteBackCommand, projectId: string):
     return false;
   }
 
-  console.log(`[Write-Back] Updated project phase to: ${phase}`);
+  logger.log(`[Write-Back] Updated project phase to: ${phase}`);
   return true;
 }
 
@@ -298,7 +299,7 @@ async function notifyUser(command: WriteBackCommand): Promise<boolean> {
   }
 
   // TODO: Implement notification system (email, in-app, etc.)
-  console.log(`[Write-Back] Notification: ${notification}`);
+  logger.log(`[Write-Back] Notification: ${notification}`);
   return true;
 }
 
@@ -323,7 +324,7 @@ async function checkPhaseCompletion(projectId: string, currentPhase: string): Pr
   // Check if ALL tasks in this phase are 'done'
   const allDone = tasks.every((task) => task.status === 'done');
 
-  console.log(`[Write-Back] Phase "${currentPhase}": ${tasks.filter(t => t.status === 'done').length}/${tasks.length} tasks done`);
+  logger.log(`[Write-Back] Phase "${currentPhase}": ${tasks.filter(t => t.status === 'done').length}/${tasks.length} tasks done`);
 
   return allDone;
 }
@@ -335,7 +336,7 @@ async function proposePhaseTransition(projectId: string, currentPhase: string): 
   const nextPhase = getNextPhase(currentPhase);
 
   if (!nextPhase) {
-    console.log('[Write-Back] Already on last phase (Optimization), no transition to propose');
+    logger.log('[Write-Back] Already on last phase (Optimization), no transition to propose');
     return;
   }
 
@@ -390,7 +391,7 @@ async function proposePhaseTransition(projectId: string, currentPhase: string): 
       return;
     }
 
-    console.log(`[Write-Back] ✅ Phase transition proposal saved: ${currentPhase} → ${nextPhase}`);
+    logger.log(`[Write-Back] ✅ Phase transition proposal saved: ${currentPhase} → ${nextPhase}`);
   } catch (error) {
     console.error('[Write-Back] Error proposing phase transition:', error);
   }

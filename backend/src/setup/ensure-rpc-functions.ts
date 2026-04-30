@@ -4,10 +4,11 @@
  */
 
 import { supabaseAdmin } from '../services/supabase.service.js';
+import { logger } from '../lib/logger.js';
 
 export async function ensureRPCFunctions() {
   try {
-    console.log('[Setup] Checking RPC functions...');
+    logger.log('[Setup] Checking RPC functions...');
 
     // Check update_ticket_status function
     const { error: statusError } = await supabaseAdmin.rpc('update_ticket_status', {
@@ -18,12 +19,12 @@ export async function ensureRPCFunctions() {
 
     if (statusError) {
       if (statusError.message.includes('Could not find') || statusError.message.includes('does not exist')) {
-        console.log('[Setup] ⚠️  update_ticket_status function missing');
+        logger.log('[Setup] ⚠️  update_ticket_status function missing');
       } else if (statusError.message.includes('Ticket not found')) {
-        console.log('[Setup] ✓ update_ticket_status function exists');
+        logger.log('[Setup] ✓ update_ticket_status function exists');
       }
     } else {
-      console.log('[Setup] ✓ update_ticket_status function exists');
+      logger.log('[Setup] ✓ update_ticket_status function exists');
     }
 
     // Check create_user_support_message function
@@ -35,13 +36,13 @@ export async function ensureRPCFunctions() {
 
     if (userMessageError) {
       if (userMessageError.message.includes('Could not find') || userMessageError.message.includes('does not exist')) {
-        console.log('[Setup] ⚠️  create_user_support_message function missing');
+        logger.log('[Setup] ⚠️  create_user_support_message function missing');
       } else {
         // Any other error means the function exists (like foreign key constraint)
-        console.log('[Setup] ✓ create_user_support_message function exists');
+        logger.log('[Setup] ✓ create_user_support_message function exists');
       }
     } else {
-      console.log('[Setup] ✓ create_user_support_message function exists');
+      logger.log('[Setup] ✓ create_user_support_message function exists');
     }
 
     // Check create_admin_support_message function
@@ -53,13 +54,13 @@ export async function ensureRPCFunctions() {
 
     if (adminMessageError) {
       if (adminMessageError.message.includes('Could not find') || adminMessageError.message.includes('does not exist')) {
-        console.log('[Setup] ⚠️  create_admin_support_message function missing');
+        logger.log('[Setup] ⚠️  create_admin_support_message function missing');
       } else {
         // Any other error means the function exists (like foreign key constraint)
-        console.log('[Setup] ✓ create_admin_support_message function exists');
+        logger.log('[Setup] ✓ create_admin_support_message function exists');
       }
     } else {
-      console.log('[Setup] ✓ create_admin_support_message function exists');
+      logger.log('[Setup] ✓ create_admin_support_message function exists');
     }
   } catch (error) {
     console.error('[Setup] Error checking RPC functions:', error);

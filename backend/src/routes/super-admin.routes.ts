@@ -27,6 +27,7 @@ import {
   autoLogSuperAdminAction,
 } from '../middleware/super-admin.middleware.js';
 import { supabaseAdmin } from '../services/supabase.service.js';
+import { logger } from '../lib/logger.js';
 
 const router = Router();
 
@@ -317,12 +318,12 @@ router.patch(
     const ticketId = req.params.id;
     const { status } = req.body;
 
-    console.log(`[DEBUG] PATCH /tickets/${ticketId}/status - status: ${status}`);
+    logger.log(`[DEBUG] PATCH /tickets/${ticketId}/status - status: ${status}`);
 
     // Validate status
     const validStatuses = ['open', 'in_progress', 'resolved', 'closed', 'waiting_user'];
     if (!status || !validStatuses.includes(status)) {
-      console.log(`[DEBUG] Invalid status: ${status}`);
+      logger.log(`[DEBUG] Invalid status: ${status}`);
       res.status(400).json({
         success: false,
         error: {
@@ -335,7 +336,7 @@ router.patch(
     }
 
     // Get current ticket status for logging
-    console.log(`[DEBUG] Fetching current ticket...`);
+    logger.log(`[DEBUG] Fetching current ticket...`);
     const { data: oldTicket, error: fetchError } = await supabaseAdmin
       .from('support_tickets')
       .select('status')
@@ -343,15 +344,15 @@ router.patch(
       .single();
 
     if (fetchError) {
-      console.log(`[DEBUG] Error fetching ticket:`, fetchError);
+      logger.log(`[DEBUG] Error fetching ticket:`, fetchError);
     } else {
-      console.log(`[DEBUG] Current status: ${oldTicket?.status}`);
+      logger.log(`[DEBUG] Current status: ${oldTicket?.status}`);
     }
 
     // Update ticket status using RPC function (bypasses RLS)
     const resolved_at = status === 'resolved' ? new Date().toISOString() : null;
 
-    console.log(`[DEBUG] Calling RPC update_ticket_status with:`, { ticketId, status, resolved_at });
+    logger.log(`[DEBUG] Calling RPC update_ticket_status with:`, { ticketId, status, resolved_at });
 
     const { data: result, error } = await supabaseAdmin.rpc('update_ticket_status', {
       p_ticket_id: ticketId,
@@ -360,7 +361,7 @@ router.patch(
     });
 
     if (error) {
-      console.log(`[DEBUG] RPC error:`, error);
+      logger.log(`[DEBUG] RPC error:`, error);
       res.status(500).json({
         success: false,
         error: {
@@ -372,7 +373,7 @@ router.patch(
       return;
     }
 
-    console.log(`[DEBUG] RPC successful, result:`, result);
+    logger.log(`[DEBUG] RPC successful, result:`, result);
 
     res.json({
       success: true,
@@ -396,10 +397,10 @@ router.post(
     const ticketId = req.params.id;
     const { message, attachments } = req.body;
 
-    console.log(`[DEBUG] POST /tickets/${ticketId}/reply - message length: ${message?.length || 0}`);
+    logger.log(`[DEBUG] POST /tickets/${ticketId}/reply - message length: ${message?.length || 0}`);
 
     if (!message || typeof message !== 'string' || message.trim().length === 0) {
-      console.log(`[DEBUG] Invalid message`);
+      logger.log(`[DEBUG] Invalid message`);
       res.status(400).json({
         success: false,
         error: {
@@ -410,7 +411,7 @@ router.post(
       return;
     }
 
-    console.log(`[DEBUG] Inserting message for user ${req.user!.id}`);
+    logger.log(`[DEBUG] Inserting message for user ${req.user!.id}`);
 
     // Create admin message using RPC function (bypasses RLS, sets sender_type='admin')
     const { data: newMessage, error } = await supabaseAdmin.rpc('create_admin_support_message', {
@@ -420,7 +421,7 @@ router.post(
     });
 
     if (error) {
-      console.log(`[DEBUG] RPC error:`, error);
+      logger.log(`[DEBUG] RPC error:`, error);
       res.status(500).json({
         success: false,
         error: {
@@ -432,7 +433,7 @@ router.post(
       return;
     }
 
-    console.log(`[DEBUG] Message inserted successfully`);
+    logger.log(`[DEBUG] Message inserted successfully`);
 
     // Update ticket status to in_progress if still open
     const { error: updateError } = await supabaseAdmin
@@ -442,10 +443,10 @@ router.post(
       .eq('status', 'open');
 
     if (updateError) {
-      console.log(`[DEBUG] Status update error (non-fatal):`, updateError);
+      logger.log(`[DEBUG] Status update error (non-fatal):`, updateError);
     }
 
-    console.log(`[DEBUG] Sending success response`);
+    logger.log(`[DEBUG] Sending success response`);
 
     res.json({
       success: true,

@@ -5,6 +5,7 @@
 
 import { Telegraf, Markup } from 'telegraf';
 import { supabaseAdmin } from './supabase.service.js';
+import { logger } from '../lib/logger.js';
 import type {
   TelegramChatLink,
   TicketNotificationData,
@@ -32,18 +33,18 @@ let botStarted = false;
  */
 export async function initTelegramBot(): Promise<void> {
   if (!bot) {
-    console.log('[Telegram] Bot not configured (no token)');
+    logger.log('[Telegram] Bot not configured (no token)');
     return;
   }
 
   if (botStarted) {
-    console.log('[Telegram] Bot already initialized');
+    logger.log('[Telegram] Bot already initialized');
     return;
   }
 
-  console.log('[Telegram] ✅ Bot initialized and ready');
-  console.log('[Telegram] Listening for updates via /api/telegram/webhook');
-  console.log('[Telegram] Can send notifications via bot.telegram.sendMessage()');
+  logger.log('[Telegram] ✅ Bot initialized and ready');
+  logger.log('[Telegram] Listening for updates via /api/telegram/webhook');
+  logger.log('[Telegram] Can send notifications via bot.telegram.sendMessage()');
 
   botStarted = true;
 
@@ -251,7 +252,7 @@ export async function linkTelegramAccount(
     throw error;
   }
 
-  console.log(`[Telegram] ✓ Linked user ${userId} to chat ${chatId}`);
+  logger.log(`[Telegram] ✓ Linked user ${userId} to chat ${chatId}`);
 }
 
 /**
@@ -387,7 +388,7 @@ export async function notifyTicketCreated(ticket: TicketNotificationData): Promi
 
     await Promise.all(sendPromises);
 
-    console.log(`[Telegram] ✓ Sent notification to ${chatIds.length} admin(s)`);
+    logger.log(`[Telegram] ✓ Sent notification to ${chatIds.length} admin(s)`);
   } catch (error) {
     console.error('[Telegram] Error sending notification:', error);
   }
@@ -406,7 +407,7 @@ export async function sendMessage(chatId: number, text: string): Promise<void> {
     await bot.telegram.sendMessage(chatId, text, {
       parse_mode: 'Markdown',
     });
-    console.log(`[Telegram] ✓ Sent message to chat ${chatId}`);
+    logger.log(`[Telegram] ✓ Sent message to chat ${chatId}`);
   } catch (error) {
     console.error(`[Telegram] Error sending message to chat ${chatId}:`, error);
   }
@@ -507,7 +508,7 @@ ${result.report.fix_summary}
         },
       });
 
-      console.log(`[Telegram] ✓ Sent fix success notification to chat ${chatId}`);
+      logger.log(`[Telegram] ✓ Sent fix success notification to chat ${chatId}`);
     } else {
       // FAILURE
       const message = `❌ Hive Doctor Fix Failed
@@ -527,7 +528,7 @@ Please assign to a human developer.`;
 
       await bot.telegram.sendMessage(chatId, message);
 
-      console.log(`[Telegram] ✓ Sent fix failure notification to chat ${chatId}`);
+      logger.log(`[Telegram] ✓ Sent fix failure notification to chat ${chatId}`);
     }
   } catch (error) {
     console.error(`[Telegram] Error sending agent result notification:`, error);

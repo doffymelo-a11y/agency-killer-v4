@@ -97,7 +97,7 @@ async function chatInternal(options: ChatOptions): Promise<ClaudeResponse> {
 export async function chat(options: ChatOptions): Promise<ClaudeResponse> {
   try {
     return await chatInternal(options);
-  } catch (error: any) {
+  } catch (error: unknown) {
     const shouldRetry =
       error.message?.includes('timeout') || // Timeout errors
       error.message?.includes('500') || // Server errors

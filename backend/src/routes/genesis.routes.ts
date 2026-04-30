@@ -8,6 +8,7 @@ import { authMiddleware } from '../middleware/auth.middleware.js';
 import { validate, schemas } from '../middleware/validation.middleware.js';
 import { asyncHandler } from '../middleware/error.middleware.js';
 import type { GenesisRequest, GenesisResponse } from '../types/api.types.js';
+import { logger } from '../lib/logger.js';
 
 // Import genesis handler (to be created in Phase 2.2)
 // import { executeGenesis } from '../agents/orchestrator.js';
@@ -24,14 +25,14 @@ router.post(
   validate(schemas.genesisRequest),
   asyncHandler(async (req, res) => {
     const genesisRequest = req.body as GenesisRequest;
-    const userId = (req as any).user?.id;
+    const userId = req.user?.id;
 
     if (!userId) {
       res.status(401).json({ error: 'Unauthorized - No user ID found' });
       return;
     }
 
-    console.log(`[Genesis] Creating project: ${genesisRequest.project_name} for user ${userId}`);
+    logger.log(`[Genesis] Creating project: ${genesisRequest.project_name} for user ${userId}`);
 
     // TODO Phase 2.2: Replace with actual genesis orchestrator
     // const response = await executeGenesis(genesisRequest, userId);

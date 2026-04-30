@@ -5,6 +5,8 @@
  * Principe : Plutôt qu'un timeout fixe, adapter aux besoins réels
  */
 
+import { logger } from '../lib/logger.js';
+
 export interface ComplexityAnalysis {
   level: 'simple' | 'moderate' | 'complex';
   maxTokens: number;
@@ -84,7 +86,7 @@ export function detectComplexity(userMessage: string): ComplexityAnalysis {
  * Log la décision de complexité pour debugging
  */
 export function logComplexityDecision(userMessage: string, analysis: ComplexityAnalysis): void {
-  console.log('[Complexity Detector]', {
+  logger.log('[Complexity Detector]', {
     level: analysis.level,
     maxTokens: analysis.maxTokens,
     timeout: `${analysis.timeout / 1000}s`,

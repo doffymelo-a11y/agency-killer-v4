@@ -4,6 +4,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 import { v4 as uuidv4 } from 'uuid';
+import { logger } from '../lib/logger.js';
 
 // Types (copied from frontend wizard-config to avoid import issues)
 type TaskPhase = 'Audit' | 'Setup' | 'Production' | 'Optimization';
@@ -174,7 +175,7 @@ export function generateTasksForPhase(
   projectDeadline: string,
   projectId: string
 ): GeneratedTask[] {
-  console.log(`[TaskGen] Generating tasks for phase: ${phase}, scope: ${scope}`);
+  logger.log(`[TaskGen] Generating tasks for phase: ${phase}, scope: ${scope}`);
 
   // 1. Get task templates for this scope and phase
   const allTemplates = TASK_TEMPLATES_BY_SCOPE[scope] || META_ADS_TASK_TEMPLATES;
@@ -216,7 +217,7 @@ export function generateTasksForPhase(
       previousTaskId = taskId;
     });
 
-  console.log(`[TaskGen] ✅ Generated ${generatedTasks.length} tasks for phase: ${phase}`);
+  logger.log(`[TaskGen] ✅ Generated ${generatedTasks.length} tasks for phase: ${phase}`);
   return generatedTasks;
 }
 

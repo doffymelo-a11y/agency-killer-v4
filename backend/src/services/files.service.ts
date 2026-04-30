@@ -4,6 +4,7 @@
  */
 
 import { supabaseAdmin } from './supabase.service.js';
+import { logger } from '../lib/logger.js';
 
 export interface ProjectFile {
   id: string;
@@ -40,7 +41,7 @@ export interface CreateFileInput {
  * Get all files for a project
  */
 export async function getProjectFiles(projectId: string, userId: string): Promise<ProjectFile[]> {
-  console.log(`[Files Service] Getting files for project ${projectId}, user ${userId}`);
+  logger.log(`[Files Service] Getting files for project ${projectId}, user ${userId}`);
 
   // Verify user owns this project
   const { data: project, error: projectError } = await supabaseAdmin
@@ -70,7 +71,7 @@ export async function getProjectFiles(projectId: string, userId: string): Promis
  * Create a new file record
  */
 export async function createFile(input: CreateFileInput, userId: string): Promise<ProjectFile> {
-  console.log(`[Files Service] Creating file for project ${input.project_id}:`, input.filename);
+  logger.log(`[Files Service] Creating file for project ${input.project_id}:`, input.filename);
 
   // Verify user owns this project
   const { data: project, error: projectError } = await supabaseAdmin
@@ -108,7 +109,7 @@ export async function createFile(input: CreateFileInput, userId: string): Promis
     throw error;
   }
 
-  console.log(`[Files Service] ✓ File created: ${file.id}`);
+  logger.log(`[Files Service] ✓ File created: ${file.id}`);
 
   return file;
 }
@@ -117,7 +118,7 @@ export async function createFile(input: CreateFileInput, userId: string): Promis
  * Delete a file
  */
 export async function deleteFile(fileId: string, userId: string): Promise<void> {
-  console.log(`[Files Service] Deleting file ${fileId} for user ${userId}`);
+  logger.log(`[Files Service] Deleting file ${fileId} for user ${userId}`);
 
   // Get file to verify ownership
   const { data: file, error: fetchError } = await supabaseAdmin
@@ -147,7 +148,7 @@ export async function deleteFile(fileId: string, userId: string): Promise<void> 
     throw deleteError;
   }
 
-  console.log(`[Files Service] ✓ File deleted: ${fileId}`);
+  logger.log(`[Files Service] ✓ File deleted: ${fileId}`);
 }
 
 /**

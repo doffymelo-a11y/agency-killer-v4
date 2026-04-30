@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs/promises';
 import Anthropic from '@anthropic-ai/sdk';
 import { supabaseAdmin } from './supabase.service.js';
+import { logger } from '../lib/logger.js';
 
 const execAsync = promisify(exec);
 
@@ -49,7 +50,7 @@ export class ClaudeAgentService {
   async fixTicket(config: AgentConfig): Promise<AgentResult> {
     const { ticketId, adminUserId, repoPath } = config;
 
-    console.log(`[Claude Agent] Starting fix for ticket ${ticketId}`);
+    logger.log(`[Claude Agent] Starting fix for ticket ${ticketId}`);
 
     // 1. Get ticket details
     const ticket = await this.getTicketDetails(ticketId);
@@ -133,7 +134,7 @@ export class ClaudeAgentService {
         pr_branch: branchName
       });
 
-      console.log(`[Claude Agent] ✓ Fix completed: ${prResult.url}`);
+      logger.log(`[Claude Agent] ✓ Fix completed: ${prResult.url}`);
 
       return {
         sessionId,
@@ -146,7 +147,7 @@ export class ClaudeAgentService {
         report
       };
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(`[Claude Agent] ✗ Fix failed:`, error);
 
       await this.updateSession(sessionId, {
@@ -187,7 +188,7 @@ export class ClaudeAgentService {
    * Create agent session record using RPC function (bypasses PostgREST cache)
    */
   private async createAgentSession(ticketId: string, adminUserId: string): Promise<string> {
-    console.log(`[Agent Session] Creating session for ticket ${ticketId}`);
+    logger.log(`[Agent Session] Creating session for ticket ${ticketId}`);
 
     const { data, error } = await supabaseAdmin.rpc('create_agent_session', {
       p_ticket_id: ticketId,
@@ -201,7 +202,7 @@ export class ClaudeAgentService {
       throw error;
     }
 
-    console.log(`[Agent Session] ✓ Session created: ${data}`);
+    logger.log(`[Agent Session] ✓ Session created: ${data}`);
     return data;
   }
 
@@ -209,7 +210,7 @@ export class ClaudeAgentService {
    * Update agent session using RPC function (bypasses PostgREST cache)
    */
   private async updateSession(sessionId: string, updates: any) {
-    console.log(`[Agent Session] Updating ${sessionId}:`, Object.keys(updates).join(', '));
+    logger.log(`[Agent Session] Updating ${sessionId}:`, Object.keys(updates).join(', '));
 
     // Map updates object to RPC function parameters
     const params: any = {
@@ -240,7 +241,7 @@ export class ClaudeAgentService {
       throw error;
     }
 
-    console.log(`[Agent Session] ✓ Session updated`);
+    logger.log(`[Agent Session] ✓ Session updated`);
   }
 
   /**
@@ -249,14 +250,14 @@ export class ClaudeAgentService {
   private async createWorktree(repoPath: string, branchName: string): Promise<string> {
     const worktreePath = path.join('/tmp', `hive-agent-${Date.now()}`);
 
-    console.log(`[Git] Creating worktree at ${worktreePath}`);
+    logger.log(`[Git] Creating worktree at ${worktreePath}`);
 
     // Create worktree from main branch
     await execAsync(`git -C ${repoPath} worktree add ${worktreePath} -b ${branchName}`, {
       timeout: 30000
     });
 
-    console.log(`[Git] ✓ Worktree created: ${worktreePath}`);
+    logger.log(`[Git] ✓ Worktree created: ${worktreePath}`);
 
     return worktreePath;
   }
@@ -457,7 +458,7 @@ Begin when you receive the ticket context.`;
         .order('created_at', { ascending: true });
       internalNotes = data || [];
     } catch (error) {
-      console.log('[Agent] Internal notes table not found, skipping');
+      logger.log('[Agent] Internal notes table not found, skipping');
     }
 
     // Get recent system logs (mock for now - implement when logging exists)
@@ -477,7 +478,7 @@ Begin when you receive the ticket context.`;
       const { stdout } = await execAsync('git log -5 --oneline', { cwd: repoPath });
       gitLog = stdout.trim();
     } catch (error) {
-      console.log('[Agent] Could not fetch git log');
+      logger.log('[Agent] Could not fetch git log');
     }
 
     return `# Ticket to resolve
@@ -530,13 +531,13 @@ You are on branch auto-fix/ticket-${ticket.id.slice(0, 8)}. Work autonomously.`;
    * Run Claude Agent SDK (with fallback to Claude API direct)
    */
   private async runAgent(worktreePath: string, systemPrompt: string, userMessage: string, _sessionId: string): Promise<string> {
-    console.log(`[Agent] Running Claude Agent SDK (or fallback) in ${worktreePath}`);
+    logger.log(`[Agent] Running Claude Agent SDK (or fallback) in ${worktreePath}`);
 
     // Try to import SDK, fallback to direct API if not available
     try {
       // @ts-expect-error - SDK may not be installed yet, fallback to direct API
       const { query } = await import('@anthropic-ai/claude-agent-sdk');
-      console.log(`[Agent] Using official Claude Agent SDK`);
+      logger.log(`[Agent] Using official Claude Agent SDK`);
 
       const result = query({
         prompt: userMessage,
@@ -587,10 +588,10 @@ You are on branch auto-fix/ticket-${ticket.id.slice(0, 8)}. Work autonomously.`;
         }
       }
 
-      console.log(`[Agent] ✓ SDK completed`);
+      logger.log(`[Agent] ✓ SDK completed`);
       return finalText;
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.warn(`[Agent] SDK not available, using fallback:`, error.message);
       return await this.runAgentFallback(worktreePath, systemPrompt, userMessage);
     }
@@ -600,7 +601,7 @@ You are on branch auto-fix/ticket-${ticket.id.slice(0, 8)}. Work autonomously.`;
    * Fallback: Run agent using Claude API directly with tool use
    */
   private async runAgentFallback(worktreePath: string, systemPrompt: string, userMessage: string): Promise<string> {
-    console.log(`[Agent] Running fallback via Claude API direct`);
+    logger.log(`[Agent] Running fallback via Claude API direct`);
 
     const anthropic = new Anthropic({
       apiKey: process.env.HIVE_DOCTOR_ANTHROPIC_KEY || process.env.ANTHROPIC_API_KEY
@@ -670,7 +671,7 @@ You are on branch auto-fix/ticket-${ticket.id.slice(0, 8)}. Work autonomously.`;
       for (const block of response.content) {
         if (block.type === 'tool_use') {
           // Log EXACTLY what Claude API returns
-          console.log(`[Agent] Tool use block from Claude API:`, {
+          logger.log(`[Agent] Tool use block from Claude API:`, {
             name: block.name,
             id: block.id,
             input: block.input,
@@ -706,20 +707,20 @@ You are on branch auto-fix/ticket-${ticket.id.slice(0, 8)}. Work autonomously.`;
    * Execute tool for fallback mode
    */
   private async executeToolFallback(worktreePath: string, toolName: string, input: any): Promise<string> {
-    console.log(`[Tool] Executing ${toolName}`, input);
+    logger.log(`[Tool] Executing ${toolName}`, input);
 
     switch (toolName) {
       case 'read_file':
         try {
           const content = await fs.readFile(path.join(worktreePath, input.path), 'utf-8');
           return content;
-        } catch (error: any) {
+        } catch (error: unknown) {
           return `Error reading file: ${error.message}`;
         }
 
       case 'edit_file':
         try {
-          console.log(`[Tool] edit_file input:`, {
+          logger.log(`[Tool] edit_file input:`, {
             path: input.path,
             hasOldString: !!input.old_string,
             hasNewString: !!input.new_string,
@@ -735,11 +736,11 @@ You are on branch auto-fix/ticket-${ticket.id.slice(0, 8)}. Work autonomously.`;
           }
 
           const filePath = path.join(worktreePath, input.path);
-          console.log(`[Tool] Editing file: ${filePath}`);
+          logger.log(`[Tool] Editing file: ${filePath}`);
 
           // Read current content
           const currentContent = await fs.readFile(filePath, 'utf-8');
-          console.log(`[Tool] Current file size: ${currentContent.length} chars`);
+          logger.log(`[Tool] Current file size: ${currentContent.length} chars`);
 
           // Replace old_string with new_string
           if (!currentContent.includes(input.old_string)) {
@@ -750,14 +751,14 @@ You are on branch auto-fix/ticket-${ticket.id.slice(0, 8)}. Work autonomously.`;
           }
 
           const newContent = currentContent.replace(input.old_string, input.new_string);
-          console.log(`[Tool] Replacement made, new file size: ${newContent.length} chars`);
+          logger.log(`[Tool] Replacement made, new file size: ${newContent.length} chars`);
 
           // Write back
           await fs.writeFile(filePath, newContent, 'utf-8');
-          console.log(`[Tool] ✓ File edited successfully: ${input.path}`);
+          logger.log(`[Tool] ✓ File edited successfully: ${input.path}`);
 
           return `File edited successfully: ${input.path}. Replaced ${input.old_string.length} characters with ${input.new_string.length} characters.`;
-        } catch (error: any) {
+        } catch (error: unknown) {
           console.error(`[Tool] Error editing file:`, error);
           return `Error editing file: ${error.message}`;
         }
@@ -792,7 +793,7 @@ You are on branch auto-fix/ticket-${ticket.id.slice(0, 8)}. Work autonomously.`;
             timeout: 120000 // 2 min max
           });
           return stdout + stderr;
-        } catch (error: any) {
+        } catch (error: unknown) {
           return `Command failed: ${error.message}\nStdout: ${error.stdout}\nStderr: ${error.stderr}`;
         }
 
@@ -822,7 +823,7 @@ You are on branch auto-fix/ticket-${ticket.id.slice(0, 8)}. Work autonomously.`;
    * Run tests in worktree
    */
   private async runTests(worktreePath: string): Promise<{ passed: boolean; output: string }> {
-    console.log(`[Tests] Running npm test in ${worktreePath}`);
+    logger.log(`[Tests] Running npm test in ${worktreePath}`);
 
     try {
       const { stdout, stderr } = await execAsync('npm test', {
@@ -830,14 +831,14 @@ You are on branch auto-fix/ticket-${ticket.id.slice(0, 8)}. Work autonomously.`;
         timeout: 120000 // 2 minutes max
       });
 
-      console.log(`[Tests] ✓ Tests passed`);
+      logger.log(`[Tests] ✓ Tests passed`);
 
       return {
         passed: true,
         output: stdout + '\n' + stderr
       };
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(`[Tests] ✗ Tests failed`);
 
       return {
@@ -851,7 +852,7 @@ You are on branch auto-fix/ticket-${ticket.id.slice(0, 8)}. Work autonomously.`;
    * Commit and push changes
    */
   private async commitAndPush(worktreePath: string, branchName: string, ticket: any, report: AgentReport) {
-    console.log(`[Git] Committing changes in ${worktreePath}`);
+    logger.log(`[Git] Committing changes in ${worktreePath}`);
 
     const commitMessage = `fix(${ticket.category}): ${ticket.subject.slice(0, 60)}
 
@@ -879,7 +880,7 @@ Agent: Hive Doctor (Claude Opus 4.5)`;
       timeout: 30000
     });
 
-    console.log(`[Git] ✓ Pushed to ${branchName}`);
+    logger.log(`[Git] ✓ Pushed to ${branchName}`);
   }
 
   /**
@@ -892,7 +893,7 @@ Agent: Hive Doctor (Claude Opus 4.5)`;
     sessionId: string,
     worktreePath: string
   ): Promise<{ url: string; number: number }> {
-    console.log(`[GitHub] Creating PR for ${branchName}`);
+    logger.log(`[GitHub] Creating PR for ${branchName}`);
 
     const prBody = `## 🤖 Auto-fix by Hive Doctor
 
@@ -943,7 +944,7 @@ _Cost: $${report.cost_usd || '0.00'} · Duration: ${report.duration_seconds || 0
     const prUrl = stdout.trim();
     const prNumber = parseInt(prUrl.split('/').pop() || '0', 10);
 
-    console.log(`[GitHub] ✓ PR created: ${prUrl}`);
+    logger.log(`[GitHub] ✓ PR created: ${prUrl}`);
 
     return { url: prUrl, number: prNumber };
   }
@@ -968,13 +969,13 @@ _Cost: $${report.cost_usd || '0.00'} · Duration: ${report.duration_seconds || 0
    * Cleanup worktree after PR creation
    */
   private async cleanupWorktree(worktreePath: string) {
-    console.log(`[Git] Cleaning up worktree ${worktreePath}`);
+    logger.log(`[Git] Cleaning up worktree ${worktreePath}`);
 
     try {
       await execAsync(`git worktree remove ${worktreePath} --force`, {
         timeout: 10000
       });
-      console.log(`[Git] ✓ Worktree removed`);
+      logger.log(`[Git] ✓ Worktree removed`);
     } catch (error) {
       console.warn(`[Git] Failed to remove worktree:`, error);
     }

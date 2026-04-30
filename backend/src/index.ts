@@ -34,6 +34,7 @@ import { isMCPBridgeConfigured } from './services/mcp-bridge.service.js';
 // Setup
 import { ensureRPCFunctions } from './setup/ensure-rpc-functions.js';
 import { startTelegramRealtimeListener } from './setup/telegram-realtime.js';
+import { logger } from './lib/logger.js';
 
 dotenv.config();
 
@@ -135,7 +136,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Request logging (dev only)
 if (NODE_ENV === 'development') {
   app.use((req, _res, next) => {
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+    logger.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
     next();
   });
 }
@@ -197,7 +198,7 @@ app.use(errorHandler);
 async function start() {
   try {
     // Validate configuration
-    console.log('[Backend] Checking configuration...');
+    logger.log('[Backend] Checking configuration...');
 
     if (!isSupabaseConfigured()) {
       console.warn('[Backend] Warning: Supabase not configured');
@@ -235,46 +236,46 @@ async function start() {
 
     // Start server
     app.listen(PORT, () => {
-      console.log('');
-      console.log('─────────────────────────────────────────────────────────');
-      console.log('  🐝 THE HIVE OS V5 — Backend API Gateway');
-      console.log('─────────────────────────────────────────────────────────');
-      console.log(`  Environment:  ${NODE_ENV}`);
-      console.log(`  Server:       http://localhost:${PORT}`);
-      console.log(`  Health:       http://localhost:${PORT}/health`);
-      console.log('');
-      console.log('  Endpoints:');
-      console.log(`    POST /api/chat         - Main chat endpoint`);
-      console.log(`    POST /api/genesis      - Project initialization`);
-      console.log(`    POST /api/analytics    - Analytics data`);
-      console.log(`    POST /api/files/*      - File management`);
-      console.log(`    POST /api/cms/execute  - Execute CMS change`);
-      console.log(`    POST /api/cms/rollback - Rollback CMS change`);
-      console.log(`    GET  /api/cms/pending  - List pending CMS approvals`);
-      console.log('');
-      console.log('  Admin Endpoints:');
-      console.log(`    GET  /api/admin/stats/agents     - Agent performance stats`);
-      console.log(`    GET  /api/admin/stats/business   - Business metrics`);
-      console.log(`    GET  /api/admin/logs/recent      - Recent system logs`);
-      console.log(`    GET  /api/admin/logs/error-count - Error count`);
-      console.log('');
-      console.log('  Super Admin Endpoints (super_admin role only):');
-      console.log(`    GET    /api/superadmin/tickets       - List all support tickets`);
-      console.log(`    GET    /api/superadmin/tickets/:id   - View ticket details`);
-      console.log(`    PATCH  /api/superadmin/tickets/:id/status - Update ticket status`);
-      console.log(`    POST   /api/superadmin/tickets/:id/reply  - Reply to ticket`);
-      console.log(`    GET    /api/superadmin/users         - List all users`);
-      console.log(`    GET    /api/superadmin/logs/audit    - View audit trail`);
-      console.log('');
-      console.log('  Services:');
-      console.log(`    Supabase:    ${isSupabaseConfigured() ? '✓' : '✗'}`);
-      console.log(`    Claude API:  ${isClaudeConfigured() ? '✓' : '✗'}`);
-      console.log(`    MCP Bridge:  ${mcpBridgeOk ? '✓' : '✗'}`);
-      console.log('');
-      console.log('  Background Jobs:');
-      console.log(`    Scheduled Posts Cron:  ${process.env.ENABLE_SCHEDULED_POSTS_CRON !== 'false' ? '✓ Every 60s' : '✗ Disabled'}`);
-      console.log('─────────────────────────────────────────────────────────');
-      console.log('');
+      logger.log('');
+      logger.log('─────────────────────────────────────────────────────────');
+      logger.log('  🐝 THE HIVE OS V5 — Backend API Gateway');
+      logger.log('─────────────────────────────────────────────────────────');
+      logger.log(`  Environment:  ${NODE_ENV}`);
+      logger.log(`  Server:       http://localhost:${PORT}`);
+      logger.log(`  Health:       http://localhost:${PORT}/health`);
+      logger.log('');
+      logger.log('  Endpoints:');
+      logger.log(`    POST /api/chat         - Main chat endpoint`);
+      logger.log(`    POST /api/genesis      - Project initialization`);
+      logger.log(`    POST /api/analytics    - Analytics data`);
+      logger.log(`    POST /api/files/*      - File management`);
+      logger.log(`    POST /api/cms/execute  - Execute CMS change`);
+      logger.log(`    POST /api/cms/rollback - Rollback CMS change`);
+      logger.log(`    GET  /api/cms/pending  - List pending CMS approvals`);
+      logger.log('');
+      logger.log('  Admin Endpoints:');
+      logger.log(`    GET  /api/admin/stats/agents     - Agent performance stats`);
+      logger.log(`    GET  /api/admin/stats/business   - Business metrics`);
+      logger.log(`    GET  /api/admin/logs/recent      - Recent system logs`);
+      logger.log(`    GET  /api/admin/logs/error-count - Error count`);
+      logger.log('');
+      logger.log('  Super Admin Endpoints (super_admin role only):');
+      logger.log(`    GET    /api/superadmin/tickets       - List all support tickets`);
+      logger.log(`    GET    /api/superadmin/tickets/:id   - View ticket details`);
+      logger.log(`    PATCH  /api/superadmin/tickets/:id/status - Update ticket status`);
+      logger.log(`    POST   /api/superadmin/tickets/:id/reply  - Reply to ticket`);
+      logger.log(`    GET    /api/superadmin/users         - List all users`);
+      logger.log(`    GET    /api/superadmin/logs/audit    - View audit trail`);
+      logger.log('');
+      logger.log('  Services:');
+      logger.log(`    Supabase:    ${isSupabaseConfigured() ? '✓' : '✗'}`);
+      logger.log(`    Claude API:  ${isClaudeConfigured() ? '✓' : '✗'}`);
+      logger.log(`    MCP Bridge:  ${mcpBridgeOk ? '✓' : '✗'}`);
+      logger.log('');
+      logger.log('  Background Jobs:');
+      logger.log(`    Scheduled Posts Cron:  ${process.env.ENABLE_SCHEDULED_POSTS_CRON !== 'false' ? '✓ Every 60s' : '✗ Disabled'}`);
+      logger.log('─────────────────────────────────────────────────────────');
+      logger.log('');
     });
   } catch (error) {
     console.error('[Backend] Fatal error during startup:', error);
@@ -284,12 +285,12 @@ async function start() {
 
 // Handle graceful shutdown
 process.on('SIGTERM', () => {
-  console.log('[Backend] SIGTERM received, shutting down gracefully...');
+  logger.log('[Backend] SIGTERM received, shutting down gracefully...');
   process.exit(0);
 });
 
 process.on('SIGINT', () => {
-  console.log('[Backend] SIGINT received, shutting down gracefully...');
+  logger.log('[Backend] SIGINT received, shutting down gracefully...');
   process.exit(0);
 });
 
