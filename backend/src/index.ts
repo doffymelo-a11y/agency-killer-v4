@@ -225,6 +225,14 @@ async function start() {
       console.warn('[Backend] Warning: Telegram bot not configured');
     }
 
+    // Start scheduled posts cron job (runs every 60 seconds)
+    if (process.env.ENABLE_SCHEDULED_POSTS_CRON !== 'false') {
+      const { startScheduledPostsCron } = await import('./cron/scheduled-posts-cron.js');
+      startScheduledPostsCron();
+    } else {
+      console.warn('[Backend] Warning: Scheduled posts cron is disabled');
+    }
+
     // Start server
     app.listen(PORT, () => {
       console.log('');
@@ -262,6 +270,9 @@ async function start() {
       console.log(`    Supabase:    ${isSupabaseConfigured() ? '✓' : '✗'}`);
       console.log(`    Claude API:  ${isClaudeConfigured() ? '✓' : '✗'}`);
       console.log(`    MCP Bridge:  ${mcpBridgeOk ? '✓' : '✗'}`);
+      console.log('');
+      console.log('  Background Jobs:');
+      console.log(`    Scheduled Posts Cron:  ${process.env.ENABLE_SCHEDULED_POSTS_CRON !== 'false' ? '✓ Every 60s' : '✗ Disabled'}`);
       console.log('─────────────────────────────────────────────────────────');
       console.log('');
     });
