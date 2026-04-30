@@ -20,6 +20,7 @@ import adminRoutes from './routes/admin.routes.js';
 import superAdminRoutes from './routes/super-admin.routes.js';
 import telegramRoutes from './routes/telegram.routes.js';
 import socialRoutes from './routes/social.routes.js';
+import gdprRoutes from './routes/gdpr.routes.js';
 
 // Middleware
 import { errorHandler } from './middleware/error.middleware.js';
@@ -175,6 +176,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/superadmin', superAdminRoutes);
 app.use('/api/telegram', telegramRoutes);
 app.use('/api/social', socialRoutes);
+app.use('/api/gdpr', gdprRoutes);
 
 // Fallback 404
 app.use((req, res) => {

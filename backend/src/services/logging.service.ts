@@ -19,7 +19,8 @@ export interface SystemLog {
     | 'mcp-server'
     | 'orchestrator'
     | 'auth'
-    | 'rate-limit';
+    | 'rate-limit'
+    | 'gdpr';
   agent_id?: 'luna' | 'sora' | 'marcus' | 'milo' | 'doffy' | 'orchestrator' | 'pm';
   user_id?: string;
   project_id?: string;
