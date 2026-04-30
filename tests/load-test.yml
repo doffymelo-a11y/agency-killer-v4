@@ -1,0 +1,135 @@
+# ============================================
+# THE HIVE OS V5 - Load Testing Configuration
+# Artillery load test scenarios
+# ============================================
+
+config:
+  target: "http://localhost:3457"
+  phases:
+    # Warmup phase
+    - duration: 30
+      arrivalRate: 2
+      name: "Warmup"
+    # Load test phase
+    - duration: 120
+      arrivalRate: 10
+      name: "Sustained Load"
+    # Spike test
+    - duration: 60
+      arrivalRate: 50
+      name: "Spike"
+  defaults:
+    headers:
+      Content-Type: "application/json"
+  processor: "./load-test-helpers.js"
+  plugins:
+    expect: {}
+
+scenarios:
+  # ============================================
+  # Scenario 1: Chat Message (Agent Response)
+  # 10 users simultanés envoient un message chat
+  # Vérifier que toutes les réponses arrivent < 30s
+  # ============================================
+  - name: "Chat with AI Agents"
+    weight: 30
+    flow:
+      - function: "generateAuthToken"
+      - post:
+          url: "/api/chat"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          json:
+            projectId: "{{ projectId }}"
+            message: "Analyse les performances de ma campagne Meta Ads"
+            agentId: "sora"
+            sessionId: "{{ sessionId }}"
+          expect:
+            - statusCode: 200
+            - contentType: json
+            - hasProperty: "response"
+          capture:
+            - json: "$.response"
+              as: "agentResponse"
+      - think: 2
+
+  # ============================================
+  # Scenario 2: GET Requests (Board, Files, Analytics)
+  # 50 users simultanés font des requêtes GET
+  # Vérifier latence < 2s
+  # ============================================
+  - name: "Board View Load"
+    weight: 25
+    flow:
+      - function: "generateAuthToken"
+      - get:
+          url: "/api/projects/{{ projectId }}/board"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          expect:
+            - statusCode: 200
+            - contentType: json
+            - hasProperty: "tasks"
+      - think: 1
+
+  - name: "Files List Load"
+    weight: 20
+    flow:
+      - function: "generateAuthToken"
+      - get:
+          url: "/api/projects/{{ projectId }}/files"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          expect:
+            - statusCode: 200
+            - contentType: json
+            - hasProperty: "files"
+      - think: 1
+
+  - name: "Analytics Data Load"
+    weight: 15
+    flow:
+      - function: "generateAuthToken"
+      - post:
+          url: "/api/analytics/fetch"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          json:
+            projectId: "{{ projectId }}"
+            source: "ga4"
+            dateRange:
+              start: "2026-04-01"
+              end: "2026-04-28"
+              preset: "30d"
+          expect:
+            - statusCode: 200
+            - contentType: json
+            - hasProperty: "data"
+      - think: 2
+
+  # ============================================
+  # Scenario 3: Parallel Agent Launches
+  # 5 users lancent des agents en parallèle
+  # Vérifier pas d'erreur 500
+  # ============================================
+  - name: "Genesis Project Creation"
+    weight: 10
+    flow:
+      - function: "generateAuthToken"
+      - post:
+          url: "/api/genesis"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          json:
+            projectName: "Load Test Campaign {{ $randomNumber() }}"
+            brandName: "Test Brand"
+            objectives: ["awareness", "conversion"]
+            platforms: ["meta_ads", "google_ads"]
+          expect:
+            - statusCode: 200
+            - contentType: json
+            - hasProperty: "projectId"
+          capture:
+            - json: "$.projectId"
+              as: "newProjectId"
+      - think: 3

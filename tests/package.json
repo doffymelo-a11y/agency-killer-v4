@@ -1,0 +1,19 @@
+{
+  "name": "hive-os-tests",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Load tests and E2E tests for The Hive OS V5",
+  "scripts": {
+    "test:e2e": "node e2e-test.js",
+    "test:load": "artillery run load-test.yml"
+  },
+  "keywords": ["tests", "e2e", "load-testing", "artillery"],
+  "author": "The Hive OS Team",
+  "license": "MIT",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "artillery": "^2.0.21",
+    "axios": "^1.6.5",
+    "dotenv": "^16.4.5"
+  }
+}
