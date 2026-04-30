@@ -153,14 +153,33 @@ export default function PrivacyPolicyView() {
           {/* Cookies */}
           <section>
             <h2 className="text-2xl font-bold text-white mb-4">8. Cookies et Technologies Similaires</h2>
-            <p className="mb-4">Nous utilisons des cookies essentiels pour :</p>
-            <ul className="list-disc list-inside space-y-2">
+
+            <h3 className="text-xl font-semibold text-white mb-3">8.1 Cookies essentiels (toujours actifs)</h3>
+            <p className="mb-4">Ces cookies sont nécessaires au fonctionnement du site :</p>
+            <ul className="list-disc list-inside space-y-2 mb-4">
               <li>Maintenir votre session connectée</li>
               <li>Sauvegarder vos préférences d'interface</li>
               <li>Assurer la sécurité de votre compte</li>
             </ul>
-            <p className="mt-4 text-sm text-slate-400">
-              Nous n'utilisons pas de cookies de tracking ou de publicité tierces.
+
+            <h3 className="text-xl font-semibold text-white mb-3">8.2 Cookies analytics (optionnels)</h3>
+            <p className="mb-4">Avec votre consentement, nous utilisons Google Analytics 4 pour :</p>
+            <ul className="list-disc list-inside space-y-2 mb-4">
+              <li>Comprendre comment vous utilisez le site (pages visitées, temps passé)</li>
+              <li>Améliorer l'expérience utilisateur</li>
+              <li>Analyser les performances de la plateforme</li>
+            </ul>
+            <p className="text-sm text-slate-400 mb-4">Les données sont anonymisées.</p>
+
+            <h3 className="text-xl font-semibold text-white mb-3">8.3 Cookies marketing (optionnels)</h3>
+            <p className="mb-4">Avec votre consentement, nous utilisons :</p>
+            <ul className="list-disc list-inside space-y-2 mb-4">
+              <li><strong>Meta Pixel</strong> : Suivi des conversions publicitaires</li>
+              <li><strong>Google Ads remarketing</strong> : Affichage de publicités pertinentes</li>
+            </ul>
+
+            <p className="mt-4">
+              <strong className="text-white">Gérer vos préférences :</strong> Vous pouvez modifier vos choix de cookies à tout moment en cliquant sur le bouton "Paramètres des cookies" en bas de page, ou dans vos paramètres de compte.
             </p>
           </section>
 

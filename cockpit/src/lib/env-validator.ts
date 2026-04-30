@@ -19,7 +19,6 @@ const PLACEHOLDER_VALUES = [
   'your-project-url',
   'your-anon-key',
   'your-backend-url',
-  'localhost:3000',
   'placeholder',
   'example.com',
   'changeme',
@@ -39,15 +38,15 @@ export function validateEnvironment(): EnvValidationResult {
   for (const [key, description] of Object.entries(REQUIRED_ENV_VARS)) {
     const value = import.meta.env[key];
 
-    // Check if missing
-    if (!value) {
+    // Check if missing or empty
+    if (!value || value.trim() === '') {
       errors.push(`❌ Missing ${description} (${key})`);
       continue;
     }
 
-    // Check if placeholder value
+    // Check if placeholder value (skip empty string check as we already did it above)
     const lowerValue = value.toLowerCase();
-    const isPlaceholder = PLACEHOLDER_VALUES.some((placeholder) =>
+    const isPlaceholder = PLACEHOLDER_VALUES.filter(p => p !== '').some((placeholder) =>
       lowerValue.includes(placeholder.toLowerCase())
     );
 

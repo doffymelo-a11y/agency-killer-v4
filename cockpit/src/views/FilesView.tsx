@@ -25,11 +25,14 @@ import {
   MessageSquare,
   ArrowLeft,
   Loader2,
+  CheckSquare,
+  Square,
 } from 'lucide-react';
 import {
   useHiveStore,
   useCurrentProject,
 } from '../store/useHiveStore';
+import { supabase } from '../lib/supabase';
 import { AGENTS, type AgentRole, type DeliverableType } from '../types';
 
 // ─────────────────────────────────────────────────────────────────
@@ -74,10 +77,14 @@ function FileTypeIcon({ type, className = '', style }: { type: DeliverableType; 
 
 function FileCard({
   file,
+  selected,
   onPreview,
+  onToggleSelect,
 }: {
   file: FileAsset;
+  selected: boolean;
   onPreview: (file: FileAsset) => void;
+  onToggleSelect: (fileId: string) => void;
 }) {
   const agent = AGENTS[file.agent];
 
@@ -86,13 +93,29 @@ function FileCard({
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      className="bg-white rounded-xl border border-slate-100 overflow-hidden hover:shadow-lg transition-shadow group"
+      className={`bg-white rounded-xl border overflow-hidden hover:shadow-lg transition-all group ${
+        selected ? 'border-cyan-500 ring-2 ring-cyan-200' : 'border-slate-100'
+      }`}
     >
       {/* Preview Area */}
       <div
         className="relative h-40 bg-slate-50 flex items-center justify-center cursor-pointer"
         onClick={() => onPreview(file)}
       >
+        {/* Checkbox (top-left, over preview) */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleSelect(file.id);
+          }}
+          className="absolute top-2 right-2 z-10 p-1.5 bg-white/90 backdrop-blur-sm rounded-lg hover:bg-white transition-colors shadow-sm"
+        >
+          {selected ? (
+            <CheckSquare className="w-5 h-5 text-cyan-600" />
+          ) : (
+            <Square className="w-5 h-5 text-slate-400" />
+          )}
+        </button>
         {file.type === 'image' ? (
           <img
             src={file.url}
@@ -167,10 +190,14 @@ function FileCard({
 
 function FileRow({
   file,
+  selected,
   onPreview,
+  onToggleSelect,
 }: {
   file: FileAsset;
+  selected: boolean;
   onPreview: (file: FileAsset) => void;
+  onToggleSelect: (fileId: string) => void;
 }) {
   const agent = AGENTS[file.agent];
 
@@ -179,8 +206,20 @@ function FileRow({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="hover:bg-slate-50 transition-colors group"
+      className={`hover:bg-slate-50 transition-colors group ${selected ? 'bg-cyan-50/50' : ''}`}
     >
+      <td className="px-4 py-3">
+        <button
+          onClick={() => onToggleSelect(file.id)}
+          className="mr-3"
+        >
+          {selected ? (
+            <CheckSquare className="w-5 h-5 text-cyan-600" />
+          ) : (
+            <Square className="w-5 h-5 text-slate-400" />
+          )}
+        </button>
+      </td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-3">
           <div
@@ -369,6 +408,8 @@ export default function FilesView() {
   const [filterAgent, setFilterAgent] = useState<FilterAgent>('all');
   const [filterType, setFilterType] = useState<FilterType>('all');
   const [previewFile, setPreviewFile] = useState<FileAsset | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
+  const [bulkDownloading, setBulkDownloading] = useState(false);
 
   // Fetch files from Supabase when component mounts
   useEffect(() => {
@@ -442,6 +483,71 @@ export default function FilesView() {
     }
   };
 
+  const handleToggleSelect = (fileId: string) => {
+    setSelectedFiles((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(fileId)) {
+        newSet.delete(fileId);
+      } else {
+        newSet.add(fileId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleBulkDownload = async () => {
+    if (selectedFiles.size === 0 || !project) return;
+
+    setBulkDownloading(true);
+
+    try {
+      // Get auth token from Supabase
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+
+      if (!token) {
+        alert('Vous devez être connecté pour télécharger des fichiers.');
+        setBulkDownloading(false);
+        return;
+      }
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:3457'}/api/files/${project.id}/bulk-download`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ fileIds: Array.from(selectedFiles) }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to download files');
+      }
+
+      // Create blob from response and trigger download
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `hive-files-${project.id.slice(0, 8)}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      // Clear selection after download
+      setSelectedFiles(new Set());
+    } catch (error) {
+      console.error('[Bulk Download] Error:', error);
+      alert('Erreur lors du téléchargement. Veuillez réessayer.');
+    } finally {
+      setBulkDownloading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
@@ -468,6 +574,27 @@ export default function FilesView() {
             </div>
 
             <div className="flex items-center gap-3">
+              {/* Bulk Download Button (visible when files selected) */}
+              {selectedFiles.size > 0 && (
+                <button
+                  onClick={handleBulkDownload}
+                  disabled={bulkDownloading}
+                  className="btn btn-primary flex items-center gap-2"
+                >
+                  {bulkDownloading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Téléchargement...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4" />
+                      Télécharger ({selectedFiles.size})
+                    </>
+                  )}
+                </button>
+              )}
+
               {/* AI Search Button */}
               <button
                 onClick={handleAskLibrarian}
@@ -574,7 +701,9 @@ export default function FilesView() {
                 <FileCard
                   key={file.id}
                   file={file}
+                  selected={selectedFiles.has(file.id)}
                   onPreview={setPreviewFile}
+                  onToggleSelect={handleToggleSelect}
                 />
               ))}
             </AnimatePresence>
@@ -584,6 +713,9 @@ export default function FilesView() {
             <table className="w-full">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-100">
+                  <th className="px-4 py-3 w-12">
+                    {/* Checkbox column */}
+                  </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">
                     Fichier
                   </th>
@@ -610,7 +742,9 @@ export default function FilesView() {
                     <FileRow
                       key={file.id}
                       file={file}
+                      selected={selectedFiles.has(file.id)}
                       onPreview={setPreviewFile}
+                      onToggleSelect={handleToggleSelect}
                     />
                   ))}
                 </AnimatePresence>

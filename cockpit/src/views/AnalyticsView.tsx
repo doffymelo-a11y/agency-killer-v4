@@ -3,11 +3,12 @@
 // Real marketing analytics from GA4, Meta Ads, Google Ads, GSC
 // ═══════════════════════════════════════════════════════════════
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, RefreshCw, TrendingUp } from 'lucide-react';
+import { ArrowLeft, RefreshCw, TrendingUp, FileDown } from 'lucide-react';
 import { useHiveStore, useCurrentProject } from '../store/useHiveStore';
 import type { AnalyticsSource } from '../types';
+import { exportAnalyticsPDF } from '../utils/pdfExport';
 
 // Analytics Components
 import AnalyticsTabs from '../components/analytics/AnalyticsTabs';
@@ -21,6 +22,9 @@ export default function AnalyticsView() {
   const navigate = useNavigate();
   const { projectId } = useParams<{ projectId: string }>();
   const project = useCurrentProject();
+
+  // PDF export state
+  const [isExportingPDF, setIsExportingPDF] = useState(false);
 
   // Analytics state
   const analyticsData = useHiveStore((state) => state.analyticsData);
@@ -57,6 +61,25 @@ export default function AnalyticsView() {
   const handleInsightAction = (insight: any) => {
     if (insight.actionUrl) {
       navigate(insight.actionUrl);
+    }
+  };
+
+  const handleExportPDF = async () => {
+    if (!analyticsData || !project) return;
+
+    setIsExportingPDF(true);
+    try {
+      await exportAnalyticsPDF({
+        projectName: project.name,
+        analyticsData,
+        dateRange: analyticsDateRange,
+        source: analyticsActiveSource,
+      });
+    } catch (error) {
+      console.error('Failed to export PDF:', error);
+      alert('Erreur lors de l\'export PDF. Veuillez réessayer.');
+    } finally {
+      setIsExportingPDF(false);
     }
   };
 
@@ -100,6 +123,15 @@ export default function AnalyticsView() {
                 dateRange={analyticsDateRange}
                 onChange={handleDateRangeChange}
               />
+              <button
+                onClick={handleExportPDF}
+                className="btn btn-secondary"
+                disabled={isExportingPDF || !analyticsData || !analyticsData.isConnected}
+                title="Exporter en PDF"
+              >
+                <FileDown className={`w-4 h-4 ${isExportingPDF ? 'animate-pulse' : ''}`} />
+                Export PDF
+              </button>
               <button
                 onClick={handleRefresh}
                 className="btn btn-secondary"
