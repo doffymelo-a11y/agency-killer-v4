@@ -55,11 +55,21 @@ export interface WriteBackCommand {
   deliverable_url?: string;
   deliverable_type?: string;
   phase?: string;
+  agent_id?: AgentId;
   file?: {
-    name: string;
+    // Primary fields (maps to project_files schema)
+    filename?: string;
+    name?: string; // Fallback for legacy compatibility
     url: string;
-    type: string;
-    size: number;
+    file_type?: string;
+    type?: string; // Fallback for legacy compatibility
+    mime_type?: string;
+    size_bytes?: number;
+    size?: number; // Fallback for legacy compatibility
+    // Optional fields
+    agent_id?: AgentId;
+    tags?: string[];
+    metadata?: Record<string, unknown>;
   };
   notification?: string;
 }

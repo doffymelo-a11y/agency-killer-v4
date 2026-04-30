@@ -173,29 +173,98 @@ async function setDeliverable(command: WriteBackCommand, projectId: string): Pro
 }
 
 async function addFile(command: WriteBackCommand, projectId: string): Promise<boolean> {
-  const { file } = command;
+  const { file, task_id, agent_id } = command;
 
-  if (!file) {
-    console.warn('[Write-Back] Missing file data');
+  if (!file || !file.url) {
+    console.warn('[Write-Back] Missing file data or URL');
     return false;
   }
 
-  const { error } = await supabaseAdmin.from('files').insert({
+  // Map legacy field names to new schema
+  const filename = file.filename || file.name || 'untitled';
+  const file_type = file.file_type || file.type || 'document';
+  const size_bytes = file.size_bytes || file.size || 0;
+  const mime_type = file.mime_type || inferMimeType(file_type, file.url);
+  const fileAgentId = file.agent_id || agent_id || 'orchestrator';
+
+  // Build tags array
+  const tags = file.tags || [fileAgentId, file_type].filter(Boolean);
+
+  // Build metadata object
+  const metadata = {
+    task_id: task_id || null,
+    generated_by: fileAgentId,
+    ...(file.metadata || {}),
+  };
+
+  const { error } = await supabaseAdmin.from('project_files').insert({
     project_id: projectId,
-    name: file.name,
+    task_id: task_id || null,
+    agent_id: fileAgentId,
+    filename,
     url: file.url,
-    type: file.type,
-    size: file.size,
+    file_type,
+    mime_type,
+    size_bytes,
+    tags,
+    metadata,
     created_at: new Date().toISOString(),
   });
 
   if (error) {
-    console.error('[Write-Back] Error adding file:', error);
+    console.error('[Write-Back] Error adding file to project_files:', error);
     return false;
   }
 
-  console.log(`[Write-Back] Added file: ${file.name}`);
+  console.log(`[Write-Back] ✅ Added file to project_files: ${filename} (${file_type}, ${size_bytes} bytes)`);
   return true;
+}
+
+/**
+ * Infer MIME type from file_type and URL extension
+ */
+function inferMimeType(fileType: string, url: string): string {
+  // Extract extension from URL
+  const extension = url.split('.').pop()?.toLowerCase();
+
+  // Common file type to MIME type mappings
+  const mimeTypes: Record<string, string> = {
+    // Images
+    'image': extension === 'png' ? 'image/png' :
+             extension === 'jpg' || extension === 'jpeg' ? 'image/jpeg' :
+             extension === 'gif' ? 'image/gif' :
+             extension === 'webp' ? 'image/webp' :
+             'image/png',
+    // Videos
+    'video': extension === 'mp4' ? 'video/mp4' :
+             extension === 'webm' ? 'video/webm' :
+             extension === 'mov' ? 'video/quicktime' :
+             'video/mp4',
+    // Audio
+    'audio': extension === 'mp3' ? 'audio/mpeg' :
+             extension === 'wav' ? 'audio/wav' :
+             extension === 'ogg' ? 'audio/ogg' :
+             'audio/mpeg',
+    // Documents
+    'document': extension === 'pdf' ? 'application/pdf' :
+                extension === 'docx' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' :
+                extension === 'xlsx' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' :
+                extension === 'txt' ? 'text/plain' :
+                'application/octet-stream',
+    // Code
+    'code': extension === 'js' ? 'text/javascript' :
+            extension === 'ts' ? 'text/typescript' :
+            extension === 'py' ? 'text/x-python' :
+            extension === 'json' ? 'application/json' :
+            'text/plain',
+    // Data
+    'data': extension === 'json' ? 'application/json' :
+            extension === 'csv' ? 'text/csv' :
+            extension === 'xml' ? 'application/xml' :
+            'application/octet-stream',
+  };
+
+  return mimeTypes[fileType] || 'application/octet-stream';
 }
 
 async function updateProjectPhase(command: WriteBackCommand, projectId: string): Promise<boolean> {
