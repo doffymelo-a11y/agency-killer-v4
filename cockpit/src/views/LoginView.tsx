@@ -4,9 +4,11 @@
 // ============================================
 
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { signIn, signUp } from '../lib/supabase';
 
 export default function LoginView() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
@@ -26,9 +28,12 @@ export default function LoginView() {
       if (authError) {
         setError(authError.message);
       } else {
-        // Success! User will be redirected via auth state change
+        // Success!
         if (mode === 'signup') {
           setError('Check your email to confirm your account');
+        } else {
+          // Redirect to projects page after successful sign-in
+          navigate('/projects');
         }
       }
     } catch (err) {
