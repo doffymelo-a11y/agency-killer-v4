@@ -15,6 +15,9 @@ import EmailVerificationView from './views/EmailVerificationView';
 import PrivacyPolicyView from './views/PrivacyPolicyView';
 import TermsOfServiceView from './views/TermsOfServiceView';
 
+// GDPR Views (Public)
+import AccountDeletedView from './views/AccountDeletedView';
+
 // App Views
 import ProjectsView from './views/ProjectsView';
 import AccountSettingsView from './views/AccountSettingsView';
@@ -74,6 +77,9 @@ function AppRoutes() {
       {/* Legal Pages (Public) */}
       <Route path="/privacy" element={<PrivacyPolicyView />} />
       <Route path="/terms" element={<TermsOfServiceView />} />
+
+      {/* GDPR Pages (Public) */}
+      <Route path="/account-deleted" element={<AccountDeletedView />} />
 
       {/* Protected Routes */}
       <Route element={<ProtectedRoute />}>

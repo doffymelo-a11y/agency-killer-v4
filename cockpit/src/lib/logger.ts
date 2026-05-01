@@ -67,10 +67,12 @@ export const logger = {
 export function sanitizeForLog(data: unknown): unknown {
   if (typeof data === 'string') {
     // Redact email addresses (show first 2 chars + domain)
-    data = data.replace(/([a-zA-Z0-9._%+-]{2})[a-zA-Z0-9._%+-]*(@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g, '$1***$2');
+    let sanitized = data.replace(/([a-zA-Z0-9._%+-]{2})[a-zA-Z0-9._%+-]*(@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g, '$1***$2');
 
     // Redact potential tokens (long alphanumeric strings)
-    data = data.replace(/\b[A-Za-z0-9]{32,}\b/g, '[REDACTED_TOKEN]');
+    sanitized = sanitized.replace(/\b[A-Za-z0-9]{32,}\b/g, '[REDACTED_TOKEN]');
+
+    return sanitized;
   }
 
   if (typeof data === 'object' && data !== null && !Array.isArray(data)) {
