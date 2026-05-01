@@ -143,11 +143,44 @@ export default function PrivacyPolicyView() {
           <section>
             <h2 className="text-2xl font-bold text-white mb-4">7. Conservation des Données</h2>
             <p className="mb-4">Nous conservons vos données tant que votre compte est actif ou aussi longtemps que nécessaire pour vous fournir nos services.</p>
-            <ul className="list-disc list-inside space-y-2">
+            <ul className="list-disc list-inside space-y-2 mb-6">
               <li><strong>Compte actif</strong> : Données conservées indéfiniment</li>
-              <li><strong>Après suppression de compte</strong> : Données anonymisées ou supprimées sous 30 jours</li>
               <li><strong>Obligations légales</strong> : Certaines données peuvent être conservées plus longtemps si requis par la loi (ex: données de facturation)</li>
             </ul>
+
+            <div className="bg-slate-900 border border-cyan-500/30 rounded-lg p-6 mt-4">
+              <h3 className="text-xl font-semibold text-white mb-3">Procédure de suppression de compte (RGPD Article 17)</h3>
+              <p className="mb-4">Vous pouvez demander la suppression de votre compte à tout moment depuis vos paramètres.</p>
+
+              <div className="space-y-3 text-slate-300">
+                <div className="flex items-start gap-3">
+                  <span className="text-cyan-400 font-bold">1.</span>
+                  <p>
+                    <strong className="text-white">Demande de suppression</strong> : Vous demandez la suppression de votre compte via l'interface.
+                  </p>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <span className="text-cyan-400 font-bold">2.</span>
+                  <p>
+                    <strong className="text-white">Période de grâce de 30 jours</strong> : Vos données sont marquées comme "à supprimer" mais restent conservées pendant 30 jours. Durant cette période, vous pouvez <strong>annuler la demande en vous reconnectant simplement</strong>.
+                  </p>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <span className="text-cyan-400 font-bold">3.</span>
+                  <p>
+                    <strong className="text-white">Suppression définitive automatique</strong> : Après 30 jours, vos données sont <strong>définitivement effacées automatiquement</strong> par notre système (cron job quotidien). Cette suppression est irréversible.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 p-4 bg-cyan-500/10 border border-cyan-500/20 rounded-lg">
+                <p className="text-sm text-slate-300">
+                  <strong className="text-cyan-400">Important :</strong> Pour annuler une demande de suppression, reconnectez-vous avant l'expiration des 30 jours. Après ce délai, il ne sera plus possible de récupérer vos données.
+                </p>
+              </div>
+            </div>
           </section>
 
           {/* Cookies */}

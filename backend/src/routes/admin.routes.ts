@@ -402,4 +402,59 @@ router.get(
   })
 );
 
+// ─────────────────────────────────────────────────────────────────
+// GET /api/admin/gdpr/pending-deletions - List accounts pending deletion
+// ─────────────────────────────────────────────────────────────────
+
+router.get(
+  '/gdpr/pending-deletions',
+  authMiddleware,
+  adminRateLimit,
+  requireAdmin,
+  asyncHandler(async (_req, res) => {
+    // Query auth.users for accounts marked for deletion
+    const { data, error } = await supabaseAdmin
+      .from('auth.users')
+      .select('id, email, raw_user_meta_data, created_at')
+      .not('raw_user_meta_data->deleted_at', 'is', null)
+      .order('raw_user_meta_data->deleted_at', { ascending: true });
+
+    if (error) {
+      res.status(500).json(
+        createSafeErrorResponse(error, 'GDPR_QUERY_ERROR', 'Failed to fetch pending deletions')
+      );
+      return;
+    }
+
+    // Format response with deletion info
+    const pendingDeletions = (data || []).map((user: any) => {
+      const deletedAt = user.raw_user_meta_data?.deleted_at;
+      const scheduledDeletionAt = user.raw_user_meta_data?.scheduled_deletion_at;
+      const now = new Date();
+      const deletionDate = scheduledDeletionAt ? new Date(scheduledDeletionAt) : null;
+      const daysRemaining = deletionDate
+        ? Math.ceil((deletionDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+        : null;
+
+      return {
+        user_id: user.id,
+        email: user.email,
+        account_created_at: user.created_at,
+        deleted_at: deletedAt,
+        scheduled_deletion_at: scheduledDeletionAt,
+        days_remaining: daysRemaining,
+        status: daysRemaining && daysRemaining > 0 ? 'pending' : 'ready_for_deletion',
+      };
+    });
+
+    res.json({
+      success: true,
+      data: {
+        pending_deletions: pendingDeletions,
+        count: pendingDeletions.length,
+      },
+    });
+  })
+);
+
 export default router;

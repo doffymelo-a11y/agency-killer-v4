@@ -234,6 +234,14 @@ async function start() {
       console.warn('[Backend] Warning: Scheduled posts cron is disabled');
     }
 
+    // Start GDPR hard-delete cron job (runs daily)
+    if (process.env.ENABLE_GDPR_HARD_DELETE_CRON !== 'false') {
+      const { startGdprHardDeleteCron } = await import('./cron/gdpr-hard-delete-cron.js');
+      startGdprHardDeleteCron();
+    } else {
+      console.warn('[Backend] Warning: GDPR hard-delete cron is disabled');
+    }
+
     // Start server
     app.listen(PORT, () => {
       logger.log('');
@@ -273,7 +281,8 @@ async function start() {
       logger.log(`    MCP Bridge:  ${mcpBridgeOk ? '✓' : '✗'}`);
       logger.log('');
       logger.log('  Background Jobs:');
-      logger.log(`    Scheduled Posts Cron:  ${process.env.ENABLE_SCHEDULED_POSTS_CRON !== 'false' ? '✓ Every 60s' : '✗ Disabled'}`);
+      logger.log(`    Scheduled Posts Cron:       ${process.env.ENABLE_SCHEDULED_POSTS_CRON !== 'false' ? '✓ Every 60s' : '✗ Disabled'}`);
+      logger.log(`    GDPR Hard-Delete Cron:      ${process.env.ENABLE_GDPR_HARD_DELETE_CRON !== 'false' ? '✓ Daily' : '✗ Disabled'}`);
       logger.log('─────────────────────────────────────────────────────────');
       logger.log('');
     });
