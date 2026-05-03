@@ -209,6 +209,15 @@ export const mcpServers = {
       // Phase 3: OAuth tokens will be added here
     },
   },
+  'cms-connector': {
+    name: 'CMS Connector (WordPress/Shopify/Webflow) - LUNA',
+    serverPath: path.join(config.mcpServersPath, 'cms-connector-server'),
+    command: 'node',
+    args: ['dist/index.js'],
+    env: {
+      // CMS credentials are passed per-call (multi-tenant model)
+    },
+  },
 } as const;
 
 export type MCPServerName = keyof typeof mcpServers;
