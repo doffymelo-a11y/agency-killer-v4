@@ -25,6 +25,7 @@ import { Badge, Button, Card } from '../components/ui';
 const STATUS_CONFIG = {
   open: { label: 'Open', variant: 'open' as const, icon: '🔵' },
   in_progress: { label: 'In Progress', variant: 'in_progress' as const, icon: '⏳' },
+  waiting_user: { label: 'En attente client', variant: 'waiting_user' as const, icon: '⏰' },
   resolved: { label: 'Resolved', variant: 'resolved' as const, icon: '✅' },
   closed: { label: 'Closed', variant: 'closed' as const, icon: '🔒' },
 };
@@ -291,7 +292,7 @@ export default function TicketDetailView() {
                     </p>
                   </div>
                 ) : (
-                  messages.map((message, index) => (
+                  messages.map((message) => (
                     <div
                       key={message.id}
                       className={`flex ${message.sender_type === 'admin' ? 'justify-end' : 'justify-start'}`}
