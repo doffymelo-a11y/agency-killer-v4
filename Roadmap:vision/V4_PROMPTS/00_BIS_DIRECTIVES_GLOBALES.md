@@ -61,16 +61,53 @@ Pour chaque skill cree, l'agent doit utiliser le MEILLEUR outil du marche dans s
 
 ---
 
-## DIRECTIVE 2 — Skills Anthropic natifs a integrer
+## DIRECTIVE 2 — Skills Anthropic officiels a integrer (verifie le 2026-05-03)
 
-Anthropic a release des skills natifs dans Claude Code. Pour V4, Claude Code doit :
+Verification effectuee via GitHub API du repo anthropics/skills (17 skills officiels).
 
-1. Lire ses propres skills natifs : Hyperframes, Marketing psy, Agent browser
-2. Pour chaque skill natif, decider de l integration :
-   - Marketing psy → integrer dans luna/copywriting-psychology + enrichir milo/ad-copy-frameworks + enrichir doffy/engagement-playbook
-   - Agent browser → enrichir le MCP server web-intelligence-server + documenter dans /agents/skills/_shared/agent-browser-patterns.md
-   - Hyperframes → A DECOUVRIR : lire le skill, resumer, proposer l integration
-3. Documenter dans /Roadmap:vision/V4_PROMPTS/SKILLS_ANTHROPIC_INTEGRATION_LOG.md
+Les noms initialement supposes (Hyperframes, Marketing psy, Agent browser) n'existent PAS comme skills Anthropic officiels :
+- Hyperframes = outil HeyGen (HTML→video), pas un skill Anthropic. NE PAS UTILISER.
+- Marketing psy = n'existe pas. A construire custom dans luna/copywriting-psychology.skill.md.
+- Agent browser = n'existe pas. Substitut officiel = webapp-testing.
+
+Skills Anthropic officiels retenus pour V4 :
+
+### 1. skill-creator (PRIORITE 1 - utiliser des Fichier 02)
+- Repo : github.com/anthropics/skills/blob/main/skills/skill-creator/SKILL.md
+- Utilite : meta-skill pour creer et ameliorer nos 51 skills V4
+- Integration :
+  * Charger ce skill au debut de chaque execution de fichier V4 (02-07)
+  * Permet a Claude Code de creer des skills mieux structures, plus rapidement
+- Beneficiaires : TOUS les agents (creation des skills V4)
+
+### 2. mcp-builder (PRIORITE 2 - quand on enrichit les MCP servers)
+- Repo : github.com/anthropics/skills/blob/main/skills/mcp-builder/SKILL.md
+- Utilite : creer/etendre les MCP servers (notamment web-intelligence)
+- Integration : referencer dans le prompt qui enrichit web-intelligence-server
+
+### 3. webapp-testing (PRIORITE 2 - pour web-intelligence)
+- Repo : github.com/anthropics/skills/blob/main/skills/webapp-testing/SKILL.md
+- Utilite : patterns Playwright pour browser automation
+- Integration : enrichir /mcp-servers/web-intelligence-server avec ces patterns
+- Beneficiaire : web-intelligence MCP (utilise par tous les agents)
+
+### 4. frontend-design (PRIORITE 3 - pour UX Discoverability)
+- Repo : github.com/anthropics/skills/blob/main/skills/frontend-design/SKILL.md
+- Utilite : best practices UI/UX pour les composants Discoverability
+- Integration : utiliser quand on cree :
+  * /cockpit/src/components/chat/SkillsCatalogModal.tsx
+  * /cockpit/src/components/board/QuickActionsBar.tsx
+  * /cockpit/src/components/chat/TaskLaunchOverlay.tsx (deja prevu dans B1)
+
+### 5. brand-guidelines (PRIORITE 3 - pour Milo)
+- Repo : github.com/anthropics/skills/blob/main/skills/brand-guidelines/SKILL.md
+- Utilite : gestion d'identite de marque
+- Integration : enrichir /agents/skills/milo/brand-voice-guardian.skill.md (deja existant)
+
+### Marketing psychology (custom, a construire)
+- Pas de skill officiel Anthropic
+- A construire custom dans /agents/skills/luna/copywriting-psychology.skill.md (Fichier 02)
+- Sources : livres (Cialdini Influence, Eyal Hooked, Sutherland Alchemy), patterns dark patterns vs ethical persuasion
 
 ---
 
