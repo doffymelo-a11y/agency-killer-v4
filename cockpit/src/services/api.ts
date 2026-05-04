@@ -60,7 +60,12 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
 // ============================================
 
 // Import types from shared types (migrated from n8n.ts)
-import type { SharedProjectContext, WriteBackCommand, UIComponent } from '../types';
+import type {
+  SharedProjectContext,
+  TaskExecutionContext,
+  WriteBackCommand,
+  UIComponent,
+} from '../types';
 
 export interface ChatRequest {
   action: 'task_launch' | 'quick_action' | 'chat';
@@ -70,6 +75,10 @@ export interface ChatRequest {
   activeAgentId: AgentRole;
   chat_mode: 'task_execution' | 'quick_research' | 'chat';
   shared_memory: SharedProjectContext;
+  // V4 B2: structured task context so backend can resolve task_title → skill
+  // via task-skill-mapping AND inject context_questions/user_inputs into the
+  // system prompt for an immediate V1 deliverable.
+  task_context?: TaskExecutionContext;
   image?: string; // Base64
 }
 
@@ -255,7 +264,8 @@ export const sendChatMessage = async (
   sharedMemory: SharedProjectContext,
   activeAgentId?: AgentRole,
   chatMode: 'task_execution' | 'quick_research' | 'chat' = 'chat',
-  imageBase64?: string
+  imageBase64?: string,
+  taskContext?: TaskExecutionContext
 ): Promise<ChatResponse> => {
   const payload: ChatRequest = {
     action: chatMode === 'task_execution' ? 'task_launch' : chatMode === 'quick_research' ? 'quick_action' : 'chat',
@@ -265,6 +275,7 @@ export const sendChatMessage = async (
     activeAgentId: activeAgentId || 'luna', // Default to Luna if not specified
     chat_mode: chatMode,
     shared_memory: transformSharedMemory(sharedMemory) as any,
+    ...(taskContext ? { task_context: taskContext } : {}),
   };
 
   if (imageBase64) {

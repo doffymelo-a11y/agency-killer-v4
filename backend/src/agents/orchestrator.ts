@@ -258,6 +258,9 @@ export async function processChat(
       sessionId: request.session_id,
       images: request.image ? [request.image] : undefined,
       userId, // Phase 3.3: Pass userId for CMS change tracking
+      // V4 B2: forward structured task context (title for skill mapping +
+      // wizard questions/answers for system prompt injection)
+      taskContext: request.task_context,
     });
 
     // Step 5: Write memory contribution

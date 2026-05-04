@@ -10,13 +10,18 @@ import { parseAgentResponse } from '../shared/response-parser.js';
 import { detectComplexity, logComplexityDecision } from '../services/complexity-detector.js';
 import { logToSystem } from '../services/logging.service.js';
 import { supabaseAdmin } from '../services/supabase.service.js';
+import { getSkillForTask } from '../services/task-skill-mapping.service.js';
 import {
   AuthenticationError,
   AuthorizationError,
   NotFoundError,
 } from '../middleware/error.middleware.js';
 import type { AgentConfig } from '../types/agent.types.js';
-import type { AgentId, SharedProjectContext } from '../types/api.types.js';
+import type {
+  AgentId,
+  SharedProjectContext,
+  TaskExecutionContext,
+} from '../types/api.types.js';
 import type { Anthropic } from '@anthropic-ai/sdk';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
@@ -41,6 +46,11 @@ export interface AgentExecutionContext {
   images?: string[];
   systemInstruction?: string;
   userId?: string; // Phase 3.3: For CMS change tracking
+  // V4 B2: structured task context propagated end-to-end. When present, the
+  // executor uses task_title to resolve a skill via task-skill-mapping
+  // (priority 1) and injects context_questions + user_inputs into the
+  // system prompt so the agent can deliver a V1 immediately.
+  taskContext?: TaskExecutionContext;
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -126,8 +136,13 @@ export async function executeAgent(context: AgentExecutionContext) {
   });
 
   try {
-    // Step 1: Load relevant skills based on user message context
-    const skills = await loadRelevantSkills(context.userMessage, context.agentId);
+    // Step 1: Load relevant skills — task→skill mapping has priority over
+    // regex when the request is a Genesis task launch (taskContext present).
+    const skills = await loadRelevantSkills(
+      context.userMessage,
+      context.agentId,
+      context.taskContext?.task_title
+    );
 
     // Step 2: Build system prompt with skills injection
     const systemPrompt = buildSystemPrompt(context, skills);
@@ -398,12 +413,44 @@ function detectRelevantSkills(userMessage: string, agentId: AgentId): string[] {
 }
 
 /**
- * Load relevant skills based on context
+ * Load relevant skills based on context.
+ *
+ * V4 B2 — two-tier resolution:
+ *   Priority 1: Direct task→skill mapping (when taskTitle is provided by a
+ *               Genesis task launch). Returns the mapped skill or falls
+ *               through to regex if it's a TODO entry.
+ *   Priority 2: Legacy regex pattern detection on the user message.
+ *
+ * If both yield nothing, the universal Response Quality Standard injected
+ * into the system prompt still guarantees a V1 deliverable answer.
  */
 async function loadRelevantSkills(
   userMessage: string,
-  agentId: AgentId
+  agentId: AgentId,
+  taskTitle?: string
 ): Promise<Skill[]> {
+  // Priority 1: direct mapping
+  if (taskTitle) {
+    const directSkillKey = getSkillForTask(taskTitle);
+    if (directSkillKey) {
+      logger.log('[Agent Executor] Loaded skill via direct mapping', {
+        taskTitle,
+        skill: directSkillKey,
+      });
+      const [agentFolder, skillName] = directSkillKey.split('/');
+      const skill = await loadSkillFile(agentFolder, `${skillName}.skill.md`);
+      if (skill) return [skill];
+      logger.warn('[Agent Executor] Mapped skill file failed to load, falling back to regex', {
+        directSkillKey,
+      });
+    } else {
+      logger.warn('[Agent Executor] No skill mapped (or skill is TODO) for task, fallback to regex', {
+        taskTitle,
+      });
+    }
+  }
+
+  // Priority 2: regex pattern detection (legacy logic)
   const relevantSkillKeys = detectRelevantSkills(userMessage, agentId);
 
   if (relevantSkillKeys.length === 0) {
@@ -495,6 +542,12 @@ function buildSystemPrompt(context: AgentExecutionContext, skills: Skill[] = [])
     prompt = prompt.replace(regex, value);
   }
 
+  // V4 B2 — Universal Response Quality Standard
+  // Injected for EVERY agent, right after the persona and before skills.
+  // Non-negotiable rules so a 3-5K€/month "Agency Killer" experience never
+  // degrades to "que voulez-vous faire ?". See Roadmap V4 B2 spec.
+  prompt += buildResponseQualityStandardBlock();
+
   // Phase 5: Inject relevant skills into system prompt
   if (skills.length > 0) {
     const skillsSection = `
@@ -515,12 +568,85 @@ ${skills.map(skill => skill.content).join('\n\n---\n\n')}
     logger.log(`[Skills] Injected ${skills.length} skills into system prompt:`, skills.map(s => s.name));
   }
 
+  // V4 B2 — Inject task wizard Q&A block (right after skills) so the agent
+  // can ground its V1 deliverable in the exact answers the user provided
+  // during Genesis. Skipped silently when no taskContext is propagated
+  // (e.g. free-form chat from /chat panel).
+  if (context.taskContext?.context_questions && context.taskContext.context_questions.length > 0) {
+    prompt += '\n\n## CONTEXTE DE LA TACHE (Inputs du wizard Genesis)\n';
+    prompt +=
+      "L'utilisateur a deja repondu aux questions ci-dessous via le wizard Genesis. " +
+      "Utilise ces inputs comme base pour delivrer une V1 immediate du livrable. " +
+      "Ne re-demande pas ces informations.\n\n";
+    context.taskContext.context_questions.forEach((q: string, idx: number) => {
+      const answer =
+        context.taskContext?.user_inputs?.[`question_${idx}`] || 'Non renseigne';
+      prompt += `**Q${idx + 1} :** ${q}\n**Reponse :** ${answer}\n\n`;
+    });
+  }
+
   // Add system instruction override if provided
   if (context.systemInstruction) {
     prompt += `\n\n**INSTRUCTION PRIORITAIRE :**\n${context.systemInstruction}`;
   }
 
   return prompt;
+}
+
+/**
+ * V4 B2 — Universal "Response Quality Standard" block injected into every
+ * agent's system prompt. Sets the bar at "Agency Killer" quality:
+ *   - never paraphrase the task description back to the user
+ *   - never claim missing context (the wizard answers ARE in the prompt)
+ *   - never end with an open "que voulez-vous faire?" question
+ *   - always deliver a V1 with explicit hypotheses + 3 precise refinement axes
+ *
+ * Kept out of agent-specific config so it applies uniformly to luna, sora,
+ * marcus, milo, doffy and orchestrator without per-config drift.
+ */
+function buildResponseQualityStandardBlock(): string {
+  let block = '\n\n## RESPONSE QUALITY STANDARD (OBLIGATOIRE - REGLES NON-NEGOCIABLES)\n';
+  block +=
+    "Tu es un agent professionnel d'agence marketing. Le client paie l'equivalent " +
+    "de 3-5K€/mois pour ton expertise. Voici les regles de reponse OBLIGATOIRES sans exception :\n\n";
+
+  block += '### 4 INTERDITS ABSOLUS\n';
+  block += '1. NE JAMAIS re-lire ou paraphraser la description de la tache au user (il vient de la voir en cliquant Lancer)\n';
+  block += '2. NE JAMAIS dire "Aucune information supplementaire fournie" ou variantes - le contexte projet et les inputs wizard SONT dans ton prompt\n';
+  block += '3. NE JAMAIS demander "Que souhaitez-vous faire ?" ou question ouverte equivalente - tu es l\'expert, c\'est toi qui propose\n';
+  block += "4. NE JAMAIS attendre des inputs supplementaires avant de livrer une V1 - utilise des hypotheses explicites si tu manques d'info\n\n";
+
+  block += '### 4 OBLIGATIONS\n';
+  block += '1. Livre une V1 du deliverable IMMEDIATEMENT, basee sur le contexte projet + inputs wizard Genesis disponibles\n';
+  block += '2. Structure ta reponse avec des sections claires (titres en gras, donnees concretes, chiffres si possible)\n';
+  block += '3. Si tu manques d\'info pour une section : pose une hypothese EXPLICITE marquee comme telle (ex: "Hypothese : cible 35-50 ans car [raison] - confirme ou ajuste")\n';
+  block += '4. Termine TOUJOURS par exactement 3 axes d\'affinement PRECIS avec verbes d\'action :\n';
+  block += '   "3 axes ou je peux affiner :\n';
+  block += "   1. [Verbe d'action + objet specifique] ?\n";
+  block += "   2. [Verbe d'action + objet specifique] ?\n";
+  block += "   3. [Verbe d'action + objet specifique] ?\n";
+  block += '   Lequel je lance ?"\n\n';
+
+  block += '### EXEMPLE GOLD STANDARD A REPRODUIRE\n';
+  block += 'Tache lancee : "Creation Avatar Client Ideal (ICP)"\n';
+  block += 'Reponse type acceptable :\n';
+  block += '"Voici ton ICP V1, basee sur les inputs Genesis :\n';
+  block += '**Demographie** Age 35-50, 70% hommes, France urbaine, revenu 45-80K€\n';
+  block += "**Psychographie** Valeur dominante : autonomie. Aspiration : quitter le salariat avant 50 ans.\n";
+  block += "**Pain points (ordre d'importance)** 1. Manque de temps prospection. 2. Tunnel non automatise. 3. Dependance gros clients.\n";
+  block += "**Objection principale** \"J'ai deja essaye [outil X], ca n'a pas marche\"\n";
+  block += '**Plateforme prioritaire** Instagram (78% de la cible y est active)\n\n';
+  block += '3 axes ou je peux affiner :\n';
+  block += "1. Generer 3 personas distincts au lieu d'1 ICP global ?\n";
+  block += '2. Cross-checker avec data SEMrush des 3 concurrents ?\n';
+  block += '3. Construire le tunnel de vente correspondant ?\n';
+  block += 'Lequel je lance ?"\n\n';
+
+  block +=
+    'Cette directive QUALITY STANDARD prime sur tout le reste. Si tu hesites, ' +
+    'livre quand meme une V1 avec hypotheses plutot que de demander.\n';
+
+  return block;
 }
 
 /**

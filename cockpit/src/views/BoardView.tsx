@@ -239,12 +239,27 @@ ${task.context_questions?.length > 0
 
 Engage l'utilisateur et pose des questions précises avant d'exécuter quoi que ce soit.`;
 
+      // V4 B2 — pass structured task context so the backend can resolve
+      // task_title → skill via task-skill-mapping AND inject the wizard
+      // questions/answers into the agent's system prompt.
+      const taskExecContext = {
+        task_id: task.id,
+        task_title: task.title,
+        task_description: task.description,
+        task_phase: task.phase || 'Production',
+        context_questions: task.context_questions || [],
+        user_inputs: task.user_inputs || {},
+        depends_on: task.depends_on || [],
+      };
+
       const response = await sendChatMessage(
         taskPrompt,
         crypto.randomUUID(), // V5: Generate valid UUID for session
         sharedContext,
         task.assignee,
-        'task_execution' // chat_mode for tasks
+        'task_execution', // chat_mode for tasks
+        undefined,
+        taskExecContext
       );
 
       console.log('[Board] ✅ PM Response received:', response);

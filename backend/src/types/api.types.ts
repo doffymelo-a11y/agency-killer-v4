@@ -224,6 +224,9 @@ export interface TaskExecutionContext {
   assigned_agent: AgentId;
   dependencies?: string[];
   user_inputs?: Record<string, string>;
+  // V4 B2: Genesis wizard questions (key context the agent must use to
+  // deliver a V1 immediately instead of asking "que voulez-vous faire?")
+  context_questions?: string[];
 }
 
 // ─────────────────────────────────────────────────────────────────

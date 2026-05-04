@@ -882,7 +882,10 @@ export const useHiveStore = create<HiveState>()(
             sharedContext,
             activeAgent,
             chatMode,
-            imageBase64
+            imageBase64,
+            // V4 B2 — pass task context so backend can map task → skill and
+            // inject wizard answers (was built above but never sent before).
+            taskExecContext ?? undefined
           );
 
           // Increment agent calls after successful orchestrator call
