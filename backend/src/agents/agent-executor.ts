@@ -10,6 +10,11 @@ import { parseAgentResponse } from '../shared/response-parser.js';
 import { detectComplexity, logComplexityDecision } from '../services/complexity-detector.js';
 import { logToSystem } from '../services/logging.service.js';
 import { supabaseAdmin } from '../services/supabase.service.js';
+import {
+  AuthenticationError,
+  AuthorizationError,
+  NotFoundError,
+} from '../middleware/error.middleware.js';
 import type { AgentConfig } from '../types/agent.types.js';
 import type { AgentId, SharedProjectContext } from '../types/api.types.js';
 import type { Anthropic } from '@anthropic-ai/sdk';
@@ -49,31 +54,60 @@ export async function executeAgent(context: AgentExecutionContext) {
   const startTime = Date.now();
   logger.log(`[Agent Executor] Executing ${context.agentId}`);
 
-  // SECURITY: Verify project ownership BEFORE execution
-  if (context.userId && context.projectContext.project_id) {
-    const { data: project, error } = await supabaseAdmin
-      .from('projects')
-      .select('id')
-      .eq('id', context.projectContext.project_id)
-      .eq('user_id', context.userId)
-      .single();
+  // SECURITY: Verify project ownership BEFORE execution.
+  // Distinguish auth (no userId), not-found (project missing) and forbidden
+  // (mismatch) so the error middleware returns the correct HTTP status.
+  if (!context.userId) {
+    throw new AuthenticationError('No user ID provided for agent execution');
+  }
+  if (!context.projectContext.project_id) {
+    throw new NotFoundError('Project (no project_id in context)');
+  }
 
-    if (error || !project) {
-      console.warn(`[Agent Executor] SECURITY: User ${context.userId} attempted to access project ${context.projectContext.project_id} without ownership`);
+  const { data: project, error: ownershipError } = await supabaseAdmin
+    .from('projects')
+    .select('id, user_id')
+    .eq('id', context.projectContext.project_id)
+    .single();
 
-      await logToSystem({
-        level: 'warn',
-        source: 'agent-executor',
-        agent_id: context.agentId,
-        user_id: context.userId,
-        project_id: context.projectContext.project_id,
-        action: 'unauthorized_project_access',
-        message: `User attempted to execute agent on project they don't own`,
-        metadata: { session_id: context.sessionId },
-      });
+  if (ownershipError || !project) {
+    logger.error('[Agent Executor] Project ownership check failed:', {
+      projectId: context.projectContext.project_id,
+      error: ownershipError?.message,
+    });
+    await logToSystem({
+      level: 'warn',
+      source: 'agent-executor',
+      agent_id: context.agentId,
+      user_id: context.userId,
+      project_id: context.projectContext.project_id,
+      action: 'project_not_found',
+      message: 'Project lookup failed during ownership check',
+      metadata: {
+        session_id: context.sessionId,
+        supabase_error: ownershipError?.message,
+      },
+    });
+    throw new NotFoundError(`Project ${context.projectContext.project_id}`);
+  }
 
-      throw new Error('Unauthorized: You do not have access to this project');
-    }
+  if (project.user_id !== context.userId) {
+    logger.warn('[Agent Executor] SECURITY: Ownership mismatch', {
+      userId: context.userId,
+      projectOwner: project.user_id,
+      projectId: context.projectContext.project_id,
+    });
+    await logToSystem({
+      level: 'warn',
+      source: 'agent-executor',
+      agent_id: context.agentId,
+      user_id: context.userId,
+      project_id: context.projectContext.project_id,
+      action: 'unauthorized_project_access',
+      message: 'User attempted to execute agent on a project they do not own',
+      metadata: { session_id: context.sessionId },
+    });
+    throw new AuthorizationError('You do not have access to this project');
   }
 
   // Log agent start

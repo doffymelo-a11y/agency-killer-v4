@@ -9,6 +9,8 @@ import { executeWriteBackCommands } from '../shared/write-back.processor.js';
 import { writeMemory } from '../services/memory.service.js';
 import { executeAgent } from './agent-executor.js';
 import { getAgentConfig } from '../config/agents.config.js';
+import { AppError } from '../middleware/error.middleware.js';
+import { logToSystem } from '../services/logging.service.js';
 import type { ChatRequest, ChatResponse, AgentId } from '../types/api.types.js';
 import { logger } from '../lib/logger.js';
 
@@ -275,9 +277,42 @@ export async function processChat(
     }
 
     return agentResponse;
-  } catch (error: any) {
-    console.error('[Orchestrator] Error processing chat:', error);
-    throw error;
+  } catch (error: unknown) {
+    // V4 B1 — log root cause with stack trace and re-throw typed errors so the
+    // express error middleware returns the right HTTP status (401/403/404/504).
+    const message = error instanceof Error ? error.message : String(error);
+    const stack = error instanceof Error ? error.stack : undefined;
+    const code = error instanceof AppError ? error.code : 'UNHANDLED';
+    const statusCode = error instanceof AppError ? error.statusCode : 500;
+
+    logger.error('[Orchestrator] processChat failed:', {
+      projectId: request.project_id,
+      sessionId: request.session_id,
+      activeAgentId: request.activeAgentId,
+      message,
+      code,
+      statusCode,
+      stack: stack?.substring(0, 1000),
+    });
+
+    await logToSystem({
+      level: 'error',
+      source: 'orchestrator',
+      user_id: userId,
+      project_id: request.project_id,
+      action: 'process_chat_error',
+      message,
+      metadata: {
+        session_id: request.session_id,
+        code,
+        status_code: statusCode,
+        error_name: error instanceof Error ? error.name : 'Unknown',
+        stack_preview: stack?.substring(0, 500),
+      },
+    });
+
+    if (error instanceof AppError) throw error;
+    throw new AppError(500, message || 'Orchestrator failed', 'ORCHESTRATOR_ERROR');
   }
 }
 

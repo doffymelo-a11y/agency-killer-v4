@@ -8,9 +8,14 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { AGENTS, type ChatMessage as ChatMessageType, type AgentRole } from '../../types';
-import { useCurrentProject, useHiveStore } from '../../store/useHiveStore';
+import {
+  useCurrentProject,
+  useHiveStore,
+  useTaskLaunchOverlay,
+} from '../../store/useHiveStore';
 import ChatMessage from './ChatMessage';
 import ChatInput from './ChatInput';
+import TaskLaunchOverlay from './TaskLaunchOverlay';
 
 interface TaskContext {
   taskId: string;
@@ -37,6 +42,7 @@ export default function ChatPanel({
 }: ChatPanelProps) {
   const navigate = useNavigate();
   const project = useCurrentProject();
+  const taskLaunchOverlay = useTaskLaunchOverlay();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const agent = AGENTS[activeAgent];
 
@@ -48,7 +54,18 @@ export default function ChatPanel({
   const isEmpty = messages.length === 0;
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="relative flex flex-col h-full">
+      {/* V4 B1 - Centered launch overlay (visible during task launch round-trip, min 2s) */}
+      <AnimatePresence>
+        {taskLaunchOverlay.visible && taskLaunchOverlay.agentId && taskLaunchOverlay.taskTitle && (
+          <TaskLaunchOverlay
+            agentId={taskLaunchOverlay.agentId}
+            taskTitle={taskLaunchOverlay.taskTitle}
+            startedAt={taskLaunchOverlay.startedAt}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Header */}
       <div
         className="px-6 py-4 border-b flex items-center justify-between"

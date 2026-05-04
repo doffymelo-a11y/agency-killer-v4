@@ -77,6 +77,14 @@ interface HiveState {
     userInputs?: Record<string, string>;
   } | null;
 
+  // V4 B1 - Task Launch Overlay (centered modal shown during task launch round-trip)
+  taskLaunchOverlay: {
+    visible: boolean;
+    agentId: AgentRole | null;
+    taskTitle: string | null;
+    startedAt: number;
+  };
+
   // Phase 2.11 - Phase Transition
   phaseTransitionProposal: PhaseTransitionProposal | null;
 
@@ -119,6 +127,10 @@ interface HiveState {
   sendMessage: (text: string, imageBase64?: string) => Promise<void>;
   clearChatMessages: () => void;
   launchTaskChat: (taskId: string) => void;
+
+  // V4 B1 - Task Launch Overlay actions
+  showTaskLaunchOverlay: (agentId: AgentRole, taskTitle: string) => void;
+  hideTaskLaunchOverlay: () => Promise<void>;
 
   // Actions - Write-Back (V4.2 - Mémoire Partagée)
   processWriteBackCommands: (commands: WriteBackCommand[]) => Promise<void>;
@@ -319,6 +331,12 @@ export const useHiveStore = create<HiveState>()(
       showAgentHelp: null,
       isDeckCollapsed: false,
       taskContext: null,
+      taskLaunchOverlay: {
+        visible: false,
+        agentId: null,
+        taskTitle: null,
+        startedAt: 0,
+      },
       phaseTransitionProposal: null,
 
       // Analytics (Phase 3)
@@ -749,6 +767,37 @@ export const useHiveStore = create<HiveState>()(
         }));
 
         console.log('[HIVE] launchTaskChat: Started', { taskId, agent, taskContext });
+      },
+
+      // V4 B1 - Task Launch Overlay
+      showTaskLaunchOverlay: (agentId: AgentRole, taskTitle: string) => {
+        set({
+          taskLaunchOverlay: {
+            visible: true,
+            agentId,
+            taskTitle,
+            startedAt: Date.now(),
+          },
+        });
+      },
+
+      // Hides the overlay AFTER a 2-second floor since startedAt so the user
+      // perceives the launch even when the backend round-trip is fast.
+      hideTaskLaunchOverlay: async () => {
+        const { taskLaunchOverlay } = _get();
+        const elapsed = Date.now() - taskLaunchOverlay.startedAt;
+        const remaining = Math.max(0, 2000 - elapsed);
+        if (remaining > 0) {
+          await new Promise((resolve) => setTimeout(resolve, remaining));
+        }
+        set({
+          taskLaunchOverlay: {
+            visible: false,
+            agentId: null,
+            taskTitle: null,
+            startedAt: 0,
+          },
+        });
       },
 
       sendMessage: async (text: string, imageBase64?: string) => {
@@ -1432,3 +1481,6 @@ export const useTaskContext = () => useHiveStore((state) => state.taskContext);
 
 // Phase 2.11 - Phase Transition selector
 export const usePhaseTransitionProposal = () => useHiveStore((state) => state.phaseTransitionProposal);
+
+// V4 B1 - Task Launch Overlay selector
+export const useTaskLaunchOverlay = () => useHiveStore((state) => state.taskLaunchOverlay);

@@ -81,6 +81,9 @@ export default function BoardView() {
     const task = tasks.find((t) => t.id === taskId);
     if (!task) return;
 
+    // V4 B1 — show centered overlay immediately (kept visible at least 2s, see hideTaskLaunchOverlay)
+    useHiveStore.getState().showTaskLaunchOverlay(task.assignee, task.title);
+
     try {
       // Update task status to in_progress
       if (task.status === 'todo') {
@@ -305,17 +308,76 @@ Engage l'utilisateur et pose des questions précises avant d'exécuter quoi que 
       } else {
         console.error('[Board] ❌ Backend returned error:', response);
       }
-    } catch (error) {
-      console.error('[Board] ❌ Error launching task:', error);
+    } catch (error: unknown) {
+      // V4 B1 TACHE 2 — surface the real cause of the failure
+      const enriched = error as Partial<{
+        message: string;
+        stack: string;
+        code: string;
+        type: string;
+        technical: string;
+        response: { status?: number };
+      }> & { message?: string };
 
-      // Add error message to chat
+      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      const errorCode: string | number =
+        enriched?.response?.status ??
+        enriched?.code ??
+        enriched?.type ??
+        'UNKNOWN';
+      const technicalDetails = enriched?.technical;
+
+      console.error('[Board] Error launching task:', {
+        errorMessage,
+        errorStack: errorStack?.substring(0, 500),
+        errorCode,
+        technicalDetails,
+        taskId: task.id,
+        taskTitle: task.title,
+        agent: task.assignee,
+      });
+
+      let userMessage: string;
+
+      if (import.meta.env.DEV) {
+        const stackPreview = errorStack ? errorStack.substring(0, 300) : '(no stack)';
+        userMessage =
+          `**ERREUR DE LANCEMENT (DEV)**\n\n` +
+          `**Tache :** ${task.title}\n` +
+          `**Agent :** ${task.assignee}\n` +
+          `**Code :** ${errorCode}\n` +
+          `**Message :** ${errorMessage}\n` +
+          (technicalDetails ? `**Technique :** ${technicalDetails}\n` : '') +
+          `\n**Stack (debut) :**\n\`\`\`\n${stackPreview}\n\`\`\``;
+      } else {
+        const code = String(errorCode);
+        const lower = errorMessage.toLowerCase();
+        if (code === '401' || code === 'UNAUTHORIZED' || code === 'auth') {
+          userMessage = `Votre session a expire. Veuillez vous reconnecter.`;
+        } else if (code === '403' || code === 'FORBIDDEN') {
+          userMessage = `Vous n'avez pas les permissions pour ce projet.`;
+        } else if (code === '429' || code === 'RATE_LIMIT' || code === 'USAGE_LIMIT_EXCEEDED') {
+          userMessage = `Vous avez atteint votre limite. Mettez a niveau votre plan ou attendez quelques minutes.`;
+        } else if (code === '504' || code === 'timeout' || lower.includes('timeout')) {
+          userMessage = `La tache prend plus de temps que prevu. Reessayez dans quelques secondes.`;
+        } else {
+          userMessage =
+            `Une erreur technique est survenue lors du lancement de "${task.title}".\n\n` +
+            `Pas de panique, voici ce que vous pouvez faire :\n` +
+            `- Reessayez dans quelques secondes\n` +
+            `- Decrivez ce que vous voulez faire et ${task.assignee} vous aidera\n` +
+            `- Contactez le support si le probleme persiste`;
+        }
+      }
+
       useHiveStore.setState((s) => ({
         chatMessages: [
           ...s.chatMessages,
           {
             id: uuidv4(),
             role: 'assistant',
-            content: `❌ Une erreur s'est produite lors du lancement de la tâche.\n\nPas de panique ! Vous pouvez me décrire ce que vous souhaitez faire et je vous aiderai.`,
+            content: userMessage,
             agent_id: task.assignee,
             timestamp: new Date(),
             created_at: new Date().toISOString(),
@@ -323,6 +385,9 @@ Engage l'utilisateur et pose des questions précises avant d'exécuter quoi que 
         ],
         isThinking: false,
       }));
+    } finally {
+      // V4 B1 — guarantee min 2s overlay visibility (handled inside the store action)
+      await useHiveStore.getState().hideTaskLaunchOverlay();
     }
   };
 

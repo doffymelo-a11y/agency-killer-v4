@@ -5,6 +5,7 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import * as dotenv from 'dotenv';
+import { AppError } from '../middleware/error.middleware.js';
 import type { ClaudeMessage, ClaudeResponse } from '../types/agent.types.js';
 
 dotenv.config();
@@ -16,7 +17,10 @@ dotenv.config();
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
 const DEFAULT_MODEL = 'claude-sonnet-4-5-20250929'; // Switched from Opus (5x cheaper, same quality)
 const MAX_TOKENS = 4096; // Reduced from 8192 to 4096 for faster responses (avg 15-20s instead of 25-30s)
-const CLAUDE_API_TIMEOUT = 30000; // 30 seconds timeout (optimized Supabase queries allow this)
+const CLAUDE_API_TIMEOUT = 30000; // 30 seconds default timeout (optimized Supabase queries allow this)
+// V4 B1 — hard ceiling so a hanging agent call cannot keep the request open
+// for the full 10-minute Express default; surfaces a 504 quickly.
+const CLAUDE_API_TIMEOUT_MAX = 90_000;
 
 if (!ANTHROPIC_API_KEY) {
   console.warn('[Claude Service] Warning: ANTHROPIC_API_KEY not configured');
@@ -57,8 +61,11 @@ async function chatInternal(options: ChatOptions): Promise<ClaudeResponse> {
     temperature = 1.0,
     tools,
     enableCache = true, // Enable caching by default for cost optimization
-    timeout = CLAUDE_API_TIMEOUT, // Use custom timeout or default
+    timeout: requestedTimeout = CLAUDE_API_TIMEOUT,
   } = options;
+
+  // V4 B1 — clamp custom timeouts to the hard 90s ceiling
+  const timeout = Math.min(requestedTimeout, CLAUDE_API_TIMEOUT_MAX);
 
   // Convert system prompt to cacheable format if enabled
   // This reduces costs by 90% on cached tokens (1024+ tokens, 5min TTL)
@@ -83,7 +90,18 @@ async function chatInternal(options: ChatOptions): Promise<ClaudeResponse> {
   });
 
   const timeoutPromise = new Promise<never>((_, reject) =>
-    setTimeout(() => reject(new Error(`Claude API timeout after ${timeout / 1000}s`)), timeout)
+    setTimeout(
+      () =>
+        reject(
+          new AppError(
+            504,
+            `Claude API timeout after ${timeout / 1000}s — agent prend trop de temps`,
+            'TIMEOUT',
+            { timeoutMs: timeout }
+          )
+        ),
+      timeout
+    )
   );
 
   const response = await Promise.race([apiCall, timeoutPromise]);
@@ -97,34 +115,37 @@ async function chatInternal(options: ChatOptions): Promise<ClaudeResponse> {
 export async function chat(options: ChatOptions): Promise<ClaudeResponse> {
   try {
     return await chatInternal(options);
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    const isTimeout = error instanceof AppError && error.code === 'TIMEOUT';
     const shouldRetry =
-      error.message?.includes('timeout') || // Timeout errors
-      error.message?.includes('500') || // Server errors
-      error.message?.includes('503') || // Service unavailable
-      error.message?.includes('api_error'); // Generic API errors
+      !isTimeout &&
+      (message.includes('500') ||
+        message.includes('503') ||
+        message.includes('api_error'));
 
     if (shouldRetry) {
-      console.warn(`[Claude Service] Error detected (${error.message}), retrying with reduced tokens...`);
+      console.warn(`[Claude Service] Server error (${message}), retrying with reduced tokens...`);
       try {
-        // Wait 500ms before retry to give server time to recover
         await new Promise((resolve) => setTimeout(resolve, 500));
-
-        // Retry with reduced tokens BUT keep same timeout (question complexity doesn't change)
         return await chatInternal({
           ...options,
-          maxTokens: Math.floor((options.maxTokens || MAX_TOKENS) * 0.8), // Reduce by 20%
-          timeout: options.timeout, // Keep same timeout on retry
+          maxTokens: Math.floor((options.maxTokens || MAX_TOKENS) * 0.8),
+          timeout: options.timeout,
         });
-      } catch (retryError: any) {
+      } catch (retryError: unknown) {
         console.error('[Claude Service] Retry failed:', retryError);
-        throw new Error(`Claude API error after retry: ${retryError.message}`);
+        if (retryError instanceof AppError) throw retryError;
+        const retryMessage = retryError instanceof Error ? retryError.message : String(retryError);
+        throw new AppError(502, `Claude API error after retry: ${retryMessage}`, 'CLAUDE_API_ERROR');
       }
     }
 
-    // For non-retryable errors, throw immediately
+    // Preserve typed errors (TIMEOUT etc.) so the route can map to 504/etc.
+    if (error instanceof AppError) throw error;
+
     console.error('[Claude Service] API Error:', error);
-    throw new Error(`Claude API error: ${error.message}`);
+    throw new AppError(502, `Claude API error: ${message}`, 'CLAUDE_API_ERROR');
   }
 }
 
