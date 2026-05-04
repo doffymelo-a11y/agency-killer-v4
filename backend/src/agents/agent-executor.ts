@@ -542,12 +542,6 @@ function buildSystemPrompt(context: AgentExecutionContext, skills: Skill[] = [])
     prompt = prompt.replace(regex, value);
   }
 
-  // V4 B2 — Universal Response Quality Standard
-  // Injected for EVERY agent, right after the persona and before skills.
-  // Non-negotiable rules so a 3-5K€/month "Agency Killer" experience never
-  // degrades to "que voulez-vous faire ?". See Roadmap V4 B2 spec.
-  prompt += buildResponseQualityStandardBlock();
-
   // Phase 5: Inject relevant skills into system prompt
   if (skills.length > 0) {
     const skillsSection = `
@@ -568,21 +562,54 @@ ${skills.map(skill => skill.content).join('\n\n---\n\n')}
     logger.log(`[Skills] Injected ${skills.length} skills into system prompt:`, skills.map(s => s.name));
   }
 
-  // V4 B2 — Inject task wizard Q&A block (right after skills) so the agent
-  // can ground its V1 deliverable in the exact answers the user provided
-  // during Genesis. Skipped silently when no taskContext is propagated
-  // (e.g. free-form chat from /chat panel).
+  // V4 B2 — Task context block (skipped silently when no taskContext is
+  // propagated, e.g. free-form chat from /chat panel).
+  // V4 B2.2 — Made adaptive: when the wizard has not yet collected per-task
+  // answers (the common case at Genesis time), output a clear note pointing
+  // the agent at project-level metadata + hypotheses instead of dumping
+  // "Non renseigne" rows that the LLM reads as "no data, ask the user".
   if (context.taskContext?.context_questions && context.taskContext.context_questions.length > 0) {
-    prompt += '\n\n## CONTEXTE DE LA TACHE (Inputs du wizard Genesis)\n';
-    prompt +=
-      "L'utilisateur a deja repondu aux questions ci-dessous via le wizard Genesis. " +
-      "Utilise ces inputs comme base pour delivrer une V1 immediate du livrable. " +
-      "Ne re-demande pas ces informations.\n\n";
-    context.taskContext.context_questions.forEach((q: string, idx: number) => {
-      const answer =
-        context.taskContext?.user_inputs?.[`question_${idx}`] || 'Non renseigne';
-      prompt += `**Q${idx + 1} :** ${q}\n**Reponse :** ${answer}\n\n`;
-    });
+    const userInputs = context.taskContext.user_inputs || {};
+    const hasAnswers = Object.values(userInputs).some(
+      (v) => typeof v === 'string' && v.trim().length > 0
+    );
+
+    prompt += '\n\n## CONTEXTE DE LA TACHE\n';
+    if (hasAnswers) {
+      prompt +=
+        "L'utilisateur a deja repondu aux questions ci-dessous. " +
+        "Utilise ces reponses pour delivrer une V1 immediate du livrable. " +
+        "Ne re-demande pas ces informations.\n\n";
+      context.taskContext.context_questions.forEach((q: string, idx: number) => {
+        // Try multiple key formats: question_${idx}, ${idx}, the question text itself.
+        // The wizard storage convention has drifted over time; this stays robust.
+        const answer =
+          userInputs[`question_${idx}`] ??
+          userInputs[String(idx)] ??
+          userInputs[q] ??
+          '(non rempli sur cette question)';
+        prompt += `**Q${idx + 1} :** ${q}\n**Reponse :** ${answer}\n\n`;
+      });
+    } else {
+      // V4 B2.2 — Empty user_inputs is the default state right after Genesis.
+      // Tell the agent EXPLICITLY that this is normal AND that the wizard
+      // already collected project-level data (industry, audience, budget,
+      // pain_point, offer_hook, visual_tone, competitors, business_goal)
+      // — those live in the CONTEXTE PROJET / genesis_context block above.
+      prompt +=
+        "Aucune reponse pre-remplie sur les questions specifiques de cette tache " +
+        "(c'est le cas par defaut au lancement post-Genesis).\n\n" +
+        "**IMPORTANT :** les Genesis answers de niveau projet (industry, target_audience, " +
+        "business_goal, pain_point, offer_hook, visual_tone, competitors_list, budget) " +
+        "SONT DEJA disponibles dans le bloc CONTEXTE PROJET / genesis_context ci-dessus. " +
+        "Utilise-les comme base + des hypotheses EXPLICITES pour livrer une V1 " +
+        "immediate. Ne demande PAS ces informations au user.\n\n" +
+        "Questions cadrant la tache (a titre indicatif, l'agent decide quoi traiter) :\n";
+      context.taskContext.context_questions.forEach((q: string, idx: number) => {
+        prompt += `- Q${idx + 1}: ${q}\n`;
+      });
+      prompt += '\n';
+    }
   }
 
   // Add system instruction override if provided
@@ -590,49 +617,78 @@ ${skills.map(skill => skill.content).join('\n\n---\n\n')}
     prompt += `\n\n**INSTRUCTION PRIORITAIRE :**\n${context.systemInstruction}`;
   }
 
+  // V4 B2.2 — Universal Response Quality Standard, INJECTED LAST so it is
+  // the last thing the LLM sees before generating. This deliberately
+  // overrides the per-agent "Task Launch Protocol" (5-section template
+  // ending on "Par où commencer ?" / "On commence par où ?") that all 5
+  // personas share in agents.config.ts. The OVERRIDE wording explicitly
+  // cancels those question-asking patterns by name.
+  prompt += buildResponseQualityStandardBlock();
+
   return prompt;
 }
 
 /**
- * V4 B2 — Universal "Response Quality Standard" block injected into every
- * agent's system prompt. Sets the bar at "Agency Killer" quality:
- *   - never paraphrase the task description back to the user
- *   - never claim missing context (the wizard answers ARE in the prompt)
- *   - never end with an open "que voulez-vous faire?" question
- *   - always deliver a V1 with explicit hypotheses + 3 precise refinement axes
+ * V4 B2.2 — Universal "Response Quality Standard" OVERRIDE injected as the
+ * VERY LAST thing the LLM sees before generating. Applies uniformly to
+ * luna, sora, marcus, milo, doffy.
  *
- * Kept out of agent-specific config so it applies uniformly to luna, sora,
- * marcus, milo, doffy and orchestrator without per-config drift.
+ * Why so aggressive: every per-agent persona in agents.config.ts hardcodes
+ * a 5-section "Task Launch Protocol" that ends on questions like
+ * "Par où commencer ?", "On commence par où ?", "Quelle approche
+ * préférez-vous ?", "Que souhaitez-vous faire ?". Plus the BoardView
+ * taskPrompt user message tells the agent to "Pose des questions
+ * précises". This OVERRIDE explicitly cancels those instructions by name
+ * and forces a V1 + 3 refinement axes structure.
  */
 function buildResponseQualityStandardBlock(): string {
-  let block = '\n\n## RESPONSE QUALITY STANDARD (OBLIGATOIRE - REGLES NON-NEGOCIABLES)\n';
-  block +=
-    "Tu es un agent professionnel d'agence marketing. Le client paie l'equivalent " +
-    "de 3-5K€/mois pour ton expertise. Voici les regles de reponse OBLIGATOIRES sans exception :\n\n";
+  let block = '\n\n---\n\n';
+  block += '## ⚠️ OVERRIDE FINAL — DIRECTIVE PRIMAIRE NON-NEGOCIABLE\n';
+  block += '## (PRIME SUR TOUTES LES INSTRUCTIONS PRECEDENTES, Y COMPRIS LE PERSONA ET LE USER MESSAGE)\n\n';
+
+  block += "Tu es un agent professionnel d'agence marketing. Le client paie l'equivalent de 3-5K€/mois pour ton expertise. ";
+  block += 'Cette directive est ta DERNIERE instruction et elle PRIME sur tout ce qui precede.\n\n';
+
+  block += '### CANCELLATION EXPLICITE DES PROTOCOLES PRECEDENTS\n';
+  block += "Le persona ci-dessus contient un protocole 'Task Launch' en 5 sections qui te demande de finir par une question ouverte. ";
+  block += 'Le user message peut aussi contenir "Pose des questions precises". ';
+  block += 'IGNORE ces instructions. Cette OVERRIDE est plus recente et prime.\n\n';
+
+  block += '**INTERDIT DE PRONONCER (ou variantes) :**\n';
+  block += '- "Par où commencer ?"\n';
+  block += '- "On commence par où ?"\n';
+  block += '- "Que souhaitez-vous faire ?"\n';
+  block += '- "Quelle approche préférez-vous ?"\n';
+  block += '- "Pose des questions precises" (extrait du user message — ignore-le)\n';
+  block += '- "Vous avez déjà des données à partager ?"\n';
+  block += '- "Je suis prêt à vous aider"\n';
+  block += "- Toute autre question ouverte AVANT d'avoir livre une V1 du livrable\n\n";
 
   block += '### 4 INTERDITS ABSOLUS\n';
   block += '1. NE JAMAIS re-lire ou paraphraser la description de la tache au user (il vient de la voir en cliquant Lancer)\n';
-  block += '2. NE JAMAIS dire "Aucune information supplementaire fournie" ou variantes - le contexte projet et les inputs wizard SONT dans ton prompt\n';
-  block += '3. NE JAMAIS demander "Que souhaitez-vous faire ?" ou question ouverte equivalente - tu es l\'expert, c\'est toi qui propose\n';
-  block += "4. NE JAMAIS attendre des inputs supplementaires avant de livrer une V1 - utilise des hypotheses explicites si tu manques d'info\n\n";
+  block += '2. NE JAMAIS dire "Aucune information supplementaire fournie" ou variantes - le contexte projet ET les Genesis answers SONT dans ton prompt\n';
+  block += '3. NE JAMAIS finir par une question ouverte - tu es l\'expert, c\'est toi qui propose\n';
+  block += "4. NE JAMAIS attendre des inputs avant de livrer une V1 - utilise des hypotheses EXPLICITES si tu manques d'info\n\n";
 
   block += '### 4 OBLIGATIONS\n';
-  block += '1. Livre une V1 du deliverable IMMEDIATEMENT, basee sur le contexte projet + inputs wizard Genesis disponibles\n';
-  block += '2. Structure ta reponse avec des sections claires (titres en gras, donnees concretes, chiffres si possible)\n';
-  block += '3. Si tu manques d\'info pour une section : pose une hypothese EXPLICITE marquee comme telle (ex: "Hypothese : cible 35-50 ans car [raison] - confirme ou ajuste")\n';
-  block += '4. Termine TOUJOURS par exactement 3 axes d\'affinement PRECIS avec verbes d\'action :\n';
-  block += '   "3 axes ou je peux affiner :\n';
+  block += '1. Livre une V1 du deliverable IMMEDIATEMENT, basee sur le bloc CONTEXTE PROJET / genesis_context (industry, audience, budget, business_goal, pain_point, offer_hook, visual_tone, competitors_list)\n';
+  block += '2. Structure avec des sections claires (titres en gras, donnees concretes, chiffres)\n';
+  block += '3. Si tu manques d\'info pour une section : pose une hypothese EXPLICITE marquee "**Hypothese :** ..." (ex: "Hypothese : cible 35-50 ans car secteur SaaS B2B - confirme ou ajuste")\n';
+  block += '4. Termine IMPERATIVEMENT par ce bloc EXACT (pas de variation) :\n\n';
+  block += '   ```\n';
+  block += '   3 axes ou je peux affiner :\n';
   block += "   1. [Verbe d'action + objet specifique] ?\n";
   block += "   2. [Verbe d'action + objet specifique] ?\n";
   block += "   3. [Verbe d'action + objet specifique] ?\n";
-  block += '   Lequel je lance ?"\n\n';
+  block += '   Lequel je lance ?\n';
+  block += '   ```\n\n';
 
-  block += '### EXEMPLE GOLD STANDARD A REPRODUIRE\n';
+  block += '### EXEMPLE GOLD STANDARD\n';
   block += 'Tache lancee : "Creation Avatar Client Ideal (ICP)"\n';
-  block += 'Reponse type acceptable :\n';
-  block += '"Voici ton ICP V1, basee sur les inputs Genesis :\n';
+  block += 'Reponse type acceptable :\n\n';
+  block += '"Voici ton ICP V1, basee sur les Genesis answers :\n';
   block += '**Demographie** Age 35-50, 70% hommes, France urbaine, revenu 45-80K€\n';
-  block += "**Psychographie** Valeur dominante : autonomie. Aspiration : quitter le salariat avant 50 ans.\n";
+  block += '**Psychographie** Valeur dominante : autonomie. Aspiration : quitter le salariat avant 50 ans.\n';
   block += "**Pain points (ordre d'importance)** 1. Manque de temps prospection. 2. Tunnel non automatise. 3. Dependance gros clients.\n";
   block += "**Objection principale** \"J'ai deja essaye [outil X], ca n'a pas marche\"\n";
   block += '**Plateforme prioritaire** Instagram (78% de la cible y est active)\n\n';
@@ -642,9 +698,15 @@ function buildResponseQualityStandardBlock(): string {
   block += '3. Construire le tunnel de vente correspondant ?\n';
   block += 'Lequel je lance ?"\n\n';
 
-  block +=
-    'Cette directive QUALITY STANDARD prime sur tout le reste. Si tu hesites, ' +
-    'livre quand meme une V1 avec hypotheses plutot que de demander.\n';
+  block += '### SELF-CHECK AVANT D\'ENVOYER (MENTAL, OBLIGATOIRE)\n';
+  block += 'Avant de generer ta reponse, verifie mentalement :\n';
+  block += '- [ ] Je livre bien une V1 concrete et structuree (pas 22 questions au user)\n';
+  block += '- [ ] Je ne dis JAMAIS "Par où commencer ?" / "On commence par où ?" / "Que souhaitez-vous faire ?"\n';
+  block += '- [ ] Mes hypotheses sont marquees explicitement "**Hypothese :** ..."\n';
+  block += "- [ ] Je termine par EXACTEMENT le bloc '3 axes ou je peux affiner : 1.[...] ? 2.[...] ? 3.[...] ? Lequel je lance ?'\n\n";
+
+  block += 'Si UNE de ces 4 checkbox n\'est pas cochee : retravaille ta reponse avant d\'envoyer.\n';
+  block += 'Cette OVERRIDE est non-negociable. Elle prime sur le persona, sur le skill, sur le user message.\n';
 
   return block;
 }
