@@ -4,6 +4,7 @@
 // ============================================
 
 import axios, { AxiosError } from 'axios';
+import { supabase } from '../lib/supabase';
 import type {
   AgentRole,
 } from '../types';
@@ -30,6 +31,29 @@ const AXIOS_CONFIG = {
 
 // Debug mode
 const DEBUG_MODE = import.meta.env.DEV && import.meta.env.VITE_DEBUG_API === 'true';
+
+// ============================================
+// Auth helper (B1.5 fix - 401 on protected backend endpoints)
+// ============================================
+
+/**
+ * Builds the Authorization header from the current Supabase session.
+ * Backend routes /api/chat and /api/analytics are gated by authMiddleware
+ * which expects "Authorization: Bearer <jwt>". Without this header the
+ * request is rejected with 401 AUTH_MISSING_TOKEN before reaching the
+ * orchestrator.
+ *
+ * Throws a clear "Session expired" error if no session is available so the
+ * existing error pipeline can surface it (rather than letting the request go
+ * out tokenless and bounce off the backend with a generic auth error).
+ */
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  const { data, error } = await supabase.auth.getSession();
+  if (error || !data.session?.access_token) {
+    throw new Error('Session expirée — veuillez vous reconnecter.');
+  }
+  return { Authorization: `Bearer ${data.session.access_token}` };
+}
 
 // ============================================
 // Types (matching backend API)
@@ -251,7 +275,11 @@ export const sendChatMessage = async (
   debugLog('Chat Request', payload);
 
   try {
-    const response = await axios.post<ChatResponse>(ENDPOINTS.chat, payload, AXIOS_CONFIG);
+    const authHeaders = await getAuthHeaders();
+    const response = await axios.post<ChatResponse>(ENDPOINTS.chat, payload, {
+      ...AXIOS_CONFIG,
+      headers: { ...AXIOS_CONFIG.headers, ...authHeaders },
+    });
     debugLog('Chat Response', response.data);
     return response.data;
   } catch (error) {
@@ -338,7 +366,11 @@ export const fetchAnalytics = async (
   debugLog('Analytics Request', payload);
 
   try {
-    const response = await axios.post<AnalyticsData>(ENDPOINTS.analytics, payload, AXIOS_CONFIG);
+    const authHeaders = await getAuthHeaders();
+    const response = await axios.post<AnalyticsData>(ENDPOINTS.analytics, payload, {
+      ...AXIOS_CONFIG,
+      headers: { ...AXIOS_CONFIG.headers, ...authHeaders },
+    });
     debugLog('Analytics Response', response.data);
     return response.data;
   } catch (error) {
