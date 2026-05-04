@@ -97,15 +97,26 @@ export const schemas = {
       deliverables: z.array(z.unknown()).optional(),
       recent_activity: z.array(z.string()).optional(),
     }),
+    // V4 B2.1 — Aligned with the actual frontend payload (cockpit Task
+    // shape). Only task_id (UUID) and task_title are mandatory; task_type
+    // and assigned_agent are kept optional because the backend doesn't read
+    // them (routing uses activeAgentId, skill resolution uses task_title).
+    // task_phase / depends_on are accepted as the cockpit-side aliases of
+    // task_type / dependencies. context_questions must be declared so it
+    // survives Zod stripping and reaches buildSystemPrompt for the
+    // CONTEXTE DE LA TACHE injection block.
     task_context: z
       .object({
         task_id: z.string().uuid(),
         task_title: z.string(),
-        task_description: z.string(),
-        task_type: z.string(),
-        assigned_agent: z.enum(['luna', 'sora', 'marcus', 'milo', 'doffy']),
+        task_description: z.string().optional(),
+        task_type: z.string().optional(),
+        task_phase: z.string().optional(),
+        assigned_agent: z.enum(['luna', 'sora', 'marcus', 'milo', 'doffy']).optional(),
         dependencies: z.array(z.string()).optional(),
+        depends_on: z.array(z.string()).optional(),
         user_inputs: z.record(z.string()).optional(),
+        context_questions: z.array(z.string()).optional(),
       })
       .optional(),
     image: z.string().optional(), // Base64
