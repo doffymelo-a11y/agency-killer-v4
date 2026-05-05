@@ -84,7 +84,7 @@ export const TASK_TO_SKILL_MAPPING: Record<string, string> = {
   '🗺️ Sitemap & Robots.txt': 'sora/xml-sitemap-manager',  // TODO
   '🔒 Sécurité SSL': 'sora/ssl-security-setup',  // TODO
   '📋 Audit Existant': 'luna/seo-audit-complete',  // OK existant
-  '🔑 Keyword Research': 'luna/seo-keyword-research',  // TODO
+  '🔑 Keyword Research': 'luna/seo-keyword-research',
   '📊 Gap Analysis': 'luna/seo-gap-analysis',  // TODO
   '🗂️ Mapping Sémantique': 'luna/content-strategy-builder',  // OK existant
   '🏷️ Optimisation Balises Title': 'milo/seo-title-meta-optimizer',  // TODO
@@ -151,8 +151,9 @@ export const TASK_TO_SKILL_MAPPING: Record<string, string> = {
 export const EXISTING_SKILLS: ReadonlySet<string> = new Set([
   // luna
   'luna/competitor-deep-dive',
-  'luna/seo-audit-complete',
   'luna/content-strategy-builder',
+  'luna/seo-audit-complete',
+  'luna/seo-keyword-research',
   // sora
   'sora/tracking-setup-auditor',
   'sora/performance-report-generator',
